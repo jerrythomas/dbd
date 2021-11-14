@@ -27,9 +27,6 @@ jobs:
       - name: Install dependencies
         run: |
           pnpm i
-          cd examples/svelte && pnpm i && pnpm link ../..
-          cd ../svelte-kit && pnpm i && pnpm link ../..
-          cd ../..
 
       - name: Run tests
-        run: pnpm test:all
+        run: pnpm test
