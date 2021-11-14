@@ -4,9 +4,11 @@ This is a simple cli to apply ddl scripts for individual objects for developers 
 
 - [x] Apply set of individual ddl scripts
 - [x] Rollback (drop) objects applied
-- [ ] Load seed data from csv files
-- [ ] Load staging data and post process for development/testing
+- [x] Load seed data from csv files with pre & postprocess scripts
+- [x] Load staging data with pre & post process scripts for development/testing
+- [x] Export data from tables & views
 - [ ] Generate [dbdocs](https://dbdocs.io) dbml for all tables
+- [ ] Generate ddl from yaml
 - [ ] Migration (diff objects, backup and rollback)
 
 ## Usage
@@ -35,5 +37,5 @@ Examples:
 | dbd init     | create empty folders          |
 | dbd apply    | apply the creation scripts    |
 | dbd rollback | drop objects created by apply |
-| dbd seed     | load seed files               |
-| dbd load     | load staging files            |
+| dbd import   | load seed/staging files       |
+| dbd export   | export tables/views           |

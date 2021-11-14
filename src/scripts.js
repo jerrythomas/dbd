@@ -57,15 +57,15 @@ export function readConfig(file) {
 }
 
 export function getScripts() {
-	const files = getAllFiles('.', [], '.*.ddl$')
+	const files = getAllFiles('./ddl', [], '.*.ddl$')
 
-	let scripts = { ddl: [] }
+	let scripts = [] //{ ddl: [] }
 	files.map((file) => {
-		let group = 'ddl'
+		// let group = 'ddl'
 
-		const parts = file.split(path.sep)
+		let parts = file.split(path.sep)
 		if (parts.length === 4) {
-			group = parts[0]
+			// 	group = parts[0]
 			parts = parts.slice(1)
 		}
 
@@ -73,10 +73,10 @@ export function getScripts() {
 		const schema = parts[1]
 		const name = schema + '.' + parts[2].split('.')[0]
 
-		if (!(group in scripts)) {
-			scripts[group] = []
-		}
-		scripts[group].push({
+		// if (!(group in scripts)) {
+		// 	scripts[group] = []
+		// }
+		scripts.push({
 			type,
 			file,
 			schema,
@@ -134,4 +134,10 @@ export function regroup(groups, refs) {
 
 	// console.log(groups.length)
 	return groups
+}
+
+export function writeScript(file, data) {
+	let lines = ''
+	data.forEach((value) => (lines += value + '\r\n'))
+	fs.writeFileSync(file, lines)
 }

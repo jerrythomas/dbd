@@ -2,7 +2,15 @@
 import sade from 'sade'
 import fs from 'fs'
 import { dbtypes } from './scripts.js'
-import { inspect, apply, rollback, migrate, combine, load } from './action.js'
+import {
+	inspect,
+	apply,
+	rollback,
+	migrate,
+	combine,
+	importCSV,
+	exportCSV
+} from './action.js'
 
 const prog = sade('dbd')
 
@@ -32,6 +40,7 @@ prog
 
 prog
 	.command('apply')
+	.option('-f, --file', 'apply a specific file only')
 	.describe('Apply the database scripts to database.')
 	.example('dbd apply')
 	.example('dbd apply -c database.yaml')
@@ -67,13 +76,31 @@ prog
 	})
 
 prog
-	.command('load')
-	.option('-s', '--seed-only', 'load seeded data only')
-	.option('-r', '--raw-only', 'load raw staging data')
+	.command('import')
+	.option(
+		'-f, --file',
+		'File containing the list of tables/views to export.',
+		'import.yaml'
+	)
+	.option('-s, --seed-only', 'load seeded data only', false)
+	.option('-r, --raw-only', 'load raw staging data', false)
 	.describe('Load csv files into database')
 	.example('dbd')
 	.action((opts) => {
-		load(opts)
+		importCSV(opts)
+	})
+
+prog
+	.command('export')
+	.option(
+		'-f, --file',
+		'File containing the list of tables/views to export.',
+		'export.yaml'
+	)
+	.describe('Export specific tables from the database')
+	.example('dbd')
+	.action((opts) => {
+		exportCSV(opts)
 	})
 
 prog
