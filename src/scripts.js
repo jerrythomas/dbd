@@ -9,13 +9,26 @@ export const dbtypes = {
 	view: 4,
 	procedure: 5,
 	synonym: 6,
-	grant: 7
+	grant: 7,
+	policy: 8
 }
 
+/**
+ *
+ * @param {*} type
+ * @returns
+ */
 function getSortOrder(type) {
 	return type in dbtypes ? dbtypes[type] : 99
 }
 
+/**
+ *
+ * @param {*} dirPath
+ * @param {*} arrayOfFiles
+ * @param {*} includeRegex
+ * @returns
+ */
 export function getAllFiles(dirPath, arrayOfFiles, includeRegex = includeAll) {
 	let files = fs.readdirSync(dirPath)
 
@@ -36,7 +49,7 @@ export function getAllFiles(dirPath, arrayOfFiles, includeRegex = includeAll) {
  * @typedef {Object} DatabaseConfig
  * @property {array} extensions
  * @property {array} schemas
- * @property {Object} dbdocs
+ * @property {Object} exclude
  * @property {array} dependencies
  * @property {array} seed
  * @property {array} staging
@@ -56,6 +69,10 @@ export function readConfig(file) {
 	}
 }
 
+/**
+ *
+ * @returns
+ */
 export function getScripts() {
 	const files = getAllFiles('./ddl', [], '.*.ddl$')
 
@@ -87,6 +104,12 @@ export function getScripts() {
 	return scripts
 }
 
+/**
+ *
+ * @param {*} config
+ * @param {*} scripts
+ * @returns
+ */
 export function getSchemas(config, scripts) {
 	let schemas = config.schemas || []
 
@@ -97,6 +120,11 @@ export function getSchemas(config, scripts) {
 	return [...new Set(schemas)]
 }
 
+/**
+ *
+ * @param {*} groups
+ * @returns
+ */
 export function sortGroups(groups) {
 	let sorted = groups
 		.map((group) => Object.values(group))
@@ -107,6 +135,12 @@ export function sortGroups(groups) {
 	return sorted
 }
 
+/**
+ *
+ * @param {*} groups
+ * @param {*} refs
+ * @returns
+ */
 export function regroup(groups, refs) {
 	let next = {}
 	do {
@@ -136,6 +170,11 @@ export function regroup(groups, refs) {
 	return groups
 }
 
+/**
+ *
+ * @param {*} file
+ * @param {*} data
+ */
 export function writeScript(file, data) {
 	let lines = ''
 	data.forEach((value) => (lines += value + '\r\n'))

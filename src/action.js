@@ -1,8 +1,7 @@
-import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import yaml from 'js-yaml'
-
+import { run } from './runner.js'
 import {
 	readConfig,
 	getScripts,
@@ -16,6 +15,11 @@ import {
 const IMPORT_SQL_FILE = 'import/_load.sql'
 const EXPORT_SQL_FILE = 'export/_dump.sql'
 
+/**
+ *
+ * @param {*} opts
+ * @returns
+ */
 export function inspect(opts) {
 	let config = readConfig(opts.config)
 	let scripts = getScripts()
@@ -36,6 +40,10 @@ export function inspect(opts) {
 	return config
 }
 
+/**
+ *
+ * @param {*} opts
+ */
 export function apply(opts) {
 	let commands = []
 
@@ -71,7 +79,7 @@ export function apply(opts) {
 			})
 		})
 
-		config.groups.map((group, index) => {
+		config.groups.map((group) => {
 			// console.log(`apply group ${index}`)
 			group.map((object) => {
 				const command = `psql ${opts.database} < ${object.file}`
@@ -84,27 +92,37 @@ export function apply(opts) {
 	}
 
 	// console.log(commands)
-	run(commands)
+	run(commands, opts.preview)
 }
 
+/**
+ *
+ * @param {*} opts
+ * @param {*} drops
+ */
 export function rollback(opts, drops = true) {
 	let commands = []
 	const config = inspect(opts)
+	const excludeSchemas = config.exclude?.drops?.schemas || []
 
 	if (drops) {
 		for (let index = config.groups.length; index > 0; index--) {
-			config.groups[index - 1].map((object) => {
-				const command = `echo "drop ${object.type} if exists ${object.name};" | psql ${opts.database}`
-				commands.push({
-					command,
-					message: `drop => ${object.type}:${object.name}`
+			config.groups[index - 1]
+				.filter((object) => !excludeSchemas.includes(object.schema))
+				.map((object) => {
+					const command = `echo "drop ${object.type} if exists ${object.name};" | psql ${opts.database}`
+					commands.push({
+						command,
+						message: `drop => ${object.type}:${object.name}`
+					})
 				})
-			})
 		}
-		config.schemas.map((name) => {
-			const command = `echo "drop schema if exists ${name};" | psql ${opts.database}`
-			commands.push({ command, message: `drop => schema:${name}` })
-		})
+		config.schemas
+			.filter((name) => !excludeSchemas.includes(name))
+			.map((name) => {
+				const command = `echo "drop schema if exists ${name};" | psql ${opts.database}`
+				commands.push({ command, message: `drop => schema:${name}` })
+			})
 	} else {
 		// run scripts from rollback in the reverse order of groups
 		for (let index = config.groups.length; index > 0; index--) {
@@ -118,19 +136,51 @@ export function rollback(opts, drops = true) {
 		}
 	}
 
-	run(commands)
+	run(commands, opts.preview)
 }
 
+/**
+ *
+ * @param {*} opts
+ */
 export function migrate(opts) {
 	const config = inspect(opts)
 	// compare with db and identify if object already exists and if yes create the rollback
 	// if object is view, function or procedure (fetch current code from db and create backup)
 	// For tables if it does not exist create drop scripts else create alter scripts for apply and rollback
 }
+
+/**
+ *
+ * @param {*} opts
+ */
 export function combine(opts) {
-	console.log(opts)
+	const config = inspect(opts)
+	const combinedFile = '_combined.ddl'
+	const excludeSchemas = config.exclude?.dbdocs?.schemas || []
+	let commands = [{ command: `touch ${combinedFile}` }]
+
+	if (fs.existsSync(`${combinedFile}`)) fs.unlinkSync(combinedFile)
+	config.groups.map((group) => {
+		group
+			.filter((item) => item.type === 'table')
+			.filter((item) => !excludeSchemas.includes(item.schema))
+			.map((object) => {
+				commands.push({ command: `cat ${object.file} >> ${combinedFile}` })
+			})
+	})
+	commands.push({
+		command: `sql2dbml ${combinedFile} --postgres -o ${opts.file}`
+	})
+	run(commands, opts.preview)
+
+	fs.unlinkSync('_combined.ddl')
 }
 
+/**
+ *
+ * @param {*} opts
+ */
 export function exportCSV(opts) {
 	const names = yaml.load(fs.readFileSync(opts.file, 'utf8'))
 
@@ -159,6 +209,10 @@ export function exportCSV(opts) {
 	// console.log(commands)
 }
 
+/**
+ *
+ * @param {*} opts
+ */
 export function importCSV(opts) {
 	const config = yaml.load(fs.readFileSync(opts.file, 'utf8'))
 	const loadStaging = opts['raw-only'] || !opts['seed-only']
@@ -171,79 +225,29 @@ export function importCSV(opts) {
 	if (loadStaging) {
 		runImport(config.load, opts)
 	}
-
-	// const files = getAllFiles('./import', [], '.*.csv$').map((file) => {
-	// 	const name =
-	// 		file.split(path.sep)[1] + '.' + path.basename(file).replace('.csv', '')
-	// 	const schema = file.split(path.sep)[1]
-	// 	return { name, file, schema }
-	// })
-
-	// if (loadStaging) {
-	// 	let commands = []
-
-	// 	files
-	// 		.filter((item) => config.load.schemas.includes(item.schema))
-	// 		.map((item) => {
-	// 			commands.push(`\\echo import => ${item.name}`)
-	// 			commands.push(
-	// 				`\\copy ${item.name} from '${item.file}' with delimiter ',' csv header;`
-	// 			)
-	// 		})
-	// 	writeScript('import/load.sql', commands)
-	// 	const scripts = getImportScripts(config.load, opts)
-	// 	commands = [
-	// 		...scripts.before,
-	// 		{
-	// 			command: `psql ${opts.database} < import/load.sql`,
-	// 			message: 'import => staging data'
-	// 		},
-	// 		...scripts.after
-	// 	]
-	// 	run(commands)
-	// 	fs.unlinkSync('import/load.sql')
-	// }
-
-	// if (loadSeeded) {
-	// 	let commands = []
-	// 	config.seed.tables
-	// 		.map((name) => ({
-	// 			name,
-	// 			file: 'import/' + name.replace('.', path.sep) + '.csv'
-	// 		}))
-	// 		.map((item) => {
-	// 			commands.push(`\\echo import => ${item.name}`)
-	// 			commands.push(
-	// 				`\\copy ${item.name} from '${item.file}' with delimiter ',' csv header;`
-	// 			)
-	// 		})
-	// 	writeScript('import/load.sql', commands)
-
-	// 	const scripts = getImportScripts(config.seed, opts)
-	// 	commands = [
-	// 		...scripts.before,
-	// 		{
-	// 			command: `psql ${opts.database} < import/load.sql`,
-	// 			message: 'import => seeded data'
-	// 		},
-	// 		...scripts.after
-	// 	]
-
-	// 	run(commands)
-	// 	fs.unlinkSync('import/load.sql')
-	// }
 }
 
+/**
+ *
+ * @param {*} config
+ * @param {*} opts
+ */
 function runImport(config, opts) {
 	const scripts = getImportScripts(config, opts)
 	const load = generateLoadScript(config, opts)
 	const commands = [...scripts.before, ...load, ...scripts.after]
 
-	run(commands)
+	run(commands, opts.preview)
 
 	if (load.length > 0) fs.unlinkSync(IMPORT_SQL_FILE)
 }
 
+/**
+ *
+ * @param {*} config
+ * @param {*} opts
+ * @returns
+ */
 function generateLoadScript(config, opts) {
 	let files = []
 	if ('tables' in config) {
@@ -281,6 +285,12 @@ function generateLoadScript(config, opts) {
 	return []
 }
 
+/**
+ *
+ * @param {*} config
+ * @param {*} opts
+ * @returns
+ */
 function getImportScripts(config, opts) {
 	let scripts = {
 		before: [],
@@ -299,16 +309,4 @@ function getImportScripts(config, opts) {
 	})
 
 	return scripts
-}
-
-function run(objects) {
-	objects.forEach(({ command, message }) => {
-		if (message) console.log(message)
-		try {
-			// console.log(object.command)
-			execSync(command, { stdio: [0, 1, 2] })
-		} catch (err) {
-			console.error(err.message)
-		}
-	})
 }

@@ -19,6 +19,7 @@ prog
 	.option('-c, --config', 'Provide path to custom config', 'db.yaml')
 	.option('-d, --database', 'Database URL', process.env.DATABASE_URL)
 	.option('-e, --environment', 'Environment to load data', 'development')
+	.option('-p, --preview', 'Preview the action', false)
 
 prog
 	.command('init')
@@ -66,16 +67,6 @@ prog
 	})
 
 prog
-	.command('dbml')
-	.option('-f, --file', 'Destination dbml file', 'design.dbml')
-	.describe('Combine table ddl scripts and generate dbml.')
-	.example('dbd dbml')
-	.example('dbd dbml -f design.dbml')
-	.action((opts) => {
-		combine(opts)
-	})
-
-prog
 	.command('import')
 	.option(
 		'-f, --file',
@@ -104,12 +95,21 @@ prog
 	})
 
 prog
-	.command('combine')
-	.option('-f, --file', 'Destination dbml file', 'design.ddl')
-	.describe('Combine all ddl scripts and generate dbml.')
-	.example('dbd')
+	.command('dbml')
+	.option('-f, --file', 'Destination dbml file', 'design.dbml')
+	.describe('Combine table ddl scripts and generate dbml.')
+	.example('dbd dbml')
+	.example('dbd dbml -f design.dbml')
 	.action((opts) => {
-		console.log('combine filename', opts.file)
+		combine(opts)
 	})
+// prog
+// 	.command('combine')
+// 	.option('-f, --file', 'Destination dbml file', 'design.ddl')
+// 	.describe('Combine all ddl scripts and generate dbml.')
+// 	.example('dbd')
+// 	.action((opts) => {
+// 		console.log('combine filename', opts.file)
+// 	})
 
 prog.parse(process.argv)

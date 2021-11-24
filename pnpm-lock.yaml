@@ -1,6 +1,7 @@
 lockfileVersion: 5.3
 
 specifiers:
+  '@vanillaes/mock-console': ^3.0.0
   c8: ^7.10.0
   js-yaml: ^4.1.0
   release-it: ^14.11.6
@@ -12,6 +13,7 @@ dependencies:
   sade: 1.7.4
 
 devDependencies:
+  '@vanillaes/mock-console': 3.0.0
   c8: 7.10.0
   release-it: 14.11.6
   uvu: 0.5.2
@@ -231,6 +233,11 @@ packages:
     resolution: {integrity: sha512-85Y2BjiufFzaMIlvJDvTTB8Fxl2xfLo4HgmHzVBz08w4wDePCTjYw66PdrolO0kzli3yam/YCgRufyo1DdQVTA==}
     dependencies:
       '@types/node': 16.11.7
+    dev: true
+
+  /@vanillaes/mock-console/3.0.0:
+    resolution: {integrity: sha512-3fF6eg+1zO4r66pBRizLf5ZIF7mkk11/iJ1+v6i38tsXvnKvpE/oiukFa98fIpsquwEms3/9CkyYb+aRZZHSsA==}
+    engines: {node: '>=14'}
     dev: true
 
   /ansi-align/3.0.1:

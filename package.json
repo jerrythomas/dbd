@@ -20,6 +20,7 @@
     "sade": "^1.7.4"
   },
   "devDependencies": {
+    "@vanillaes/mock-console": "^3.0.0",
     "c8": "^7.10.0",
     "release-it": "^14.11.6",
     "uvu": "^0.5.2"
