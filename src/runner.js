@@ -20,7 +20,7 @@ export function run(objects, preview = false) {
 		try {
 			if (preview) console.info(command)
 			else {
-				const output = execSync(command, { stdio: [2] })
+				const output = execSync(command)
 				console.info(output.toString())
 				results.push({ command, output: output.toString() })
 			}

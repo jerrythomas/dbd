@@ -63,9 +63,12 @@ export function apply(opts) {
 
 		if ('extensions' in config) {
 			config.extensions.map((name) => {
-				const command = `echo 'create extension if not exists "${name}" with schema extensions;' | psql ${opts.database}`
 				commands.push({
-					command,
+					command: `echo 'create schema if not exists extensions;' | psql ${opts.database}`,
+					message: `create => schema: extensions`
+				})
+				commands.push({
+					command: `echo 'create extension if not exists "${name}" with schema extensions;' | psql ${opts.database}`,
 					message: `create => extension: ${name}`
 				})
 			})
@@ -75,7 +78,7 @@ export function apply(opts) {
 			const command = `echo "create schema if not exists ${name};" | psql ${opts.database}`
 			commands.push({
 				command,
-				message: `create => extension: ${name}`
+				message: `create => schema: ${name}`
 			})
 		})
 
@@ -108,7 +111,7 @@ export function rollback(opts, drops = true) {
 	if (drops) {
 		for (let index = config.groups.length; index > 0; index--) {
 			config.groups[index - 1]
-				.filter((object) => !excludeSchemas.includes(object.schema))
+				// .filter((object) => !excludeSchemas.includes(object.schema))
 				.map((object) => {
 					const command = `echo "drop ${object.type} if exists ${object.name};" | psql ${opts.database}`
 					commands.push({
