@@ -24,12 +24,6 @@ export function inspect(opts) {
 	let config = readConfig(opts.config)
 	let scripts = getScripts()
 
-	// let groups =
-
-	// const refs = config.dependencies.reduce(
-	// 	(obj, item) => ((obj[item.name] = item), obj),
-	// 	{}
-	// )
 	let groups = regroup(scripts, config.dependencies)
 	groups = sortGroups(groups)
 

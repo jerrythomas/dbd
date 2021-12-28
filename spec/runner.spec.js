@@ -41,12 +41,9 @@ RunnerSuite('run failure', () => {
 	let results = run([{ command }])
 
 	assert.equal(results.length, 1)
-	logger.restore()
-	console.log(results[0].error, results[0].error.match(expected))
-	console.log(logger.errors[0])
 
-	// assert.ok(results[0].error.match(expected))
-	// assert.ok(logger.errors[0].match(expected))
+	assert.ok(results[0].error.match(expected))
+	assert.ok(logger.errors[0].match(expected))
 })
 
 RunnerSuite.run()
