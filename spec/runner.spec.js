@@ -37,12 +37,12 @@ RunnerSuite('run', () => {
 RunnerSuite('run failure', () => {
 	let command = 'exho "hello"'
 	const expected =
-		'Command failed: exho "hello"\\n/bin/sh: exho:.* not found\\n'
+		'Command failed: exho "hello"\\n/bin/sh: .*exho:.* not found\\n'
 	let results = run([{ command }])
 
 	assert.equal(results.length, 1)
 	logger.restore()
-	console.log(results[0].error)
+	console.log(results[0].error, results[0].error.match(expected))
 	console.log(logger.errors[0])
 
 	// assert.ok(results[0].error.match(expected))
