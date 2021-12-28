@@ -1,0 +1,26 @@
+files:
+- example/db.yml
+- example/ddl/tables/core/lookup_values.ddl
+- example/ddl/tables/core/lookups.ddl
+- example/ddl/views/core/genders.ddl
+
+scripts:
+- type: tables
+  file: ddl/tables/core/lookup_values.ddl
+  schema: core
+  name: core.lookup_values
+
+- type: tables
+  file: ddl/tables/core/lookups.ddl
+  schema: core
+  name: core.lookups
+
+- type: views
+  file: ddl/views/core/genders.ddl
+  schema: core
+  name: core.genders
+
+schemas:
+- public
+- staging
+- core

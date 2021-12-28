@@ -24,14 +24,13 @@ export function inspect(opts) {
 	let config = readConfig(opts.config)
 	let scripts = getScripts()
 
-	let groups = [
-		scripts.reduce((obj, item) => ((obj[item.name] = item), obj), {})
-	]
-	const refs = config.dependencies.reduce(
-		(obj, item) => ((obj[item.name] = item), obj),
-		{}
-	)
-	groups = regroup(groups, refs)
+	// let groups =
+
+	// const refs = config.dependencies.reduce(
+	// 	(obj, item) => ((obj[item.name] = item), obj),
+	// 	{}
+	// )
+	let groups = regroup(scripts, config.dependencies)
 	groups = sortGroups(groups)
 
 	config.schemas = getSchemas(config, scripts)
@@ -226,7 +225,7 @@ export function importCSV(opts) {
 	}
 
 	if (loadStaging) {
-		runImport(config.load, opts)
+		runImport(config.load, opts, true)
 	}
 }
 
@@ -235,9 +234,9 @@ export function importCSV(opts) {
  * @param {*} config
  * @param {*} opts
  */
-function runImport(config, opts) {
+function runImport(config, opts, staging = false) {
 	const scripts = getImportScripts(config, opts)
-	const load = generateLoadScript(config, opts)
+	const load = generateLoadScript(config, opts, staging)
 	const commands = [...scripts.before, ...load, ...scripts.after]
 
 	run(commands, opts.preview)
@@ -251,7 +250,7 @@ function runImport(config, opts) {
  * @param {*} opts
  * @returns
  */
-function generateLoadScript(config, opts) {
+function generateLoadScript(config, opts, staging = false) {
 	let files = []
 	if ('tables' in config) {
 		files = config.tables.map((table) => ({
@@ -271,17 +270,23 @@ function generateLoadScript(config, opts) {
 			.filter((item) => config.schemas.includes(item.schema))
 	}
 	let commands = []
+
+	const null_value = config.options?.null_value || ''
+	const truncate = staging && (config.options?.before?.truncate || false)
 	files.map((item) => {
+		if (truncate) {
+			commands.push(`\\echo truncate => ${item.name}`)
+			commands.push(`truncate table ${item.name};`)
+		}
 		commands.push(`\\echo import => ${item.name}`)
 		commands.push(
-			`\\copy ${item.name} from '${item.file}' with delimiter ',' csv header;`
+			`\\copy ${item.name} from '${item.file}' with delimiter ',' NULL as '${null_value}' csv header;`
 		)
 	})
 
-	// console.log(files)
-	// console.log(commands)
 	if (commands.length > 0) {
 		writeScript(IMPORT_SQL_FILE, commands)
+		commands = []
 		return [{ command: `psql ${opts.database} < ${IMPORT_SQL_FILE}` }]
 	}
 

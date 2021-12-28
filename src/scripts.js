@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import yaml from 'js-yaml'
 
+const includeAll = '.*'
 export const dbtypes = {
 	table: 1,
 	index: 2,
@@ -18,7 +19,7 @@ export const dbtypes = {
  * @param {*} type
  * @returns
  */
-function getSortOrder(type) {
+export function getSortOrder(type) {
 	return type in dbtypes ? dbtypes[type] : 99
 }
 
@@ -49,10 +50,9 @@ export function getAllFiles(dirPath, arrayOfFiles, includeRegex = includeAll) {
  * @typedef {Object} DatabaseConfig
  * @property {array} extensions
  * @property {array} schemas
+ * @property {array} staging
  * @property {Object} exclude
  * @property {array} dependencies
- * @property {array} seed
- * @property {array} staging
  * @property {array} groups
  * @property {array} scripts
  */
@@ -112,10 +112,7 @@ export function getScripts() {
  */
 export function getSchemas(config, scripts) {
 	let schemas = config.schemas || []
-
-	scripts.map(({ schema }) => {
-		schemas = [...schemas, schema]
-	})
+	schemas = [...schemas, ...scripts.map(({ schema }) => schema)]
 
 	return [...new Set(schemas)]
 }
@@ -137,17 +134,25 @@ export function sortGroups(groups) {
 
 /**
  *
- * @param {*} groups
- * @param {*} refs
+ * @param {Array} groups
+ * @param {Array} refs
  * @returns
  */
-export function regroup(groups, refs) {
+export function regroup(scripts, dependencies) {
+	const refs = dependencies.reduce(
+		(obj, item) => ((obj[item.name] = item), obj),
+		{}
+	)
+	let groups = [
+		scripts.reduce((obj, item) => ((obj[item.name] = item), obj), {})
+	]
 	let next = {}
+
 	do {
 		let current = groups[groups.length - 1]
 		next = {}
 		Object.keys(current).map((key) => {
-			// console.log(`${key} ${groups.length - 1}`)
+			// console.log(`${key} ${groups.length - 1}`, refs)
 			if (key in refs) {
 				const hasRefsInGroup = refs[key].refers.some((item) => item in current)
 				if (hasRefsInGroup) {
@@ -172,8 +177,8 @@ export function regroup(groups, refs) {
 
 /**
  *
- * @param {*} file
- * @param {*} data
+ * @param {String} file
+ * @param {Array<String>} data
  */
 export function writeScript(file, data) {
 	let lines = ''

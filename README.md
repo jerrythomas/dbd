@@ -1,5 +1,9 @@
 # dbd
 
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/jerrythomas/dbd/Release)
+[![Maintainability](https://api.codeclimate.com/v1/badges/55861d839f6d2c7f0c5e/maintainability)](https://codeclimate.com/github/jerrythomas/dbd/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/55861d839f6d2c7f0c5e/test_coverage)](https://codeclimate.com/github/jerrythomas/dbd/test_coverage)
+
 This is a simple cli to apply ddl scripts for individual objects for developers who are more comfortable writing sql scripts.
 
 - [x] Apply set of individual ddl scripts
@@ -7,7 +11,7 @@ This is a simple cli to apply ddl scripts for individual objects for developers 
 - [x] Load seed data from csv files with pre & postprocess scripts
 - [x] Load staging data with pre & post process scripts for development/testing
 - [x] Export data from tables & views
-- [ ] Generate [dbdocs](https://dbdocs.io) dbml for all tables
+- [x] Generate [dbdocs](https://dbdocs.io) dbml for all (or subset) tables
 - [ ] Generate ddl from yaml
 - [ ] Migration (diff objects, backup and rollback)
 
@@ -39,3 +43,4 @@ Examples:
 | dbd rollback | drop objects created by apply |
 | dbd import   | load seed/staging files       |
 | dbd export   | export tables/views           |
+| dbd dbml     | generate dbml files           |

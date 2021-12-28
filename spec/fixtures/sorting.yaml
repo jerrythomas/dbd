@@ -1,0 +1,15 @@
+- input:
+    - - type: index
+        name: x
+      - type: table
+        name: a
+      - type: table
+        name: b
+  expected:
+    - - type: table
+        name: a
+      - type: table
+        name: b
+      - type: index
+        name: x
+

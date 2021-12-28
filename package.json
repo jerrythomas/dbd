@@ -10,7 +10,8 @@
     "start": "src/index.js",
     "test": "uvu spec",
     "release": "release-it --preRelease=beta",
-    "coverage": "c8 --include=src uvu spec"
+    "coverage": "c8 --include=src uvu spec",
+    "coverage:lcov": "c8 --reporter=lcov --include=src uvu spec "
   },
   "author": "Jerry Thomas <me@jerrythomas.name>",
   "license": "MIT",

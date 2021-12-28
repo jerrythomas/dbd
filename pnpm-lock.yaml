@@ -9,12 +9,12 @@ specifiers:
   uvu: ^0.5.2
 
 dependencies:
-  js-yaml: 4.1.0
   sade: 1.7.4
 
 devDependencies:
   '@vanillaes/mock-console': 3.0.0
   c8: 7.10.0
+  js-yaml: 4.1.0
   release-it: 14.11.6
   uvu: 0.5.2
 
@@ -274,7 +274,7 @@ packages:
 
   /argparse/2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
-    dev: false
+    dev: true
 
   /array-union/2.1.0:
     resolution: {integrity: sha512-HGyxoOTYUyCM6stUe6EJgnd4EoewAI7zMdfqO+kGjnlZmBDz/cR5pf8r/cR4Wq60sL/p0IkcjUEEPwS3GFrIyw==}
@@ -1215,7 +1215,7 @@ packages:
     hasBin: true
     dependencies:
       argparse: 2.0.1
-    dev: false
+    dev: true
 
   /json-buffer/3.0.0:
     resolution: {integrity: sha1-Wx85evx11ne96Lz8Dkfh+aPZqJg=}
