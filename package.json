@@ -16,6 +16,9 @@
   "author": "Jerry Thomas <me@jerrythomas.name>",
   "license": "MIT",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "js-yaml": "^4.1.0",
     "sade": "^1.7.4"
