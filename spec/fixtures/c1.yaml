@@ -1,0 +1,45 @@
+items:
+- &alpha
+  type: table
+  name: alpha
+  refers: []
+- &beta
+  type: table
+  name: beta
+  refers: []
+- &charlie
+  type: table
+  name: charlie
+  refers:
+  - alpha
+- &delta
+  type: table
+  name: delta
+  refers:
+  - alpha
+  - beta
+- &echo
+  type: table
+  name: echo
+  refers:
+  - charlie
+- &foxtrot
+  type: table
+  name: foxtrot
+  refers:
+  - delta
+
+input:
+- *foxtrot
+- *echo
+- *delta
+- *alpha
+- *beta
+- *charlie
+output:
+- *alpha
+- *beta
+- *delta
+- *charlie
+- *foxtrot
+- *echo

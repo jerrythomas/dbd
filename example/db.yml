@@ -8,19 +8,30 @@ schemas:
   - public
   - staging
 
-exclude:
-  dbdocs:
+dbdocs:
+  exclude:
     schemas:
       - staging
 
 dependencies:
+  - type: role
+    name: advanced
+    refers:
+      - basic
   - type: table
     name: core.lookup_values
     refers:
       - core.lookups
 
-seed:
-  -
+import:
+  staging:
+    schemas:
+    - staging
+    tables: []
 
-staging:
-  -
+  seeding: ~
+
+export:
+  - staging.lookups
+  - staging.lookup_values:
+      format: json

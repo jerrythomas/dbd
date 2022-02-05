@@ -1,12 +1,14 @@
 import { suite } from 'uvu'
 import * as assert from 'uvu/assert'
 import * as scripts from '../src/scripts.js'
+import { IMPORT_SQL_FILE } from '../src/action.js'
 import fs, { write } from 'fs'
 import yaml from 'js-yaml'
 
 const HelperSuite = suite('Utility functions')
 
 HelperSuite.before(async (context) => {
+	fs.unlinkSync(path.join('example', IMPORT_SQL_FILE))
 	try {
 		const data = yaml.load(fs.readFileSync('spec/fixtures/helper.yaml', 'utf8'))
 
@@ -43,6 +45,7 @@ HelperSuite('Should fetch a list of all files', (context) => {
 HelperSuite('Should fetch only ddl files', (context) => {
 	const currentPath = process.cwd()
 	process.chdir('example')
+
 	assert.equal(scripts.getScripts(), context.scripts)
 	process.chdir(currentPath)
 })

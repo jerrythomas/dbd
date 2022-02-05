@@ -4,14 +4,15 @@ import yaml from 'js-yaml'
 
 const includeAll = '.*'
 export const dbtypes = {
-	table: 1,
-	index: 2,
-	function: 3,
-	view: 4,
-	procedure: 5,
-	synonym: 6,
-	grant: 7,
-	policy: 8
+	role: 1,
+	table: 2,
+	index: 3,
+	function: 4,
+	view: 5,
+	procedure: 6,
+	synonym: 7,
+	grant: 8,
+	policy: 9
 }
 
 /**
@@ -76,35 +77,32 @@ export function readConfig(file) {
 export function getScripts() {
 	const files = getAllFiles('./ddl', [], '.*.ddl$')
 
-	let scripts = [] //{ ddl: [] }
+	let scripts = []
 	files.map((file) => {
-		// let group = 'ddl'
-
-		let parts = file.split(path.sep)
-		if (parts.length === 4) {
-			// 	group = parts[0]
-			parts = parts.slice(1)
-		}
-
+		const parts = file.split(path.sep).slice(1)
 		const type = parts[0]
-		const schema = parts[1]
-		const name = schema + '.' + parts[2].split('.')[0]
 
-		// if (!(group in scripts)) {
-		// 	scripts[group] = []
-		// }
-		scripts.push({
-			type,
-			file,
-			schema,
-			name
-		})
+		if (type in dbtypes) {
+			const schema = type === 'role' ? '' : parts[1]
+			const name =
+				type === 'role'
+					? parts[1].split('.')[0]
+					: schema + '.' + parts[2].split('.')[0]
+
+			scripts.push({
+				type,
+				file,
+				schema,
+				name
+			})
+		}
 	})
 
 	return scripts
 }
 
 /**
+ * Get a full list of schemas combining configuration and scripts.
  *
  * @param {*} config
  * @param {*} scripts
@@ -112,12 +110,16 @@ export function getScripts() {
  */
 export function getSchemas(config, scripts) {
 	let schemas = config.schemas || []
-	schemas = [...schemas, ...scripts.map(({ schema }) => schema)]
+	schemas = [
+		...schemas,
+		...scripts.map(({ schema }) => schema).filter((schema) => schema.length > 0)
+	]
 
 	return [...new Set(schemas)]
 }
 
 /**
+ * Sort items in the group
  *
  * @param {*} groups
  * @returns
@@ -152,12 +154,10 @@ export function regroup(scripts, dependencies) {
 		let current = groups[groups.length - 1]
 		next = {}
 		Object.keys(current).map((key) => {
-			// console.log(`${key} ${groups.length - 1}`, refs)
 			if (key in refs) {
 				const hasRefsInGroup = refs[key].refers.some((item) => item in current)
 				if (hasRefsInGroup) {
 					next[key] = current[key]
-					// console.log(`Moving key ${key}`)
 				}
 			}
 		})
@@ -171,7 +171,6 @@ export function regroup(scripts, dependencies) {
 		}
 	} while (Object.keys(next).length > 0)
 
-	// console.log(groups.length)
 	return groups
 }
 

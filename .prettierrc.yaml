@@ -9,5 +9,7 @@ overrides:
   - files:
       - "*.md"
       - "*.yaml"
+      - "*.sql"
+      - "*.ddl"
     options:
       useTabs: false

@@ -12,8 +12,8 @@ import {
 	writeScript
 } from './scripts.js'
 
-const IMPORT_SQL_FILE = 'import/_load.sql'
-const EXPORT_SQL_FILE = 'export/_dump.sql'
+export const IMPORT_SQL_FILE = 'import/_load.sql'
+export const EXPORT_SQL_FILE = 'export/_dump.sql'
 
 /**
  *
@@ -50,6 +50,8 @@ export function apply(opts) {
 					''
 				)}`
 			})
+		} else {
+			throw 'File does not exist'
 		}
 	} else {
 		const config = inspect(opts)
@@ -147,6 +149,7 @@ export function migrate(opts) {
 }
 
 /**
+ * Combine individual ddl scripts into a single one.
  *
  * @param {*} opts
  */
@@ -174,6 +177,7 @@ export function combine(opts) {
 }
 
 /**
+ * Exports data from tables and views listed in the export.yaml file
  *
  * @param {*} opts
  */
@@ -206,6 +210,7 @@ export function exportCSV(opts) {
 }
 
 /**
+ * Imports data for seeded and raw files as configured in the import.yaml file
  *
  * @param {*} opts
  */
@@ -224,6 +229,7 @@ export function importCSV(opts) {
 }
 
 /**
+ * Executes import process including any before or after scripts
  *
  * @param {*} config
  * @param {*} opts
@@ -239,29 +245,23 @@ function runImport(config, opts, staging = false) {
 }
 
 /**
+ * Generates a load script for all entities
  *
  * @param {*} config
  * @param {*} opts
  * @returns
  */
-function generateLoadScript(config, opts, staging = false) {
-	let files = []
+export function generateLoadScript(config, opts, staging = false) {
+	let files = getAllFiles('./import', [], '.*.csv$').map((file) => ({
+		name: file.split(path.sep).slice(1).join('.').replace('.csv', ''),
+		schema: file.split(path.sep)[1],
+		file
+	}))
+
 	if ('tables' in config) {
-		files = config.tables.map((table) => ({
-			name: table,
-			file: 'import/' + table.replace('.', path.sep) + '.csv'
-		}))
+		files = files.filter((item) => config.tables.includes(item.name))
 	} else if ('schemas' in config) {
-		files = getAllFiles('./import', [], '.*.csv$')
-			.map((file) => ({
-				name:
-					file.split(path.sep)[1] +
-					'.' +
-					path.basename(file).replace('.csv', ''),
-				schema: file.split(path.sep)[1],
-				file
-			}))
-			.filter((item) => config.schemas.includes(item.schema))
+		files = files.filter((item) => config.schemas.includes(item.schema))
 	}
 	let commands = []
 
@@ -293,7 +293,7 @@ function generateLoadScript(config, opts, staging = false) {
  * @param {*} opts
  * @returns
  */
-function getImportScripts(config, opts) {
+export function getImportScripts(config, opts) {
 	let scripts = {
 		before: [],
 		after: []
@@ -301,6 +301,9 @@ function getImportScripts(config, opts) {
 
 	Object.keys(scripts).map((key) => {
 		if (key in config) {
+			if (!Array.isArray(config[key])) {
+				config[key] = [config[key]]
+			}
 			config[key].map((file) => {
 				scripts[key].push({
 					command: `psql ${opts.database} < import/${file}`,

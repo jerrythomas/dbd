@@ -1,0 +1,141 @@
+files:
+  - input: ddl/role/admin.ddl
+    output:
+      type: role
+      name: admin
+      file: ddl/role/admin.ddl
+  - input: ddl/table/core/lookup.ddl
+    output:
+      type: table
+      name: core.lookup
+      file: ddl/table/core/lookup.ddl
+  - input: ddl/table/core/lookup.sql
+    output:
+      type: table
+      name: core.lookup
+      file: ddl/table/core/lookup.sql
+  - input: import/core/lookup.csv
+    output:
+      type: import
+      name: core.lookup
+      file: import/core/lookup.csv
+
+exportConfig:
+  - input: core.lookup
+    output:
+      type: export
+      name: core.lookup
+      format: csv
+  - input:
+      core.lookup:
+        format: json
+    output:
+      type: export
+      name: core.lookup
+      format: json
+
+schemaNames:
+  - input: public
+    output:
+      type: schema
+      name: public
+
+roleNames:
+  - input: admin
+    output:
+      type: role
+      name: admin
+
+extensionConfig:
+  - input: uuid-ossp
+    output:
+      type: extension
+      name: uuid-ossp
+      schema: public
+  - input:
+      uuid-ossp:
+        schema: extensions
+    output:
+      type: extension
+      name: uuid-ossp
+      schema: extensions
+
+dependencies:
+  - type: role
+    name: role_b
+    refers:
+      - role_a
+  - type: table
+    name: public.table_b
+    refers:
+      - public.table_a
+  - type: table
+    name: public.competencies
+    refers:
+      - public.lookup_values
+  - type: table
+    name: public.skills
+    refers:
+      - public.competencies
+  - type: table
+    name: public.teams
+    refers:
+      - public.clients
+  - type: table
+    name: public.associates
+    refers:
+      - public.lookup_values
+  - type: table
+    name: public.allocations
+    refers:
+      - public.teams
+      - public.associates
+
+  - type: view
+    name: public.competency_categories
+    refers:
+      - public.lookups
+      - public.lookup_values
+  - type: view
+    name: public.blood_groups
+    refers:
+      - public.lookups
+      - public.lookup_values
+  - type: view
+    name: public.genders
+    refers:
+      - public.lookups
+      - public.lookup_values
+  - type: view
+    name: public.search_types
+    refers:
+      - public.lookup_values
+      - public.lookups
+
+  - type: view
+    name: public.app_configuration
+    refers:
+      - public.properties
+  - type: view
+    name: public.all_skills
+    refers:
+      - public.competencies
+      - public.skills
+  - type: view
+    name: public.all_competencies
+    refers:
+      - public.competencies
+      - public.competency_categories
+  - type: view
+    name: public.identity_card
+    refers:
+      - public.associates
+      - public.blood_groups
+  - type: view
+    name: public.skill_search_results
+    refers:
+      - public.skill_search_options
+  - type: view
+    name: public.skill_search_options
+    refers:
+      - public.all_competencies

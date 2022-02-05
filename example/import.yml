@@ -1,0 +1,6 @@
+staging:
+  schemas:
+  - staging
+  tables: []
+
+seeding: ~

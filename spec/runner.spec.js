@@ -7,13 +7,15 @@ const logger = new MockConsole()
 
 const RunnerSuite = suite('Shell runner')
 
-RunnerSuite.before(() => {})
-RunnerSuite.before.each(async () => {
+RunnerSuite.before(() => {
 	logger.capture()
 })
+RunnerSuite.after(() => {
+	logger.restore()
+})
+RunnerSuite.before.each(async () => {})
 
 RunnerSuite.after.each(() => {
-	logger.restore()
 	logger.flush()
 })
 
@@ -41,7 +43,6 @@ RunnerSuite('run failure', () => {
 	let results = run([{ command }])
 
 	assert.equal(results.length, 1)
-
 	assert.ok(results[0].error.match(expected))
 	assert.ok(logger.errors[0].match(expected))
 })
