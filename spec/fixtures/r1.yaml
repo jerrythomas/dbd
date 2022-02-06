@@ -29,21 +29,37 @@ items:
   refers:
   - delta
 
-input:
-  charlie: *charlie
-  echo: *echo
-  alpha: *alpha
-  beta: *beta
-  foxtrot: *foxtrot
-  delta: *delta
+simple:
+  input:
+    charlie: *charlie
+    alpha: *alpha
+    beta: *beta
+    delta: *delta
 
-output:
--
-  - alpha
-  - beta
--
-  - charlie
-  - delta
--
-  - echo
-  - foxtrot
+  output:
+  -
+    - alpha
+    - beta
+  -
+    - charlie
+    - delta
+
+complex:
+  input:
+    charlie: *charlie
+    echo: *echo
+    alpha: *alpha
+    beta: *beta
+    foxtrot: *foxtrot
+    delta: *delta
+
+  output:
+  -
+    - alpha
+    - beta
+  -
+    - charlie
+    - delta
+  -
+    - echo
+    - foxtrot

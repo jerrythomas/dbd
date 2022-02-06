@@ -3,8 +3,14 @@ items:
   type: table
   name: alpha
   refers: []
+- &alpha-missing
+  name: alpha
+  refers: []
 - &beta
   type: table
+  name: beta
+  refers: []
+- &beta-missing
   name: beta
   refers: []
 - &charlie
@@ -29,17 +35,31 @@ items:
   refers:
   - delta
 
-input:
-- *foxtrot
-- *echo
-- *delta
-- *alpha
-- *beta
-- *charlie
-output:
-- *alpha
-- *beta
-- *delta
-- *charlie
-- *foxtrot
-- *echo
+reorder:
+  input:
+  - *foxtrot
+  - *echo
+  - *delta
+  - *alpha
+  - *beta
+  - *charlie
+  output:
+  - *alpha
+  - *beta
+  - *delta
+  - *charlie
+  - *foxtrot
+  - *echo
+missing:
+  input:
+  - *foxtrot
+  - *echo
+  - *delta
+  - *charlie
+  output:
+  - *alpha-missing
+  - *beta-missing
+  - *delta
+  - *charlie
+  - *foxtrot
+  - *echo

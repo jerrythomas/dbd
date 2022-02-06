@@ -2,7 +2,7 @@ import fs from 'fs'
 import yaml from 'js-yaml'
 import { suite } from 'uvu'
 import * as assert from 'uvu/assert'
-import { scan, read, merge, clean, regroup, convert } from '../src/metadata.js'
+import { scan, read, merge, clean, regroup, organize } from '../src/metadata.js'
 
 const MetadataSuite = suite('Suite for Metadata')
 
@@ -45,6 +45,10 @@ MetadataSuite('Should fetch all files in path', (context) => {
 
 MetadataSuite('Should read the configuration', (context) => {
 	assert.equal(read('design.yaml'), context.metadata.read)
+	assert.equal(
+		read('../spec/fixtures/design-missing.yaml'),
+		context.metadata.missing
+	)
 })
 
 MetadataSuite('Should merge entities', (context) => {
@@ -60,13 +64,20 @@ MetadataSuite('Should add missing roles, schemas and entities', (context) => {
 })
 
 MetadataSuite('Should regroup based on dependencies', (context) => {
-	let data = regroup(context.r1.input)
-	assert.equal(data, context.r1.output)
+	let data
+
+	data = regroup(context.r1.simple.input)
+	assert.equal(data, context.r1.simple.output)
+	data = regroup(context.r1.complex.input)
+	assert.equal(data, context.r1.complex.output)
 })
 
 MetadataSuite('Should add missing values and reorder', (context) => {
-	let data = convert(context.c1.input)
-	assert.equal(data, context.c1.output)
+	let data
+	data = organize(context.c1.reorder.input)
+	assert.equal(data, context.c1.reorder.output)
+	data = organize(context.c1.missing.input)
+	assert.equal(data, context.c1.missing.output)
 })
 
 MetadataSuite.run()

@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import yaml from 'js-yaml'
-import { entity } from './entity.js'
+import { entityFromFile } from './entity.js'
 
 /**
  * Scans a folder and returns a list of file paths
@@ -26,18 +26,30 @@ export function scan(root = '.') {
 	return result
 }
 
+/**
+ * Reads configuration file
+ *
+ * @param {path} file
+ * @returns
+ */
 export function read(file) {
 	let data = yaml.load(fs.readFileSync(file, 'utf8'))
 	data.roles = data.roles || []
 	data.schemas = data.schemas || []
-
+	data.entities = data.entities || []
+	data.entities = data.entities.map((entity) => ({ refers: [], ...entity }))
 	return data
 }
 
+/**
+ *
+ * @param {*} data
+ * @returns
+ */
 export function clean(data) {
 	let entities = scan('ddl')
 		.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
-		.map((file) => entity.fromFile(file))
+		.map((file) => entityFromFile(file))
 		.map((entity) => ({ ...entity, refers: [] }))
 	entities = merge(entities, data.entities)
 
@@ -75,30 +87,14 @@ export function merge(x, y) {
 	return Object.keys(yAsObj).map((key) => yAsObj[key])
 }
 
-// function importData(data) {
-// 	let importFiles = scan('import')
-// 		.filter((file) => ['.csv', '.json'].includes(path.extname(file)))
-// 		.map((file) => entity.fromFile(file))
-
-// 	// data.import
-// }
-
-// export function hierarchy(data) {
-// 	let roles = data.filter((entity) => entity.type === 'role')
-// 	let entities = data.filter((entity) => entity.type !== 'role')
-// 	let schemas = entities.map((entity) => entity.name.split('.')[0])
-
-// 	schemas = [...new Set(schemas)]
-// 	// roles = roles.reduce((obj, item) => ((obj[item[key]] = item), obj), {})
-// 	convert(roles)
-// 	convert(entities)
-// }
-
-export function convert(data) {
+export function organize(data) {
 	let lookup = data.reduce((obj, item) => ((obj[item.name] = item), obj), {})
 
 	let missing = [].concat
-		.apply(...data.map(({ refers }) => refers))
+		.apply(
+			[],
+			data.map(({ refers }) => refers)
+		)
 		.filter((entity) => !(entity in lookup))
 		.reduce(
 			(obj, entity) => ((obj[entity] = { name: entity, refers: [] }), obj),
@@ -106,6 +102,7 @@ export function convert(data) {
 		)
 
 	lookup = { ...lookup, ...missing }
+
 	return [].concat.apply([], regroup(lookup)).map((x) => lookup[x])
 }
 

@@ -22,20 +22,23 @@ read:
   entities:
     - type: role
       name: advanced
-      refers: basic
+      refers:
+      - basic
     - type: table
       name: core.lookups
+      refers: []
     - type: table
       name: core.lookup_values
       refers:
-        - core.lookups
+      - core.lookups
     - type: view
       name: core.genders
       refers:
-        - core.lookups
-        - core.lookup_values
+      - core.lookups
+      - core.lookup_values
     - type: table
       name: staging.lookup_values
+      refers: []
   import:
     seeded:
       - core.lookup
@@ -47,6 +50,12 @@ read:
     - core.genders
   roles: []
 
+missing:
+  schemas: []
+  roles: []
+  entities: []
+  project:
+    name: Example
 merge:
 - input:
     x:

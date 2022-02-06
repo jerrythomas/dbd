@@ -21,7 +21,8 @@ extensions:
 entities:
   - type: role
     name: advanced
-    refers: basic
+    refers:
+     - basic
   - type: table
     name: core.lookups
   - type: table

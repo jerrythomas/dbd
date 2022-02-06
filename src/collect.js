@@ -1,99 +1,91 @@
 import fs from 'fs'
 import path from 'path'
 import yaml from 'js-yaml'
-
-const typesWithData = ['table', 'view']
-const defaultImportOptions = { truncate: false, null_value: '' }
-
-export const dbtypes = {
-	role: 1,
-	table: 2,
-	index: 3,
-	function: 4,
-	view: 5,
-	procedure: 6,
-	synonym: 7,
-	grant: 8,
-	policy: 9
-}
-
-const actions = {
-	extension: (name, using) =>
-		sql`create extension if not exists "${name}" with name "${
-			using || 'public'
-		}";`,
-	schema: (name) => sql`create schema if not exists "${name}";`
-}
+import { execSync } from 'child_process'
+import sql from '@databases/pg'
+import { read, clean, organize } from './metadata.js'
+import {
+	entityFromSchemaName,
+	entityFromExtensionConfig,
+	ddlFromEntity
+} from './entity.js'
 
 class Design {
 	#config = {}
-	#data = []
-	#allowedTypes = []
-	#mode
-	#dependencies = []
+	#entities = []
 
-	constructor(mode) {
-		this.#config = yaml.load(fs.readFileSync('db.yml', 'utf8'))
-		const schemas = (this.config.schemas || []).map((name) => ({
-			type: 'name',
-			name
-		}))
-		const extensions = (this.config.extensions || []).map((item) =>
-			entityForExtension(item)
-		)
-		this.#dependencies = this.config.dependencies || []
+	constructor(file) {
+		this.#config = clean(read(file))
+		this.#config.roles = organize(this.#config.roles)
+		this.#config.entities = organize(this.#config.entities)
 
-		delete this.#config.schemas
-		delete this.#config.extensions
-		delete this.#config.dependencies
-
-		this.#mode = mode
-
-		if (['ddl', 'import', 'export'].includes(mode)) {
-			this.#allowedTypes = mode === 'ddl' ? ['.ddl'] : ['.csv', '.json']
-
-			if (['ddl', 'import'].includes(mode)) {
-				this.#data = scan(mode)
-					.filter((file) => this.allowedTypes.includes(path.extname(file)))
-					.map((file) => entity(file))
-			}
-
-			if (mode === 'ddl') {
-				this.#data = [...schemas, ...extensions, ...this.data]
-			}
-			if (mode === 'export') {
-				this.#data = this.config.export.map((item) => entityForExport(item))
-			}
-		}
+		this.#entities = [
+			...this.#config.schemas.map((schema) => entityFromSchemaName(schema)),
+			...this.#config.extensions.map((item) => entityFromExtensionConfig(item)),
+			...this.#config.roles,
+			...this.#config.entities
+		]
 	}
 
-	get data() {
-		return this.#data
-	}
 	get config() {
 		return this.#config
 	}
-	get allowedTypes() {
-		return this.#allowedTypes
-	}
-	get mode() {
-		return thus.#mode
+	get entities() {
+		return this.#entities
 	}
 
-	analyze() {
+	async apply() {
+		const db = createConnectionPool(process.env.DATABASE_URL)
+		let index = 0
+		let error
+		// let waiting = false
+
+		do {
+			const entity = this.#entities[index]
+			const q = entity.file
+				? sql.file(entity.file)
+				: sql`${ddlFromEntity(entity)}`
+
+			try {
+				await db.query(q)
+				index += 1
+			} catch (err) {
+				error = err
+			}
+		} while (index < this.#entities.length && !error)
+
+		await db.dispose()
 		return this
 	}
 
-	filter() {
+	validate(ddl = true) {
 		return this
 	}
-	group() {
+
+	combine(file) {
+		// add validation before
+		const combined = this.#entities.map((entity) => ddlFromEntity(entity))
+		fs.writeFileSync(file, combined.join('\n'))
 		return this
 	}
-	sort() {
+	dbml() {
+		const { schemas, tables } = this.#config.project.dbdocs.exclude
+		const combined = this.#entities
+			.filter((entity) => entity.type === 'table')
+			.filter((entity) => !schemas.includes(entity.name.split('.')[0]))
+			.filter((entity) => !tables.includes(entity.name))
+			.map((entity) => ddlFromEntity(entity))
+
+		fs.writeFileSync('_design.sql', combined.join('\n'))
+		execSync(`sql2dbml _design.sql --postgres -o design.dbml`)
+		fs.unlinkSync('_design.sql')
+
 		return this
 	}
-	apply() {
+	importData() {
+		return this
+	}
+	exportData() {
 		return this
 	}
 }
@@ -102,9 +94,17 @@ class Design {
  * Collects files from path or entities from configuration
  * and provides functions to process further
  *
- * @param {string} mode starting point for procesing
+ * @param {path} file path to configuration file
  * @returns
  */
-export function collect(mode) {
-	return new Design(mode)
+export function using(file) {
+	return new Design(file)
 }
+
+// using(config) // read, clean, organize
+// 	.apply() // apply ddls
+// 	.combine(includeData) // combine with optional data
+// 	.dbml(file) // combine, exclude schemas and tables and generate dbml
+// 	.importSeededData() // import seeded data, needs additional logic to exclude non existing files, pre-post script, null handler
+// 	.importStagingData() // import staging data, pre/post scripts, null handler
+// 	.exportData() // export Data

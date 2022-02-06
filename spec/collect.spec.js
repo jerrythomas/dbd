@@ -4,7 +4,7 @@ import fs from 'fs'
 import yaml from 'js-yaml'
 import { omit } from 'ramda'
 
-import { collect } from '../src/collect.js'
+import { using } from '../src/collect.js'
 
 const CollectorSuite = suite('Suite for collector')
 
@@ -15,9 +15,7 @@ CollectorSuite.before((context) => {
 	context.export = yaml.load(
 		fs.readFileSync('spec/fixtures/export.yaml', 'utf8')
 	)
-	context.collect = yaml.load(
-		fs.readFileSync('spec/fixtures/collect.yaml', 'utf8')
-	)
+	context.collect = yaml.load(fs.readFileSync('spec/fixtures/d1.yaml', 'utf8'))
 })
 
 CollectorSuite.before.each((context) => {
@@ -29,38 +27,33 @@ CollectorSuite.after.each((context) => {
 })
 
 CollectorSuite('Should initialize collection', (context) => {
-	const config = yaml.load(fs.readFileSync('db.yml', 'utf8'))
-	const partial = omit(['extensions', 'schemas', 'dependencies'], config)
-	let dx = collect()
-	assert.equal(dx.data, [])
-	assert.equal(dx.config, partial)
-	assert.equal(dx.allowedTypes, [])
+	const config = yaml.load(fs.readFileSync('design.yaml', 'utf8'))
 
-	dx = collect('ddl')
-	assert.equal(dx.data, context.collect.ddl)
-	assert.equal(dx.config, partial)
-	assert.equal(dx.allowedTypes, ['.ddl'])
+	let dx = using('design.yaml')
 
-	let opts = yaml.load(fs.readFileSync('import.yml', 'utf8'))
-	dx = collect('import')
-	assert.equal(dx.data, context.collect.import)
-	assert.equal(dx.config, partial)
-	assert.equal(dx.allowedTypes, ['.csv', '.json'])
-
-	opts = yaml.load(fs.readFileSync('export.yml', 'utf8'))
-	dx = collect('export')
-	assert.equal(dx.data, context.collect.export)
-	assert.equal(dx.config, partial)
-	assert.equal(dx.allowedTypes, ['.csv', '.json'])
+	assert.equal(dx.config.project, config.project)
+	assert.equal(dx.config.schemas, config.schemas)
+	assert.equal(dx.config.extensions, config.extensions)
+	assert.equal(dx.config.roles, context.collect.config.roles)
+	assert.equal(dx.config.entities, context.collect.config.entities)
+	assert.equal(dx.entities, context.collect.entities)
 })
 
-CollectorSuite(
-	'Should analyze, group and sort by dependencies',
-	(context) => {}
-)
+CollectorSuite('Should combine scripts and generate file', (context) => {
+	using('design.yaml').combine('_combined.sql')
+	assert.ok(fs.existsSync('_combined.sql'))
+	fs.unlinkSync('_combined.sql')
+})
+
+CollectorSuite('Should combine scripts and generate dbml', (context) => {
+	using('design.yaml').dbml()
+	assert.ok(fs.existsSync('design.dbml'))
+	fs.unlinkSync('design.dbml')
+})
+
 CollectorSuite('Should apply the ddl scripts', (context) => {})
 
 CollectorSuite('Should collect import scripts', (context) => {})
 CollectorSuite('Should collect export entities', (context) => {})
 
-// CollectorSuite.run()
+CollectorSuite.run()
