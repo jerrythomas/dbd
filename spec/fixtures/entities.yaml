@@ -9,16 +9,19 @@ files:
       type: table
       name: core.lookup
       file: ddl/table/core/lookup.ddl
+      schema: core
   - input: ddl/table/core/lookup.sql
     output:
       type: table
       name: core.lookup
       file: ddl/table/core/lookup.sql
-  - input: import/core/lookup.csv
+      schema: core
+  - input: import/staging/lookup.csv
     output:
       type: import
-      name: core.lookup
-      file: import/core/lookup.csv
+      name: staging.lookup
+      file: import/staging/lookup.csv
+      schema: staging
 
 exportConfig:
   - input: core.lookup
@@ -26,6 +29,7 @@ exportConfig:
       type: export
       name: core.lookup
       format: csv
+    message: Should work with just name
   - input:
       core.lookup:
         format: json
@@ -33,6 +37,51 @@ exportConfig:
       type: export
       name: core.lookup
       format: json
+    message: Should override export format when provided
+
+importConfig:
+  - input: staging.lookup
+    output:
+      type: import
+      name: staging.lookup
+      schema: staging
+      format: csv
+      nullValue: ''
+      truncate: true
+    message: Should use defaults with name
+  - input:
+      staging.lookup:
+        format: json
+    output:
+      type: import
+      name: staging.lookup
+      schema: staging
+      format: json
+      nullValue: ''
+      truncate: true
+    message: Should override format option when provided
+  - input:
+      staging.lookup:
+        truncate: false
+    output:
+      type: import
+      name: staging.lookup
+      schema: staging
+      format: csv
+      nullValue: ''
+      truncate: false
+    message: Should override truncate option when provided
+  - input:
+      staging.lookup:
+        nullValue: "NULL"
+    output:
+      type: import
+      name: staging.lookup
+      schema: staging
+      format: csv
+      nullValue: "NULL"
+      truncate: true
+    message: Should override nullValue option when provided
 
 schemaNames:
   - input: public
@@ -139,3 +188,166 @@ dependencies:
     name: public.skill_search_options
     refers:
       - public.all_competencies
+ddlScripts:
+- input:
+    type: schema
+    name: private
+  output: create schema if not exists private;
+  message: Should create private schema
+- input:
+    type: extension
+    name: uuid-ossp
+  output: create extension if not exists "uuid-ossp" with schema public;
+  message: Should create extension "uuid-ossp"
+- input:
+    type: extension
+    name: uuid-ossp
+    schema: extensions
+  output: create extension if not exists "uuid-ossp" with schema extensions;
+  message: Should create extension "uuid-ossp" with extension schema
+- input:
+    type: role
+    name: basic
+  output: create role if not exists basic;
+  message: Should create basic role
+- input:
+    type: table
+    name: test
+    file: spec/fixtures/ddl/test/test.ddl
+  output: create table test (id int);
+  message: Should create table "test" from file
+
+dataFiles:
+  json:
+    input:
+      file: spec/fixtures/import/lookup.json
+    output:
+    - name: genders
+    message: Should read data from json
+  csv:
+    input:
+      file: spec/fixtures/import/lookup.csv
+    output:
+    - name: genders
+    - name: roles
+    message: Should read data from csv
+
+validations:
+- input:
+    entity:
+      type: schema
+      name: test
+    ddl: true
+  output:
+    type: schema
+    name: test
+  message: No errors for schema
+- input:
+    entity:
+      type: extension
+      name: test
+    ddl: true
+  output:
+    type: extension
+    name: test
+  message: No errors for extension
+- input:
+    entity:
+      type: table
+      name: test
+    ddl: true
+  output:
+    type: table
+    name: test
+    errors:
+    - File missing for entity
+  message: File missing for entity
+- input:
+    entity:
+      type: table
+      name: test
+      file: missing.ddl
+    ddl: true
+  output:
+    type: table
+    name: test
+    file: missing.ddl
+    errors:
+    - File does not exist
+  message: File does not exist
+- input:
+    entity:
+      type: table
+      name: test
+      file: spec/fixtures/ddl/test/invalid.sql
+    ddl: true
+  output:
+    type: table
+    name: test
+    file: spec/fixtures/ddl/test/invalid.sql
+    errors:
+    - Unsupported file type for ddl
+  message: Unsupported file type for ddl
+- input:
+    entity:
+      type: table
+      name: test
+      file: spec/fixtures/ddl/test/invalid.sql
+    ddl: false
+  output:
+    type: table
+    name: test
+    file: spec/fixtures/ddl/test/invalid.sql
+    errors:
+    - Unsupported data format
+  message: Unsupported data format
+- input:
+    entity:
+      type: table
+      name: test
+      file: spec/fixtures/import/lookup.csv
+    ddl: false
+  output:
+    type: table
+    name: test
+    file: spec/fixtures/import/lookup.csv
+  message: No errors in this entity
+
+importScripts:
+  - input:
+      type: import
+      name: staging.lookup
+      file: lookup.csv
+      format: csv
+      nullValue: ''
+      truncate: true
+    output: |-
+      truncate table staging.lookup;
+      \copy staging.lookup from 'lookup.csv' with delimiter ',' NULL as '' csv header;
+    message: Should use defaults with name
+  - input:
+      type: import
+      name: staging.lookup
+      file: lookup.csv
+      format: csv
+      nullValue: ''
+      truncate: false
+    output: \copy staging.lookup from 'lookup.csv' with delimiter ',' NULL as '' csv header;
+    message: Should override truncate option when provided
+  - input:
+      type: import
+      name: staging.lookup
+      file: lookup.csv
+      format: csv
+      nullValue: "NULL"
+      truncate: true
+    output: |-
+      truncate table staging.lookup;
+      \copy staging.lookup from 'lookup.csv' with delimiter ',' NULL as 'NULL' csv header;
+    message: Should override nullValue option when provided
+
+exportScripts:
+  input:
+    name: staging.lookup
+  output: \copy (select * from staging.lookup) to 'export/staging/lookup.csv' with delimiter ',' csv header;
+  message: Should generate export script

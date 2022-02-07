@@ -4,6 +4,7 @@ import csv from 'csvtojson'
 
 const typesWithoutSchema = ['role', 'schema']
 const defaultExportOptions = { format: 'csv' }
+const defaultImportOptions = { format: 'csv', nullValue: '', truncate: true }
 
 /**
  * Converts a file path into an Entity object
@@ -19,6 +20,9 @@ export function entityFromFile(file) {
 		? parts[parts.length - 1]
 		: parts.slice(parts.length - 2).join('.')
 
+	if (!typesWithoutSchema.includes(type)) {
+		return { type, name, file, schema: parts[parts.length - 2] }
+	}
 	return { type, name, file }
 }
 
@@ -34,7 +38,7 @@ export function entityFromExportConfig(item) {
 
 	if (typeof item === 'object') {
 		entity = Object.keys(item)[0]
-		opts = item[entity]
+		opts = { ...defaultExportOptions, ...item[entity] }
 	}
 	return {
 		type: 'export',
@@ -43,6 +47,27 @@ export function entityFromExportConfig(item) {
 	}
 }
 
+/**
+ * Converts input into an import Entity
+ *
+ * @param {(string|Object)} item
+ * @returns
+ */
+export function entityFromImportConfig(item) {
+	let name = item
+	let opts = defaultImportOptions
+
+	if (typeof item === 'object') {
+		name = Object.keys(item)[0]
+		opts = { ...defaultImportOptions, ...item[name] }
+	}
+	return {
+		type: 'import',
+		name,
+		schema: name.split('.')[0],
+		...opts
+	}
+}
 /**
  * Converts input into an extension Entity
  *
@@ -98,7 +123,6 @@ export function entityFromRoleName(name) {
  */
 export function ddlFromEntity(entity) {
 	if (entity.file) {
-		// if (path.extname(entity.file) === '.ddl')
 		return fs.readFileSync(entity.file, 'utf8')
 	}
 	if (entity.type === 'schema') {
@@ -110,7 +134,7 @@ export function ddlFromEntity(entity) {
 		};`
 	}
 	if (entity.type === 'role') {
-		return `create role if not exists ${entity.name}`
+		return `create role if not exists ${entity.name};`
 	}
 }
 
@@ -122,14 +146,13 @@ export function ddlFromEntity(entity) {
  */
 export async function dataFromEntity(entity) {
 	let data = []
-	if (entity.file) {
-		if (path.extname(entity.file) === '.csv') {
-			data = await csv().fromFile(entity.file)
-		}
-		if (path.extname(entity.file) === '.json') {
-			data = JSON.parse(fs.readFileSync(entity.file, 'utf8'))
-		}
+
+	if (path.extname(entity.file) === '.json') {
+		data = JSON.parse(fs.readFileSync(entity.file, 'utf8'))
+	} else if (path.extname(entity.file) === '.csv') {
+		data = await csv().fromFile(entity.file)
 	}
+
 	return data
 }
 
@@ -142,14 +165,38 @@ export async function dataFromEntity(entity) {
 export function validateEntityFile(entity, ddl = true) {
 	let errors = []
 
-	if (!['role', 'schema', 'extension'].includes(entity.type)) {
-		if (!entity.file) {
-			errors.push('File missing for entity')
-		} else if (ddl && path.extname(entity.file) !== '.ddl') {
+	if (['schema', 'extension'].includes(entity.type)) return entity
+
+	if (!entity.file && entity.type != 'role') {
+		errors.push('File missing for entity')
+	}
+	if (entity.file) {
+		if (!fs.existsSync(entity.file)) {
+			errors.push('File does not exist')
+		}
+		if (ddl && path.extname(entity.file) !== '.ddl') {
 			errors.push('Unsupported file type for ddl')
-		} else if (!ddl && ['.csv', '.json'].includes(path.extname(entity.file))) {
+		}
+		if (!ddl && !['.csv', '.json'].includes(path.extname(entity.file))) {
 			errors.push('Unsupported data format')
 		}
 	}
-	return errors ? { ...entity, errors } : entity
+
+	return errors.length > 0 ? { ...entity, errors } : entity
+}
+
+export function importScriptForEntity(entity) {
+	let commands = []
+	if (entity.truncate) {
+		commands.push(`truncate table ${entity.name};`)
+	}
+	commands.push(
+		`\\copy ${entity.name} from '${entity.file}' with delimiter ',' NULL as '${entity.nullValue}' csv header;`
+	)
+	return commands.join('\n')
+}
+
+export function exportScriptForEntity(entity) {
+	const file = `export/${entity.name.replace('.', path.sep)}.csv`
+	return `\\copy (select * from ${entity.name}) to '${file}' with delimiter ',' csv header;`
 }

@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import yaml from 'js-yaml'
-import { entityFromFile } from './entity.js'
+import { entityFromFile, entityFromImportConfig } from './entity.js'
 
 /**
  * Scans a folder and returns a list of file paths
@@ -34,10 +34,16 @@ export function scan(root = '.') {
  */
 export function read(file) {
 	let data = yaml.load(fs.readFileSync(file, 'utf8'))
+
 	data.roles = data.roles || []
 	data.schemas = data.schemas || []
 	data.entities = data.entities || []
 	data.entities = data.entities.map((entity) => ({ refers: [], ...entity }))
+	// if (data.import) {
+	// 	data.import.tables = data.import.tables || []
+	// }
+	data.project = { staging: [], ...data.project }
+
 	return data
 }
 
@@ -53,6 +59,15 @@ export function clean(data) {
 		.map((entity) => ({ ...entity, refers: [] }))
 	entities = merge(entities, data.entities)
 
+	let importTables = scan('import')
+		.filter((file) => ['.csv'].includes(path.extname(file)))
+		.map((file) => entityFromFile(file))
+
+	importTables = merge(
+		importTables,
+		data.import.tables.map((table) => entityFromImportConfig(table))
+	)
+
 	let roles = [
 		...data.roles,
 		...entities.filter((entity) => entity.type === 'role')
@@ -67,7 +82,7 @@ export function clean(data) {
 		])
 	]
 
-	data = { ...data, roles, schemas, entities }
+	data = { ...data, roles, schemas, entities, importTables }
 
 	return data
 }

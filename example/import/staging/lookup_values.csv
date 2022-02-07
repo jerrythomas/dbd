@@ -1,3 +1,3 @@
-lookup, value
-Gender, Male
-Gender, Female
+lookup_name, value, description, is_active
+Gender, Male,,t
+Gender, Female,,t

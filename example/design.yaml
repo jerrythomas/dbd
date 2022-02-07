@@ -2,18 +2,19 @@ project:
   name: Example
   database: PostgreSQL
   extensionSchema: extensions
-  stagingSchema: staging
+  staging:
+  - staging
   dbdocs:
     exclude:
       schemas:
         - staging
       tables: []
 schemas:
-  - core
-  - extensions
-  - staging
+- core
+- extensions
+- staging
 extensions:
-  - uuid-ossp
+- uuid-ossp
 # roles:
 #   - basic
 #   - advanced:
@@ -22,26 +23,29 @@ entities:
   - type: role
     name: advanced
     refers:
-     - basic
+    - basic
   - type: table
     name: core.lookups
   - type: table
     name: core.lookup_values
     refers:
-      - core.lookups
+    - core.lookups
   - type: view
     name: core.genders
     refers:
-      - core.lookups
-      - core.lookup_values
+    - core.lookups
+    - core.lookup_values
   - type: table
     name: staging.lookup_values
 import:
-  seeded:
-    - core.lookup
-  staging:
-    - staging.lookup_values
+  tables:
+  - staging.lookup_values
+  - staging.lookup:
+      nullValue: NULL
+      truncate: false
+  after:
+  - import/loader.sql
 export:
-  - core.lookup
+  - core.lookups
   - core.lookup_values
   - core.genders

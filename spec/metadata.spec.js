@@ -16,13 +16,6 @@ MetadataSuite.before((context) => {
 	context.m1 = yaml.load(fs.readFileSync('spec/fixtures/m1.yaml', 'utf8'))
 	context.r1 = yaml.load(fs.readFileSync('spec/fixtures/r1.yaml', 'utf8'))
 	context.c1 = yaml.load(fs.readFileSync('spec/fixtures/c1.yaml', 'utf8'))
-
-	// context.export = yaml.load(
-	// 	fs.readFileSync('spec/fixtures/export.yaml', 'utf8')
-	// )
-	// context.collect = yaml.load(
-	// 	fs.readFileSync('spec/fixtures/collect.yaml', 'utf8')
-	// )
 })
 
 MetadataSuite.before.each((context) => {
@@ -39,6 +32,7 @@ MetadataSuite('Should fetch all files in path', (context) => {
 		'ddl/role/basic.ddl',
 		'ddl/table/core/lookup_values.ddl',
 		'ddl/table/core/lookups.ddl',
+		'ddl/table/staging/lookup_values.ddl',
 		'ddl/view/core/genders.ddl'
 	])
 })

@@ -1,4 +1,6 @@
 input:
+  project:
+    staging: []
   schemas:
     - extensions
   entities:
@@ -19,7 +21,13 @@ input:
     - type: table
       name: staging.lookup_values
   roles: []
+  import:
+    tables:
+    - staging.lookup_values
+
 output:
+  project:
+    staging: []
   schemas:
     - extensions
     - core
@@ -29,19 +37,25 @@ output:
       name: core.lookups
       file: ddl/table/core/lookups.ddl
       refers: []
+      schema: core
     - type: table
       name: core.lookup_values
       file: ddl/table/core/lookup_values.ddl
       refers:
         - core.lookups
+      schema: core
     - type: view
       name: core.genders
       file: ddl/view/core/genders.ddl
       refers:
         - core.lookups
         - core.lookup_values
+      schema: core
     - type: table
       name: staging.lookup_values
+      file: ddl/table/staging/lookup_values.ddl
+      refers: []
+      schema: staging
   roles:
     - type: role
       name: advanced
@@ -51,3 +65,15 @@ output:
       name: basic
       file: ddl/role/basic.ddl
       refers: []
+  import:
+    tables:
+    - staging.lookup_values
+  importTables:
+  - type: import
+    name: staging.lookup_values
+    schema: staging
+    format: csv
+    nullValue: ""
+    truncate: true
+    file: import/staging/lookup_values.csv
+
