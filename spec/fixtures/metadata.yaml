@@ -1,0 +1,159 @@
+read:
+  project:
+    name: Example
+    database: PostgreSQL
+    extensionSchema: extensions
+    staging:
+    - staging
+    dbdocs:
+      exclude:
+        schemas:
+          - staging
+        tables: []
+  schemas:
+  - core
+  - extensions
+  - staging
+  extensions:
+  - uuid-ossp
+  # roles:
+  #   - basic
+  #   - advanced:
+  #       refers: basic
+  entities:
+    - type: role
+      name: advanced
+      refers:
+      - basic
+    - type: table
+      name: core.lookups
+      refers: []
+    - type: table
+      name: core.lookup_values
+      refers:
+      - core.lookups
+    - type: view
+      name: core.genders
+      refers:
+      - core.lookups
+      - core.lookup_values
+    - type: table
+      name: staging.lookup_values
+      refers: []
+  import:
+    options:
+      truncate: true
+      nullValue: ''
+    tables:
+    - staging.lookup_values
+    after:
+    - import/loader.sql
+  export:
+    - core.lookups
+    - core.lookup_values
+    - core.genders
+  roles: []
+
+missing:
+  schemas: []
+  roles: []
+  entities: []
+  project:
+    name: Example
+    staging: []
+merge:
+- input:
+    x:
+    - type: table
+      name: core.lookups
+      file: ddl/table/core/lookups.ddl
+    - type: table
+      name: core.lookup_values
+      file: ddl/table/core/lookup_values.ddl
+    - type: view
+      name: core.genders
+      file: ddl/table/core/genders.ddl
+    - type: table
+      name: staging.lookup_values
+      file: ddl/table/staging/lookup_values.ddl
+    y:
+    - type: table
+      name: core.lookup_values
+      refers:
+      - core.lookups
+    - type: view
+      name: core.genders
+      refers:
+      - core.lookups
+      - core.lookup_values
+  output:
+  - type: table
+    name: core.lookup_values
+    file: ddl/table/core/lookup_values.ddl
+    refers:
+    - core.lookups
+  - type: view
+    name: core.genders
+    file: ddl/table/core/genders.ddl
+    refers:
+    - core.lookups
+    - core.lookup_values
+  - type: table
+    name: core.lookups
+    file: ddl/table/core/lookups.ddl
+  - type: table
+    name: staging.lookup_values
+    file: ddl/table/staging/lookup_values.ddl
+
+- input:
+    x:
+    - type: table
+      name: core.lookups
+      file: ddl/table/core/lookups.ddl
+      refers: []
+    - type: table
+      name: core.lookup_values
+      file: ddl/table/core/lookup_values.ddl
+      refers: []
+    - type: view
+      name: core.genders
+      file: ddl/table/core/genders.ddl
+      refers: []
+    - type: table
+      name: staging.lookup_values
+      file: ddl/table/staging/lookup_values.ddl
+      refers: []
+    y:
+    - type: table
+      name: core.lookups
+    - type: table
+      name: core.lookup_values
+      refers:
+      - core.lookups
+    - type: view
+      name: core.genders
+      refers:
+      - core.lookups
+      - core.lookup_values
+  output:
+  - type: table
+    name: core.lookups
+    file: ddl/table/core/lookups.ddl
+    refers: []
+  - type: table
+    name: core.lookup_values
+    file: ddl/table/core/lookup_values.ddl
+    refers:
+    - core.lookups
+  - type: view
+    name: core.genders
+    file: ddl/table/core/genders.ddl
+    refers:
+    - core.lookups
+    - core.lookup_values
+  - type: table
+    name: staging.lookup_values
+    file: ddl/table/staging/lookup_values.ddl
+    refers: []
+clean:
+  entities: []

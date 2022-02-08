@@ -1,0 +1,4 @@
+---
+- staging.lookups
+- staging.lookup_values:
+    format: json

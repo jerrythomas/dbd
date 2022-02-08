@@ -1,0 +1,37 @@
+project:
+  name: Example
+  database: PostgreSQL
+  staging:
+  - staging
+  dbdocs:
+    exclude:
+      schemas:
+        - staging
+      tables: []
+schemas:
+- core
+- staging
+extensions:
+- uuid-ossp
+
+entities:
+  - type: table
+    name: core.lookups
+  - type: table
+    name: core.lookup_values
+    refers:
+    - core.lookups
+  - type: table
+    name: staging.lookup_values
+import:
+  tables:
+  - core.lookup_values
+  - core.lookups
+  - staging.lookup:
+      nullValue: NULL
+      truncate: false
+  after:
+  - import/loader.sql
+export:
+  - core.lookups
+  - core.lookup_values

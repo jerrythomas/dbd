@@ -1,0 +1,51 @@
+project:
+  name: Example
+  database: PostgreSQL
+  extensionSchema: extensions
+  staging:
+  - staging
+  dbdocs:
+    exclude:
+      schemas:
+        - staging
+      tables: []
+schemas:
+- core
+- extensions
+- staging
+extensions:
+- uuid-ossp
+# roles:
+#   - basic
+#   - advanced:
+#       refers: basic
+entities:
+  - type: role
+    name: advanced
+    refers:
+    - basic
+  - type: table
+    name: core.lookups
+  - type: table
+    name: core.lookup_values
+    refers:
+    - core.lookups
+  - type: view
+    name: core.genders
+    refers:
+    - core.lookups
+    - core.lookup_values
+  - type: table
+    name: staging.lookup_values
+import:
+  options:
+    truncate: true
+    nullValue: ''
+  tables:
+  - staging.lookup_values
+  after:
+  - import/loader.sql
+export:
+  - core.lookups
+  - core.lookup_values
+  - core.genders

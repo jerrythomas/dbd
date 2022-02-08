@@ -1,0 +1,15 @@
+- input: staging.lookups
+  output:
+    schema: 'staging'
+    name: 'lookups'
+    opts:
+      format: 'csv'
+- input:
+    staging.lookup_values:
+      format: json
+  output:
+    schema: 'staging'
+    name: 'lookup_values'
+    opts:
+      format: 'json'
+
