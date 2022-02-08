@@ -47,47 +47,47 @@ roles:
   - basic
 
 entities:
-- type: schema
-  name: core
-- type: schema
-  name: extensions
-- type: schema
-  name: staging
-- type: extension
-  name: uuid-ossp
-  schema: public
-- type: role
-  name: basic
-  file: ddl/role/basic.ddl
-  refers: []
-- type: role
-  name: advanced
-  file: ddl/role/advanced.ddl
-  refers:
-  - basic
-- type: table
-  name: core.lookups
-  file: ddl/table/core/lookups.ddl
-  schema: core
-  refers: []
-- type: table
-  name: staging.lookup_values
-  file: ddl/table/staging/lookup_values.ddl
-  schema: staging
-  refers: []
-- type: table
-  name: core.lookup_values
-  file: ddl/table/core/lookup_values.ddl
-  schema: core
-  refers:
-    - core.lookups
-- type: view
-  name: core.genders
-  file: ddl/view/core/genders.ddl
-  schema: core
-  refers:
-    - core.lookups
-    - core.lookup_values
+  - type: schema
+    name: core
+  - type: schema
+    name: extensions
+  - type: schema
+    name: staging
+  - type: extension
+    name: uuid-ossp
+    schema: public
+  - type: role
+    name: basic
+    file: ddl/role/basic.ddl
+    refers: []
+  - type: role
+    name: advanced
+    file: ddl/role/advanced.ddl
+    refers:
+    - basic
+  - type: table
+    name: core.lookups
+    file: ddl/table/core/lookups.ddl
+    schema: core
+    refers: []
+  - type: table
+    name: staging.lookup_values
+    file: ddl/table/staging/lookup_values.ddl
+    schema: staging
+    refers: []
+  - type: table
+    name: core.lookup_values
+    file: ddl/table/core/lookup_values.ddl
+    schema: core
+    refers:
+      - core.lookups
+  - type: view
+    name: core.genders
+    file: ddl/view/core/genders.ddl
+    schema: core
+    refers:
+      - core.lookups
+      - core.lookup_values
 
 beforeApply:
   schemas: []

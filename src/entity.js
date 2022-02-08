@@ -53,13 +53,13 @@ export function entityFromExportConfig(item) {
  * @param {(string|Object)} item
  * @returns
  */
-export function entityFromImportConfig(item) {
+export function entityFromImportConfig(item, opts = defaultImportOptions) {
 	let name = item
-	let opts = defaultImportOptions
+	opts = { ...defaultImportOptions, ...opts }
 
 	if (typeof item === 'object') {
 		name = Object.keys(item)[0]
-		opts = { ...defaultImportOptions, ...item[name] }
+		opts = { ...opts, ...item[name] }
 	}
 	return {
 		type: 'import',

@@ -2,9 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import { omit } from 'ramda'
 import { execSync } from 'child_process'
-import createConnectionPool, { sql } from '@databases/pg'
 
-import { read, clean, organize, merge } from './metadata.js'
+import { read, clean, organize } from './metadata.js'
 import {
 	entityFromSchemaName,
 	entityFromExportConfig,
@@ -67,36 +66,40 @@ class Design {
 			.map((entity) => validateEntityFile(entity, false))
 			.map((entity) => {
 				if (!allowedSchemas.includes(entity.schema))
-					entity.errors = (entity.errors || []).push(
+					entity.errors = [
+						...(entity.errors || []),
 						`Import is only allowed for staging schemas`
-					)
+					]
 				return entity
 			})
 		this.#isValidated = true
 		return this
 	}
 
+	report() {
+		if (!this.isValidated) this.validate()
+		const issues = [
+			...this.entities.filter((entity) => entity.errors),
+			...this.importTables.filter((table) => table.errors)
+		].map(({ name, errors }) => `${name}: ${errors.join(', ')}`)
+
+		return issues
+	}
+
 	async apply(name) {
 		const TMP_COMBINED_FILE = '_combined.ddl'
-		// const db = createConnectionPool({
-		// 	connectionString: this.databaseURL,
-		// 	bigIntMode: 'bigint'
-		// })
 
-		const combined = this.entities
+		let combined = this.entities
 			.filter((entity) => !entity.errors)
 			.filter((entity) => !name || entity.name === name)
 			.map((entity) => ddlFromEntity(entity))
 
-		fs.writeFileSync(TMP_COMBINED_FILE, combined.join('\n'))
-		execSync(`psql ${this.databaseURL} < ${TMP_COMBINED_FILE}`)
-		// try {
-		// 	await db.query(sql.file(TMP_COMBINED_FILE))
-		// 	fs.unlinkSync(TMP_COMBINED_FILE)
-		// } catch (err) {
-		// 	console.error(err)
-		// }
-		// db.dispose()
+		if (combined.length > 0) {
+			fs.writeFileSync(TMP_COMBINED_FILE, combined.join('\n'))
+			execSync(`psql ${this.databaseURL} < ${TMP_COMBINED_FILE}`)
+			fs.unlinkSync(TMP_COMBINED_FILE)
+		}
+
 		return this
 	}
 
@@ -113,7 +116,7 @@ class Design {
 		const { schemas, tables } = this.config.project.dbdocs.exclude
 		const combined = this.entities
 			.filter((entity) => entity.type === 'table')
-			.filter((entity) => !schemas.includes(entity.name.split('.')[0]))
+			.filter((entity) => !schemas.includes(entity.schema))
 			.filter((entity) => !tables.includes(entity.name))
 			.map((entity) => ddlFromEntity(entity))
 
@@ -129,16 +132,18 @@ class Design {
 
 		let commands = this.importTables
 			.filter((entity) => !entity.errors)
-			.filter((table) => !name || table.name === name)
+			.filter((entity) => !name || entity.name === name || entity.file === name)
 			.map((table) => importScriptForEntity(table))
 
 		let postCommands = this.config.import.after.map((file) =>
 			fs.readFileSync(file, 'utf8')
 		)
-		commands = [...commands, ...postCommands]
-		fs.writeFileSync('_import.sql', commands.join('\n'))
-		execSync(`psql ${this.databaseURL} < _import.sql`)
-		fs.unlinkSync('_import.sql')
+
+		if (commands.length > 0) {
+			fs.writeFileSync('_import.sql', [...commands, ...postCommands].join('\n'))
+			execSync(`psql ${this.databaseURL} < _import.sql`)
+			fs.unlinkSync('_import.sql')
+		}
 
 		return this
 	}
@@ -151,15 +156,17 @@ class Design {
 				)
 			)
 		]
-		const commands = this.config.export
+		let commands = this.config.export
 			.map((entity) => entityFromExportConfig(entity))
 			.filter((entity) => !name || entity.name === name)
 			.map((entity) => exportScriptForEntity(entity))
 
-		folders.map((folder) => fs.mkdirSync(folder, { recursive: true }))
-		fs.writeFileSync('_export.sql', commands.join('\n'))
-		execSync(`psql ${this.databaseURL} < _export.sql`)
-		fs.unlinkSync('_export.sql')
+		if (commands.length > 0) {
+			folders.map((folder) => fs.mkdirSync(folder, { recursive: true }))
+			fs.writeFileSync('_export.sql', commands.join('\n'))
+			execSync(`psql ${this.databaseURL} < _export.sql`)
+			fs.unlinkSync('_export.sql')
+		}
 
 		return this
 	}

@@ -41,11 +41,11 @@ read:
       name: staging.lookup_values
       refers: []
   import:
+    options:
+      truncate: true
+      nullValue: ''
     tables:
     - staging.lookup_values
-    - staging.lookup:
-        nullValue: NULL
-        truncate: false
     after:
     - import/loader.sql
   export:

@@ -1,6 +1,6 @@
 set search_path to core;
 
-create view genders
+create or replace view genders
 as
 select lv.id
      , lv.value

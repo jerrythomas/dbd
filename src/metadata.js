@@ -39,9 +39,6 @@ export function read(file) {
 	data.schemas = data.schemas || []
 	data.entities = data.entities || []
 	data.entities = data.entities.map((entity) => ({ refers: [], ...entity }))
-	// if (data.import) {
-	// 	data.import.tables = data.import.tables || []
-	// }
 	data.project = { staging: [], ...data.project }
 
 	return data
@@ -65,7 +62,9 @@ export function clean(data) {
 
 	importTables = merge(
 		importTables,
-		data.import.tables.map((table) => entityFromImportConfig(table))
+		data.import.tables.map((table) =>
+			entityFromImportConfig(table, data.import.options)
+		)
 	)
 
 	let roles = [

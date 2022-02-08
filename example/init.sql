@@ -39,7 +39,7 @@ create unique index if not exists lookup_values_ukey on lookup_values(lookup_id,
 comment on table lookup_values IS 'Different values associated with the lookup.';
 set search_path to core;
 
-create view genders
+create or replace view genders
 as
 select lv.id
      , lv.value

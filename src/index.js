@@ -1,22 +1,13 @@
 #!/usr/bin/env node
 import sade from 'sade'
-import fs from 'fs'
-import { dbtypes } from './scripts.js'
-import {
-	inspect,
-	apply,
-	rollback,
-	migrate,
-	combine,
-	importCSV,
-	exportCSV
-} from './action.js'
+import { execSync } from 'child_process'
+import { using } from './collect.js'
 
 const prog = sade('dbd')
 
 prog
 	.version('1.0.0')
-	.option('-c, --config', 'Provide path to custom config', 'db.yaml')
+	.option('-c, --config', 'Provide path to custom config', 'design.yaml')
 	.option('-d, --database', 'Database URL', process.env.DATABASE_URL)
 	.option('-e, --environment', 'Environment to load data', 'development')
 	.option('-p, --preview', 'Preview the action', false)
@@ -26,9 +17,7 @@ prog
 	.describe('Initialize an empty project')
 	.example('dbd init')
 	.action((opts) => {
-		Object.keys(dbtypes).map((dbtype) => {
-			if (!fs.existsSync(dbtype)) fs.mkdirSync(dbtype)
-		})
+		execSync(`npx degit jerrythomas/dbd/example`)
 	})
 
 prog
@@ -36,62 +25,54 @@ prog
 	.describe('Inspect the current folder.')
 	.example('dbd inspect')
 	.action((opts) => {
-		inspect(opts)
+		const issues = using(opts.config, opts.database).validate().report()
+		if (issues.length > 0) {
+			console.log(issues.join('\n'))
+		} else {
+			console.log('Everything looks ok')
+		}
 	})
 
 prog
 	.command('apply')
-	.option('-f, --file', 'apply a specific file only')
+	.option('-n, --name', 'apply a specific entity or file only')
 	.describe('Apply the database scripts to database.')
 	.example('dbd apply')
 	.example('dbd apply -c database.yaml')
 	.example('dbd apply -d postgres://localhost:5432')
 	.action((opts) => {
-		apply(opts)
+		using(opts.config, opts.database).apply(opts.name)
 	})
 
 prog
-	.command('rollback')
-	.describe('Rollback last applied scripts.')
-	.example('dbd rollback')
+	.command('combine')
+	.option('-f, --file', 'Destination sql file', 'init.sql')
+	.describe('Combine all ddl scripts and generate dbml.')
+	.example('dbd combine')
+	.example('dbd combine -f init.sql')
 	.action((opts) => {
-		rollback(opts)
-	})
-
-prog
-	.command('migrate')
-	.describe('Generate migration and rollback scripts and apply migration.')
-	.example('dbd migrate')
-	.action((opts) => {
-		migrate(opts)
+		using(opts.config, opts.database).combine(opts.file)
 	})
 
 prog
 	.command('import')
-	.option(
-		'-f, --file',
-		'File containing the list of tables/views to export.',
-		'import.yaml'
-	)
-	.option('-s, --seed-only', 'load seeded data only', false)
-	.option('-r, --raw-only', 'load raw staging data', false)
+	.option('-n, --name', 'Optional name or file to be imported.')
 	.describe('Load csv files into database')
-	.example('dbd')
+	.example('dbd import')
+	.example('dbd import -n staging.lookups')
+	.example('dbd import -n import/staging/lookups.csv')
 	.action((opts) => {
-		importCSV(opts)
+		using(opts.config, opts.database).importData(opts.name)
 	})
 
 prog
 	.command('export')
-	.option(
-		'-f, --file',
-		'File containing the list of tables/views to export.',
-		'export.yaml'
-	)
+	.option('-n, --name', 'Name if specific entity to export.')
 	.describe('Export specific tables from the database')
-	.example('dbd')
+	.example('dbd export')
+	.example('dbd export -n staging.lookups')
 	.action((opts) => {
-		exportCSV(opts)
+		using(opts.config, opts.database).exportData(opts.name)
 	})
 
 prog
@@ -101,15 +82,7 @@ prog
 	.example('dbd dbml')
 	.example('dbd dbml -f design.dbml')
 	.action((opts) => {
-		combine(opts)
+		using(opts.config, opts.database).dbml(opts.file)
 	})
-// prog
-// 	.command('combine')
-// 	.option('-f, --file', 'Destination dbml file', 'design.ddl')
-// 	.describe('Combine all ddl scripts and generate dbml.')
-// 	.example('dbd')
-// 	.action((opts) => {
-// 		console.log('combine filename', opts.file)
-// 	})
 
 prog.parse(process.argv)

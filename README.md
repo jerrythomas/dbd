@@ -8,8 +8,7 @@ This is a simple cli to apply ddl scripts for individual objects for developers 
 
 - [x] Apply set of individual ddl scripts
 - [x] Rollback (drop) objects applied
-- [x] Load seed data from csv files with pre & postprocess scripts
-- [x] Load staging data with pre & post process scripts for development/testing
+- [x] Load staging data with post process scripts for development/testing
 - [x] Export data from tables & views
 - [x] Generate [dbdocs](https://dbdocs.io) dbml for all (or subset) tables
 - [ ] Generate ddl from yaml
@@ -27,20 +26,18 @@ npm i --global @jerrythomas/dbd@beta
 
 Individual ddl scripts are expected to be placed under folders with names of the database object types. Subfolders are used to specify the schema names. Files are expected to have the same name as the object.
 
-Examples:
-
-- table/core/table_a.ddl
-- view/sample/view_a.ddl
+[example](example)
 
 > Node: The cli relies on dependencies mentioned in a yaml file (db.yaml) to execute scripts in a sequence. Refer to example folder.
 
 ### Commands
 
-| Command      | Action                        |
-| ------------ | ----------------------------- |
-| dbd init     | create empty folders          |
-| dbd apply    | apply the creation scripts    |
-| dbd rollback | drop objects created by apply |
-| dbd import   | load seed/staging files       |
-| dbd export   | export tables/views           |
-| dbd dbml     | generate dbml files           |
+| Command     | Action                         |
+| ----------- | ------------------------------ |
+| dbd init    | create an example repo         |
+| dbd inspect | inspect and report issues      |
+| dbd combine | combine all into single script |
+| dbd apply   | apply the creation scripts     |
+| dbd import  | load seed/staging files        |
+| dbd export  | export tables/views            |
+| dbd dbml    | generate dbml files            |

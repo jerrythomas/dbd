@@ -20,8 +20,12 @@ import {
 const EntitySuite = suite('Suite for entity')
 
 EntitySuite.before((context) => {
+	context.path = process.cwd()
 	const data = yaml.load(fs.readFileSync('spec/fixtures/entities.yaml', 'utf8'))
 	Object.keys(data).map((key) => (context[key] = data[key]))
+})
+EntitySuite.before.each((context) => {
+	process.chdir(context.path)
 })
 
 EntitySuite('Should convert filenames to entities', (context) => {
@@ -61,12 +65,14 @@ EntitySuite('Should convert extension config to entities', (context) => {
 })
 
 EntitySuite('Should provide ddl for entity', (context) => {
+	process.chdir('spec/fixtures/alternate')
 	context.ddlScripts.map(({ input, output, message }) => {
 		assert.equal(ddlFromEntity(input), output, message)
 	})
 })
 
 EntitySuite('Should get data for entity', async (context) => {
+	process.chdir('spec/fixtures/alternate')
 	let data = await dataFromEntity(context.dataFiles.json.input)
 	assert.equal(
 		data,
@@ -82,6 +88,7 @@ EntitySuite('Should get data for entity', async (context) => {
 })
 
 EntitySuite('Should validate entity data', (context) => {
+	process.chdir('spec/fixtures/alternate')
 	context.validations.map(({ input, output }) => {
 		assert.equal(validateEntityFile(input.entity, input.ddl), output)
 	})

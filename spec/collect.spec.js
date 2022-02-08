@@ -1,9 +1,11 @@
-import { suite } from 'uvu'
-import * as assert from 'uvu/assert'
 import fs from 'fs'
 import yaml from 'js-yaml'
-import createConnectionPool, { sql } from '@databases/pg'
 import rimraf from 'rimraf'
+
+import { suite } from 'uvu'
+import * as assert from 'uvu/assert'
+import createConnectionPool, { sql } from '@databases/pg'
+
 import { using } from '../src/collect.js'
 
 const CollectorSuite = suite('Suite for collector')
@@ -18,9 +20,14 @@ CollectorSuite.before((context) => {
 		bigIntMode: 'bigint'
 	})
 	context.export = yaml.load(
-		fs.readFileSync('spec/fixtures/export.yaml', 'utf8')
+		fs.readFileSync('spec/fixtures/design-export.yaml', 'utf8')
 	)
-	context.collect = yaml.load(fs.readFileSync('spec/fixtures/d1.yaml', 'utf8'))
+	context.collect = yaml.load(
+		fs.readFileSync('spec/fixtures/design-config.yaml', 'utf8')
+	)
+	context.validations = yaml.load(
+		fs.readFileSync('spec/fixtures/design-validations.yaml', 'utf8')
+	)
 })
 
 CollectorSuite.after(async (context) => {
@@ -137,7 +144,136 @@ CollectorSuite('Should export data using psql', (context) => {
 	assert.ok(fs.existsSync('export/core/genders.csv'))
 })
 
-CollectorSuite('Should only validate staging tables in import', (context) => {})
-CollectorSuite('Should log error for failure in script', (context) => {})
+CollectorSuite('Should allow only staging tables in import', (context) => {
+	process.chdir('../spec/fixtures/bad-example')
+	const dx = using('design.yaml', context.databaseURL).validate()
+	assert.equal(dx.importTables, context.validations.importTables)
+	assert.equal(dx.entities, context.validations.entities)
+})
+
+CollectorSuite('Should apply for single entity', async (context) => {
+	// cleanup
+	await context.db.query(sql`drop table staging.lookup_values;`)
+	using('design.yaml', context.databaseURL).apply('staging.lookup_values')
+	let result = await context.db.query(
+		sql`select count(*)
+          from information_schema.tables
+         where table_schema = 'staging'
+				   and table_name = 'lookup_values'`
+	)
+	assert.equal(result, [{ count: 1n }])
+})
+
+CollectorSuite(
+	'Should import a single entity using entity name',
+	async (context) => {
+		// cleanup
+		await context.db.query(sql`delete from core.lookup_values;`)
+		await context.db.query(sql`delete from core.lookups;`)
+		await context.db.query(sql`delete from staging.lookup_values;`)
+
+		using('design.yaml', context.databaseURL).importData(
+			'staging.lookup_values'
+		)
+		let result = await context.db.query(
+			sql`select count(*) from staging.lookup_values`
+		)
+
+		assert.equal(result, [{ count: 2n }])
+		result = await context.db.query(sql`select count(*) from core.lookups`)
+		assert.equal(result, [{ count: 1n }])
+		result = await context.db.query(
+			sql`select count(*) from core.lookup_values`
+		)
+		assert.equal(result, [{ count: 2n }])
+	}
+)
+
+CollectorSuite(
+	'Should skip import when invalid name or file is provided',
+	async (context) => {
+		// cleanup
+		await context.db.query(sql`delete from core.lookup_values;`)
+		await context.db.query(sql`delete from core.lookups;`)
+		await context.db.query(sql`delete from staging.lookup_values;`)
+
+		using('design.yaml', context.databaseURL).importData(
+			'import/staging/lookup_values'
+		)
+		let result = await context.db.query(
+			sql`select count(*) from staging.lookup_values`
+		)
+		assert.equal(result, [{ count: 0n }])
+		result = await context.db.query(sql`select count(*) from core.lookups`)
+		assert.equal(result, [{ count: 0n }])
+		result = await context.db.query(
+			sql`select count(*) from core.lookup_values`
+		)
+		assert.equal(result, [{ count: 0n }])
+	}
+)
+
+CollectorSuite(
+	'Should import single entity using filepath',
+	async (context) => {
+		// cleanup
+		await context.db.query(sql`delete from core.lookup_values;`)
+		await context.db.query(sql`delete from core.lookups;`)
+		await context.db.query(sql`delete from staging.lookup_values;`)
+
+		using('design.yaml', context.databaseURL).importData(
+			'import/staging/lookup_values.csv'
+		)
+		let result = await context.db.query(
+			sql`select count(*) from staging.lookup_values`
+		)
+		assert.equal(result, [{ count: 2n }])
+		result = await context.db.query(sql`select count(*) from core.lookups`)
+		assert.equal(result, [{ count: 1n }])
+		result = await context.db.query(
+			sql`select count(*) from core.lookup_values`
+		)
+		assert.equal(result, [{ count: 2n }])
+	}
+)
+
+CollectorSuite('Should export a single entity by name', (context) => {
+	using('design.yaml', context.databaseURL).exportData('core.unknown')
+	assert.not(
+		fs.existsSync('export/core/genders.csv'),
+		'core.genders.csv should not exist'
+	)
+	assert.not(
+		fs.existsSync('export/core/lookups.csv'),
+		'core.lookups.csv should not exist'
+	)
+	assert.not(
+		fs.existsSync(
+			'export/core/lookup_values.csv',
+			'core.lookup_values.csv should not exist'
+		)
+	)
+
+	using('design.yaml', context.databaseURL).exportData('core.genders')
+	assert.ok(
+		fs.existsSync('export/core/genders.csv'),
+		'Selected export file should exist'
+	)
+	assert.not(
+		fs.existsSync('export/core/lookups.csv'),
+		'core.lookups.csv should not exist'
+	)
+	assert.not(
+		fs.existsSync('export/core/lookup_values.csv'),
+		'core.lookup_values.csv should not exist'
+	)
+})
+
+CollectorSuite('Should report zero issues in example', (context) => {
+	let issues = using('design.yaml', context.databaseURL).validate().report()
+	assert.equal(issues, [])
+	issues = using('design.yaml', context.databaseURL).report()
+	assert.equal(issues, [])
+})
 
 CollectorSuite.run()

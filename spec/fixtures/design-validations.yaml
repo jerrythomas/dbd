@@ -1,0 +1,54 @@
+importTables:
+  - type: import
+    name: core.lookup_values
+    file: import/core/lookup_values.csv
+    schema: core
+    format: csv
+    nullValue: ""
+    truncate: true
+    errors:
+    - Import is only allowed for staging schemas
+
+  - type: import
+    name: core.lookups
+    schema: core
+    format: csv
+    nullValue: ""
+    truncate: true
+    errors:
+    - File missing for entity
+    - Import is only allowed for staging schemas
+
+  - type: import
+    name: staging.lookup
+    schema: staging
+    format: csv
+    nullValue: null
+    truncate: false
+    errors:
+    - File missing for entity
+
+entities:
+  - type: schema
+    name: core
+  - type: schema
+    name: staging
+  - type: extension
+    name: uuid-ossp
+    schema: public
+  - refers: []
+    type: table
+    name: core.lookups
+    errors:
+    - File missing for entity
+  - refers: []
+    type: table
+    name: staging.lookup_values
+    errors:
+    - File missing for entity
+  - refers:
+    - core.lookups
+    type: table
+    name: core.lookup_values
+    errors:
+    - File missing for entity
