@@ -6,7 +6,7 @@ import { using } from './collect.js'
 const prog = sade('dbd')
 
 prog
-	.version('1.0.0')
+	.version('1.0.1-beta.0')
 	.option('-c, --config', 'Provide path to custom config', 'design.yaml')
 	.option('-d, --database', 'Database URL', process.env.DATABASE_URL)
 	.option('-e, --environment', 'Environment to load data', 'development')
@@ -52,6 +52,7 @@ prog
 	.example('dbd combine -f init.sql')
 	.action((opts) => {
 		using(opts.config, opts.database).combine(opts.file)
+		console.log(`Generated ${opts.file}`)
 	})
 
 prog
@@ -63,6 +64,7 @@ prog
 	.example('dbd import -n import/staging/lookups.csv')
 	.action((opts) => {
 		using(opts.config, opts.database).importData(opts.name)
+		console.log('Import complete.')
 	})
 
 prog
@@ -73,6 +75,7 @@ prog
 	.example('dbd export -n staging.lookups')
 	.action((opts) => {
 		using(opts.config, opts.database).exportData(opts.name)
+		console.log('Export complete.')
 	})
 
 prog
@@ -83,6 +86,7 @@ prog
 	.example('dbd dbml -f design.dbml')
 	.action((opts) => {
 		using(opts.config, opts.database).dbml(opts.file)
+		console.log(`Generated ${opts.file}`)
 	})
 
 prog.parse(process.argv)
