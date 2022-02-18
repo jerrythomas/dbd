@@ -7,3 +7,4 @@ coverage.lcov
 /.svelte-kit
 /package
 *workspace
+*.log

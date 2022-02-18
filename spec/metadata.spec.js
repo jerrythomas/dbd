@@ -36,7 +36,8 @@ MetadataSuite('Should fetch all files in path', (context) => {
 		'ddl/table/core/lookup_values.ddl',
 		'ddl/table/core/lookups.ddl',
 		'ddl/table/staging/lookup_values.ddl',
-		'ddl/view/core/genders.ddl'
+		'ddl/view/core/genders.ddl',
+		'ddl/view/export/lookup_values.ddl'
 	])
 })
 

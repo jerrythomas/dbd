@@ -34,6 +34,13 @@ config:
     refers:
       - core.lookups
       - core.lookup_values
+  - type: view
+    name: export.lookup_values
+    file: ddl/view/export/lookup_values.ddl
+    schema: export
+    refers:
+      - core.lookups
+      - core.lookup_values
 
 roles:
 - type: role
@@ -53,9 +60,11 @@ entities:
     name: extensions
   - type: schema
     name: staging
+  - type: schema
+    name: export
   - type: extension
     name: uuid-ossp
-    schema: public
+    schema: extensions
   - type: role
     name: basic
     file: ddl/role/basic.ddl
@@ -88,6 +97,13 @@ entities:
     refers:
       - core.lookups
       - core.lookup_values
+  - type: view
+    name: export.lookup_values
+    file: ddl/view/export/lookup_values.ddl
+    schema: export
+    refers:
+      - core.lookups
+      - core.lookup_values
 
 beforeApply:
   schemas: []
@@ -97,6 +113,7 @@ afterApply:
     - schema_name: core
     - schema_name: extensions
     - schema_name: staging
+    - schema_name: export
   tables:
     - table_schema: staging
       table_name: lookup_values
@@ -109,4 +126,7 @@ afterApply:
       table_type: BASE TABLE
     - table_schema: core
       table_name: genders
+      table_type: VIEW
+    - table_schema: export
+      table_name: lookup_values
       table_type: VIEW

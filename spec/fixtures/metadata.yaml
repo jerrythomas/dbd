@@ -9,11 +9,14 @@ read:
       exclude:
         schemas:
           - staging
+          - export
+          - extensions
         tables: []
   schemas:
   - core
   - extensions
   - staging
+  - export
   extensions:
   - uuid-ossp
   # roles:
@@ -37,9 +40,16 @@ read:
       refers:
       - core.lookups
       - core.lookup_values
-    - type: table
+    - type: view
+      name: export.lookup_values
+      refers:
+      - core.lookups
+      - core.lookup_values
+    - refers: []
+      type: table
       name: staging.lookup_values
-      refers: []
+
+
   import:
     options:
       truncate: true
@@ -52,6 +62,7 @@ read:
     - core.lookups
     - core.lookup_values
     - core.genders
+    - export.lookup_values
   roles: []
 
 missing:

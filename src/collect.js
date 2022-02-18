@@ -24,14 +24,17 @@ class Design {
 
 	constructor(file, databaseURL) {
 		let config = clean(read(file))
-
+		let extensionSchema = config.project.extensionSchema
 		this.#databaseURL = databaseURL
 		this.#config = omit(['importTables'], config)
+
 		this.#config.roles = organize(config.roles)
 		this.#config.entities = organize(config.entities)
 		this.#entities = [
 			...this.#config.schemas.map((schema) => entityFromSchemaName(schema)),
-			...this.#config.extensions.map((item) => entityFromExtensionConfig(item)),
+			...this.#config.extensions.map((item) =>
+				entityFromExtensionConfig(item, extensionSchema)
+			),
 			...this.#config.roles,
 			...this.#config.entities
 		]

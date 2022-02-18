@@ -1,3 +1,3 @@
-lookup_name, value, description, is_active
-Gender, Male,,t
-Gender, Female,,t
+name, value, details, is_active, modified_on, modified_by
+Gender, Male,,t,2020-02-17,dbd
+Gender, Female,,t,2020-02-17,dbd

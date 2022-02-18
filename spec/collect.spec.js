@@ -90,12 +90,12 @@ CollectorSuite('Should apply the ddl scripts', async (context) => {
 	const { beforeApply, afterApply } = context.collect
 	const schemas = sql`select schema_name
 	                      from information_schema.schemata
-                       where schema_name in ('core', 'extensions', 'staging')`
+                       where schema_name in ('core', 'extensions', 'staging', 'export')`
 	const tables = sql`select table_schema
                         	, table_name
 	                        , table_type
                        from information_schema.tables
-                      where table_schema in ('core', 'staging')`
+                      where table_schema in ('core', 'staging', 'export')`
 
 	let result = await context.db.query(schemas)
 	assert.equal(result, beforeApply.schemas)
@@ -142,6 +142,7 @@ CollectorSuite('Should export data using psql', (context) => {
 	assert.ok(fs.existsSync('export/core/lookups.csv'))
 	assert.ok(fs.existsSync('export/core/lookup_values.csv'))
 	assert.ok(fs.existsSync('export/core/genders.csv'))
+	assert.ok(fs.existsSync('export/export/lookup_values.csv'))
 })
 
 CollectorSuite('Should allow only staging tables in import', (context) => {

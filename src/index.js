@@ -14,10 +14,12 @@ prog
 
 prog
 	.command('init')
+	.option('-p, --project', 'Name of the project', 'design')
 	.describe('Initialize an empty project')
 	.example('dbd init')
+	.example('dbd init -p app')
 	.action((opts) => {
-		execSync(`npx degit jerrythomas/dbd/example`)
+		execSync(`npx degit jerrythomas/dbd/example ${opts.name}`)
 	})
 
 prog
@@ -42,6 +44,7 @@ prog
 	.example('dbd apply -d postgres://localhost:5432')
 	.action((opts) => {
 		using(opts.config, opts.database).apply(opts.name)
+		console.log(`Applied scripts`)
 	})
 
 prog

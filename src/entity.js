@@ -74,8 +74,8 @@ export function entityFromImportConfig(item, opts = defaultImportOptions) {
  * @param {(string|Object)} item
  * @returns {Entity}
  */
-export function entityFromExtensionConfig(item) {
-	let schema = 'public'
+export function entityFromExtensionConfig(item, defaultSchema = 'public') {
+	let schema = defaultSchema
 	let name = item
 
 	if (typeof item === 'object') {

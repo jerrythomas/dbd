@@ -3,6 +3,7 @@ input:
     staging: []
   schemas:
     - extensions
+    - core
   entities:
     - type: role
       name: advanced
@@ -32,6 +33,7 @@ output:
     - extensions
     - core
     - staging
+    - export
   entities:
     - type: table
       name: core.lookups
@@ -56,6 +58,11 @@ output:
       file: ddl/table/staging/lookup_values.ddl
       refers: []
       schema: staging
+    - type: view
+      name: export.lookup_values
+      file: ddl/view/export/lookup_values.ddl
+      refers: []
+      schema: export
   roles:
     - type: role
       name: advanced
