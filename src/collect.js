@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { omit } from 'ramda'
 import { execSync } from 'child_process'
-
+import { ModelExporter, Parser } from '@dbml/core'
 import { read, clean, organize } from './metadata.js'
 import {
 	entityFromSchemaName,
@@ -75,6 +75,7 @@ class Design {
 					]
 				return entity
 			})
+
 		this.#isValidated = true
 		return this
 	}
@@ -115,7 +116,7 @@ class Design {
 		return this
 	}
 
-	dbml() {
+	dbml(file = 'design.dbml') {
 		const { schemas, tables } = this.config.project.dbdocs.exclude
 		const combined = this.entities
 			.filter((entity) => entity.type === 'table')
@@ -123,9 +124,22 @@ class Design {
 			.filter((entity) => !tables.includes(entity.name))
 			.map((entity) => ddlFromEntity(entity))
 
-		fs.writeFileSync('_design.sql', combined.join('\n'))
-		execSync(`sql2dbml _design.sql --postgres -o design.dbml`)
-		fs.unlinkSync('_design.sql')
+		try {
+			const project = `Project "${this.config.project.name}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
+			let schema = Parser.parse(combined.join('\n'), 'postgres').normalize()
+			// dbml currently does not output project info
+			// schema.database['1'] = {
+			// 	...schema.database['1'],
+			// 	databaseType: this.config.project.database,
+			// 	name: this.config.project.name,
+			// 	note: this.config.project.note
+			// }
+			const dbml = ModelExporter.export(schema, 'dbml')
+			fs.writeFileSync(file, project + dbml)
+			console.info(`Generated DBML in ${file}`)
+		} catch (err) {
+			console.error(err)
+		}
 
 		return this
 	}

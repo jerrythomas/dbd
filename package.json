@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@databases/pg-test": "^3.1.1",
+    "@dbml/core": "^2.3.1",
     "@vanillaes/mock-console": "^3.0.0",
     "c8": "^7.10.0",
     "release-it": "^14.11.8",

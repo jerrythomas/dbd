@@ -89,7 +89,6 @@ prog
 	.example('dbd dbml -f design.dbml')
 	.action((opts) => {
 		using(opts.config, opts.database).dbml(opts.file)
-		console.log(`Generated ${opts.file}`)
 	})
 
 prog.parse(process.argv)
