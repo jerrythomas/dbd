@@ -5,13 +5,15 @@ import rimraf from 'rimraf'
 import { suite } from 'uvu'
 import * as assert from 'uvu/assert'
 import createConnectionPool, { sql } from '@databases/pg'
-
+import { MockConsole } from '@vanillaes/mock-console'
 import { using } from '../src/collect.js'
 
 const CollectorSuite = suite('Suite for collector')
 
 CollectorSuite.before((context) => {
-	context.databaseURL = 'postgres://test-user@localhost:5432/test-db'
+	context.logger = new MockConsole()
+
+	context.databaseURL = 'postgres://test-user@localhost:5234/test-db'
 	context.combinedDDL = '_combined.ddl'
 	context.path = process.cwd()
 
@@ -33,13 +35,18 @@ CollectorSuite.before((context) => {
 CollectorSuite.after(async (context) => {
 	await context.db.dispose()
 })
+
 CollectorSuite.before.each((context) => {
+	context.logger.capture()
 	process.chdir('example')
 	rimraf.sync('export')
 })
 
 CollectorSuite.after.each((context) => {
 	process.chdir(context.path)
+
+	context.logger.flush()
+	context.logger.restore()
 })
 
 CollectorSuite('Should initialize collection', (context) => {
@@ -82,20 +89,25 @@ CollectorSuite('Should combine scripts and generate file', (context) => {
 
 CollectorSuite('Should combine scripts and generate dbml', (context) => {
 	using('design.yaml').dbml()
+
 	assert.ok(fs.existsSync('design.dbml'))
 	fs.unlinkSync('design.dbml')
+
+	assert.equal(context.logger.infos, ['Generated DBML in design.dbml'])
 })
 
 CollectorSuite('Should apply the ddl scripts', async (context) => {
 	const { beforeApply, afterApply } = context.collect
 	const schemas = sql`select schema_name
 	                      from information_schema.schemata
-                       where schema_name in ('core', 'extensions', 'staging', 'export')`
+                       where schema_name in ('core', 'extensions', 'staging', 'migrate')`
 	const tables = sql`select table_schema
                         	, table_name
 	                        , table_type
                        from information_schema.tables
-                      where table_schema in ('core', 'staging', 'export')`
+                      where table_schema in ('core', 'staging', 'migrate')
+                      order by table_schema
+                             , table_name`
 
 	let result = await context.db.query(schemas)
 	assert.equal(result, beforeApply.schemas)
@@ -103,6 +115,21 @@ CollectorSuite('Should apply the ddl scripts', async (context) => {
 	assert.equal(result, beforeApply.tables)
 
 	await using('design.yaml', context.databaseURL).apply()
+
+	assert.equal(context.logger.infos, [
+		'Applying schema: core',
+		'Applying schema: extensions',
+		'Applying schema: staging',
+		'Applying schema: migrate',
+		'Applying extension: uuid-ossp',
+		'Applying role: basic',
+		'Applying role: advanced',
+		'Applying table: core.lookups',
+		'Applying table: staging.lookup_values',
+		'Applying table: core.lookup_values',
+		'Applying view: core.genders',
+		'Applying view: migrate.lookup_values'
+	])
 
 	result = await context.db.query(schemas)
 	assert.equal(result, afterApply.schemas)
@@ -120,6 +147,13 @@ CollectorSuite('Should validate data', (context) => {
 
 CollectorSuite('Should import data using psql', async (context) => {
 	const dx = using('design.yaml', context.databaseURL).importData()
+
+	context.logger.restore()
+	assert.equal(context.logger.infos, [
+		'Importing staging.lookup_values',
+		'Processing import/loader.sql'
+	])
+
 	assert.ok(dx.isValidated)
 	let result = await context.db.query(
 		sql`select count(*) from staging.lookup_values`
@@ -142,12 +176,13 @@ CollectorSuite('Should export data using psql', (context) => {
 	assert.ok(fs.existsSync('export/core/lookups.csv'))
 	assert.ok(fs.existsSync('export/core/lookup_values.csv'))
 	assert.ok(fs.existsSync('export/core/genders.csv'))
-	assert.ok(fs.existsSync('export/export/lookup_values.csv'))
+	assert.ok(fs.existsSync('export/migrate/lookup_values.csv'))
 })
 
 CollectorSuite('Should allow only staging tables in import', (context) => {
 	process.chdir('../spec/fixtures/bad-example')
 	const dx = using('design.yaml', context.databaseURL).validate()
+
 	assert.equal(dx.importTables, context.validations.importTables)
 	assert.equal(dx.entities, context.validations.entities)
 })
@@ -155,7 +190,11 @@ CollectorSuite('Should allow only staging tables in import', (context) => {
 CollectorSuite('Should apply for single entity', async (context) => {
 	// cleanup
 	await context.db.query(sql`drop table staging.lookup_values;`)
-	using('design.yaml', context.databaseURL).apply('staging.lookup_values')
+
+	await using('design.yaml', context.databaseURL).apply('staging.lookup_values')
+
+	assert.equal(context.logger.infos, ['Applying table: staging.lookup_values'])
+
 	let result = await context.db.query(
 		sql`select count(*)
           from information_schema.tables
@@ -176,6 +215,12 @@ CollectorSuite(
 		using('design.yaml', context.databaseURL).importData(
 			'staging.lookup_values'
 		)
+		// context.logger.restore()
+		// console.log(context.logger.infos)
+		assert.equal(context.logger.infos, [
+			'Importing staging.lookup_values',
+			'Processing import/loader.sql'
+		])
 		let result = await context.db.query(
 			sql`select count(*) from staging.lookup_values`
 		)

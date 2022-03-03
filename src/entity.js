@@ -134,7 +134,24 @@ export function ddlFromEntity(entity) {
 		};`
 	}
 	if (entity.type === 'role') {
-		return `create role if not exists ${entity.name};`
+		const grants = entity.refers
+			.map((name) => `grant ${name} to ${entity.name};`)
+			.join('\n')
+
+		return (
+			`DO
+    $do$
+    BEGIN
+       IF NOT EXISTS (
+          SELECT FROM pg_catalog.pg_roles
+          WHERE  rolname = '${entity.name}') THEN
+          CREATE ROLE ${entity.name};
+       END IF;
+    END
+    $do$;` +
+			'\n' +
+			grants
+		)
 	}
 }
 
@@ -166,10 +183,17 @@ export function validateEntityFile(entity, ddl = true) {
 	let errors = []
 
 	if (['schema', 'extension'].includes(entity.type)) return entity
+	if (
+		['table', 'view', 'function', 'procedure'].includes(entity.type) &&
+		entity.name.split('.').length != 2
+	) {
+		errors.push('Use fully qualified name <schema>.<name>')
+	}
 
 	if (!entity.file && entity.type != 'role') {
 		errors.push('File missing for entity')
 	}
+
 	if (entity.file) {
 		if (!fs.existsSync(entity.file)) {
 			errors.push('File does not exist')

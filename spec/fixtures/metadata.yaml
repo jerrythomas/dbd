@@ -1,3 +1,34 @@
+items:
+- &role_a
+  type: role
+  name: advanced
+  refers:
+    - basic
+- &tbl_a
+  type: table
+  name: core.lookups
+  refers: []
+- &tbl_b
+  type: table
+  name: core.lookup_values
+  refers:
+    - core.lookups
+- &tbl_c
+  refers: []
+  type: table
+  name: staging.lookup_values
+- &view_a
+  type: view
+  name: core.genders
+  refers:
+    - core.lookups
+    - core.lookup_values
+- &view_b
+  type: view
+  name: migrate.lookup_values
+  refers:
+    - core.lookups
+    - core.lookup_values
 read:
   project:
     name: Example
@@ -9,46 +40,33 @@ read:
       exclude:
         schemas:
           - staging
-          - export
+          - migrate
           - extensions
         tables: []
   schemas:
-  - core
-  - extensions
-  - staging
-  - export
+    - core
+    - extensions
+    - staging
+    - migrate
   extensions:
-  - uuid-ossp
-  # roles:
-  #   - basic
-  #   - advanced:
-  #       refers: basic
+    - uuid-ossp
+  roles:
+    - *role_a
+  tables:
+    - *tbl_a
+    - *tbl_b
+    - *tbl_c
+  views:
+    - *view_a
+    - *view_b
+  functions: []
+  procedures: []
   entities:
-    - type: role
-      name: advanced
-      refers:
-      - basic
-    - type: table
-      name: core.lookups
-      refers: []
-    - type: table
-      name: core.lookup_values
-      refers:
-      - core.lookups
-    - type: view
-      name: core.genders
-      refers:
-      - core.lookups
-      - core.lookup_values
-    - type: view
-      name: export.lookup_values
-      refers:
-      - core.lookups
-      - core.lookup_values
-    - refers: []
-      type: table
-      name: staging.lookup_values
-
+    - *tbl_a
+    - *tbl_b
+    - *tbl_c
+    - *view_a
+    - *view_b
 
   import:
     options:
@@ -62,16 +80,8 @@ read:
     - core.lookups
     - core.lookup_values
     - core.genders
-    - export.lookup_values
-  roles: []
+    - migrate.lookup_values
 
-missing:
-  schemas: []
-  roles: []
-  entities: []
-  project:
-    name: Example
-    staging: []
 merge:
 - input:
     x:
@@ -168,3 +178,75 @@ merge:
     refers: []
 clean:
   entities: []
+
+missingTypes:
+  input:
+    roles:
+    - name: authenticated
+    - name: another
+      refers:
+      - authenticated
+      type: role
+    tables:
+    - name: config.lookups
+    - name: config.lookup_values
+      refers:
+      - config.lookups
+    views:
+    - name: config.genders
+    - name: config.types
+      refers:
+        - config.lookups
+        - config.lookup_values
+    functions:
+    - name: config.get_lookup
+    - name: config.get_type
+      refers:
+        - config.lookup
+    procedures:
+    - name: config.import_lookups
+    - name: config.import_types
+      refers:
+        - config.lookup
+  output:
+    roles:
+    - refers: []
+      name: authenticated
+      type: role
+    - name: another
+      refers:
+      - authenticated
+      type: role
+    tables:
+    - refers: []
+      name: config.lookups
+      type: table
+    - name: config.lookup_values
+      refers:
+      - config.lookups
+      type: table
+    views:
+    - refers: []
+      name: config.genders
+      type: view
+    - name: config.types
+      refers:
+        - config.lookups
+        - config.lookup_values
+      type: view
+    functions:
+    - refers: []
+      name: config.get_lookup
+      type: function
+    - name: config.get_type
+      refers:
+        - config.lookup
+      type: function
+    procedures:
+    - refers: []
+      name: config.import_lookups
+      type: procedure
+    - name: config.import_types
+      refers:
+        - config.lookup
+      type: procedure

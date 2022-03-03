@@ -43,7 +43,8 @@ prog
 	.example('dbd apply -c database.yaml')
 	.example('dbd apply -d postgres://localhost:5432')
 	.action((opts) => {
-		using(opts.config, opts.database).apply(opts.name)
+		using(opts.config, opts.database)
+		// .apply(opts.name)
 		console.log(`Applied scripts`)
 	})
 

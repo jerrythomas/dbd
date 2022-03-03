@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import yaml from 'js-yaml'
 import { entityFromFile, entityFromImportConfig } from './entity.js'
+import { fillMissingInfoForEntities } from './filler.js'
 
 /**
  * Scans a folder and returns a list of file paths
@@ -35,10 +36,15 @@ export function scan(root = '.') {
 export function read(file) {
 	let data = yaml.load(fs.readFileSync(file, 'utf8'))
 
-	data.roles = data.roles || []
+	data = fillMissingInfoForEntities(data)
 	data.schemas = data.schemas || []
-	data.entities = data.entities || []
-	data.entities = data.entities.map((entity) => ({ refers: [], ...entity }))
+
+	data.entities = [
+		...data.tables,
+		...data.views,
+		...data.functions,
+		...data.procedures
+	]
 	data.project = { staging: [], ...data.project }
 
 	return data

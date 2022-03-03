@@ -206,8 +206,37 @@ ddlScripts:
   - input:
       type: role
       name: basic
-    output: create role if not exists basic;
+      refers: []
+    output: |
+      DO
+          $do$
+          BEGIN
+             IF NOT EXISTS (
+                SELECT FROM pg_catalog.pg_roles
+                WHERE  rolname = 'basic') THEN
+                CREATE ROLE basic;
+             END IF;
+          END
+          $do$;
     message: Should create basic role
+  - input:
+      type: role
+      name: advanced
+      refers:
+        - basic
+    output: |-
+      DO
+          $do$
+          BEGIN
+             IF NOT EXISTS (
+                SELECT FROM pg_catalog.pg_roles
+                WHERE  rolname = 'advanced') THEN
+                CREATE ROLE advanced;
+             END IF;
+          END
+          $do$;
+      grant basic to advanced;
+    message: Should create role with grants
   - input:
       type: table
       name: test
@@ -218,13 +247,13 @@ ddlScripts:
 dataFiles:
   json:
     input:
-      file: import/lookup.json
+      file: import/staging/test.json
     output:
     - name: genders
     message: Should read data from json
   csv:
     input:
-      file: import/lookup.csv
+      file: import/staging/lookup.csv
     output:
     - name: genders
     - name: roles
@@ -258,30 +287,31 @@ validations:
       type: table
       name: test
       errors:
+      - Use fully qualified name <schema>.<name>
       - File missing for entity
     message: File missing for entity
   - input:
       entity:
         type: table
-        name: test
-        file: missing.ddl
+        name: test.missing
+        file: ddl/test/missing.ddl
       ddl: true
     output:
       type: table
-      name: test
-      file: missing.ddl
+      name: test.missing
+      file: ddl/test/missing.ddl
       errors:
       - File does not exist
     message: File does not exist
   - input:
       entity:
         type: table
-        name: test
+        name: test.invalid
         file: ddl/test/invalid.sql
       ddl: true
     output:
       type: table
-      name: test
+      name: test.invalid
       file: ddl/test/invalid.sql
       errors:
       - Unsupported file type for ddl
@@ -290,25 +320,26 @@ validations:
       entity:
         type: table
         name: test
-        file: ddl/test/invalid.sql
+        file: import/other/invalid.ddl
       ddl: false
     output:
       type: table
       name: test
-      file: ddl/test/invalid.sql
+      file: import/other/invalid.ddl
       errors:
+      - Use fully qualified name <schema>.<name>
       - Unsupported data format
     message: Unsupported data format
   - input:
       entity:
         type: table
-        name: test
-        file: import/lookup.csv
+        name: staging.lookup
+        file: import/staging/lookup.csv
       ddl: false
     output:
       type: table
-      name: test
-      file: import/lookup.csv
+      name: staging.lookup
+      file: import/staging/lookup.csv
     message: No errors in this entity
 
 importScripts:
@@ -325,12 +356,12 @@ importScripts:
     message: Should use defaults with name
   - input:
       type: import
-      name: staging.lookup
+      name: staging.test
       file: lookup.csv
-      format: csv
+      format: json
       nullValue: ''
       truncate: false
-    output: \copy staging.lookup from 'lookup.csv' with delimiter ',' NULL as '' csv header;
+    output: \copy staging.test from 'lookup.csv' with delimiter ',' NULL as '' csv header;
     message: Should override truncate option when provided
   - input:
       type: import

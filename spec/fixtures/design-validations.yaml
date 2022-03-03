@@ -33,22 +33,30 @@ entities:
     name: core
   - type: schema
     name: staging
+  - type: schema
+    name: no_schema
   - type: extension
     name: uuid-ossp
     schema: public
   - refers: []
-    type: table
     name: core.lookups
+    type: table
     errors:
     - File missing for entity
   - refers: []
-    type: table
     name: staging.lookup_values
+    type: table
     errors:
+    - File missing for entity
+  - refers: []
+    name: no_schema
+    type: table
+    errors:
+    - Use fully qualified name <schema>.<name>
     - File missing for entity
   - refers:
     - core.lookups
-    type: table
     name: core.lookup_values
+    type: table
     errors:
     - File missing for entity

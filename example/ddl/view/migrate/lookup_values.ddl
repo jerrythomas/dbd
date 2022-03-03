@@ -1,4 +1,4 @@
-set search_path to export;
+set search_path to migrate;
 
 create or replace view lookup_values
 as

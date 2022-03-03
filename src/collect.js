@@ -91,18 +91,20 @@ class Design {
 	}
 
 	async apply(name) {
-		const TMP_COMBINED_FILE = '_combined.ddl'
+		const TMP_SCRIPT = '_temp.ddl'
 
-		let combined = this.entities
+		this.entities
 			.filter((entity) => !entity.errors)
 			.filter((entity) => !name || entity.name === name)
-			.map((entity) => ddlFromEntity(entity))
-
-		if (combined.length > 0) {
-			fs.writeFileSync(TMP_COMBINED_FILE, combined.join('\n'))
-			execSync(`psql ${this.databaseURL} < ${TMP_COMBINED_FILE}`)
-			fs.unlinkSync(TMP_COMBINED_FILE)
-		}
+			.map((entity) => {
+				const file = entity.file || TMP_SCRIPT
+				if (!entity.file) {
+					fs.writeFileSync(TMP_SCRIPT, ddlFromEntity(entity))
+				}
+				console.info(`Applying ${entity.type}: ${entity.name}`)
+				execSync(`psql ${this.databaseURL} < ${file}`)
+				if (fs.existsSync(TMP_SCRIPT)) fs.unlinkSync(TMP_SCRIPT)
+			})
 
 		return this
 	}
@@ -125,15 +127,10 @@ class Design {
 			.map((entity) => ddlFromEntity(entity))
 
 		try {
+			// dbml currently does not output project info
 			const project = `Project "${this.config.project.name}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
 			let schema = Parser.parse(combined.join('\n'), 'postgres').normalize()
-			// dbml currently does not output project info
-			// schema.database['1'] = {
-			// 	...schema.database['1'],
-			// 	databaseType: this.config.project.database,
-			// 	name: this.config.project.name,
-			// 	note: this.config.project.note
-			// }
+
 			const dbml = ModelExporter.export(schema, 'dbml')
 			fs.writeFileSync(file, project + dbml)
 			console.info(`Generated DBML in ${file}`)
@@ -147,20 +144,19 @@ class Design {
 	importData(name) {
 		if (!this.isValidated) this.validate()
 
-		let commands = this.importTables
+		this.importTables
 			.filter((entity) => !entity.errors)
 			.filter((entity) => !name || entity.name === name || entity.file === name)
-			.map((table) => importScriptForEntity(table))
-
-		let postCommands = this.config.import.after.map((file) =>
-			fs.readFileSync(file, 'utf8')
-		)
-
-		if (commands.length > 0) {
-			fs.writeFileSync('_import.sql', [...commands, ...postCommands].join('\n'))
-			execSync(`psql ${this.databaseURL} < _import.sql`)
-			fs.unlinkSync('_import.sql')
-		}
+			.map((table) => {
+				fs.writeFileSync('_import.sql', importScriptForEntity(table))
+				console.info(`Importing ${table.name}`)
+				execSync(`psql ${this.databaseURL} < _import.sql`)
+				fs.unlinkSync('_import.sql')
+			})
+		this.config.import.after.map((file) => {
+			console.info(`Processing ${file}`)
+			execSync(`psql ${this.databaseURL} < ${file}`)
+		})
 
 		return this
 	}

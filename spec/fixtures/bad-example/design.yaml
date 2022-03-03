@@ -14,15 +14,14 @@ schemas:
 extensions:
 - uuid-ossp
 
-entities:
-  - type: table
-    name: core.lookups
-  - type: table
-    name: core.lookup_values
+tables:
+  - name: core.lookups
+  - name: core.lookup_values
     refers:
     - core.lookups
-  - type: table
-    name: staging.lookup_values
+  - name: staging.lookup_values
+  - name: no_schema
+
 import:
   tables:
   - core.lookup_values

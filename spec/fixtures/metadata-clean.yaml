@@ -7,7 +7,8 @@ input:
   entities:
     - type: role
       name: advanced
-      refers: basic
+      refers:
+        - basic
     - type: table
       name: core.lookups
     - type: table
@@ -33,7 +34,7 @@ output:
     - extensions
     - core
     - staging
-    - export
+    - migrate
   entities:
     - type: table
       name: core.lookups
@@ -59,19 +60,15 @@ output:
       refers: []
       schema: staging
     - type: view
-      name: export.lookup_values
-      file: ddl/view/export/lookup_values.ddl
+      name: migrate.lookup_values
+      file: ddl/view/migrate/lookup_values.ddl
       refers: []
-      schema: export
+      schema: migrate
   roles:
     - type: role
       name: advanced
-      file: ddl/role/advanced.ddl
-      refers: basic
-    - type: role
-      name: basic
-      file: ddl/role/basic.ddl
-      refers: []
+      refers:
+        - basic
   import:
     tables:
     - staging.lookup_values
