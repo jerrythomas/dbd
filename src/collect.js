@@ -90,8 +90,24 @@ class Design {
 		return issues
 	}
 
-	async apply(name) {
+	async apply(name, dryRun = false) {
 		const TMP_SCRIPT = '_temp.ddl'
+
+		if (dryRun) {
+			this.entities.map((entity) => {
+				const using =
+					entity.file || entity.type === 'extension'
+						? ` using "${entity.file || entity.schema}"`
+						: ''
+
+				console.info(`${entity.type} => ${entity.name}${using}`)
+				if (entity.errors) {
+					console.error(entity.errors)
+				}
+			})
+			// console.log(this.databaseURL.replace(/\$/, '\\$'))
+			return
+		}
 
 		this.entities
 			.filter((entity) => !entity.errors)

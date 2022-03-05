@@ -96,6 +96,50 @@ CollectorSuite('Should combine scripts and generate dbml', (context) => {
 	assert.equal(context.logger.infos, ['Generated DBML in design.dbml'])
 })
 
+CollectorSuite(
+	'Should display execution sequence in dry-run mode',
+	async (context) => {
+		const { beforeApply, afterApply } = context.collect
+		const schemas = sql`select schema_name
+	                      from information_schema.schemata
+                       where schema_name in ('core', 'extensions', 'staging', 'migrate')`
+		const tables = sql`select table_schema
+                        	, table_name
+	                        , table_type
+                       from information_schema.tables
+                      where table_schema in ('core', 'staging', 'migrate')
+                      order by table_schema
+                             , table_name`
+
+		let result = await context.db.query(schemas)
+		assert.equal(result, beforeApply.schemas)
+		result = await context.db.query(tables)
+		assert.equal(result, beforeApply.tables)
+
+		await using('design.yaml', context.databaseURL).apply(null, true)
+
+		assert.equal(context.logger.infos, [
+			'schema => core',
+			'schema => extensions',
+			'schema => staging',
+			'schema => migrate',
+			'extension => uuid-ossp using "extensions"',
+			'role => basic',
+			'role => advanced',
+			'table => core.lookups using "ddl/table/core/lookups.ddl"',
+			'table => staging.lookup_values using "ddl/table/staging/lookup_values.ddl"',
+			'table => core.lookup_values using "ddl/table/core/lookup_values.ddl"',
+			'view => core.genders using "ddl/view/core/genders.ddl"',
+			'view => migrate.lookup_values using "ddl/view/migrate/lookup_values.ddl"'
+		])
+
+		result = await context.db.query(schemas)
+		assert.equal(result, beforeApply.schemas)
+		result = await context.db.query(tables)
+		assert.equal(result, beforeApply.tables)
+	}
+)
+
 CollectorSuite('Should apply the ddl scripts', async (context) => {
 	const { beforeApply, afterApply } = context.collect
 	const schemas = sql`select schema_name

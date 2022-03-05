@@ -8,7 +8,11 @@ const prog = sade('dbd')
 prog
 	.version('1.0.1-beta.0')
 	.option('-c, --config', 'Provide path to custom config', 'design.yaml')
-	.option('-d, --database', 'Database URL', process.env.DATABASE_URL)
+	.option(
+		'-d, --database',
+		'Database URL',
+		process.env.DATABASE_URL.replace(/\$/, '\\$')
+	)
 	.option('-e, --environment', 'Environment to load data', 'development')
 	.option('-p, --preview', 'Preview the action', false)
 
@@ -38,14 +42,13 @@ prog
 prog
 	.command('apply')
 	.option('-n, --name', 'apply a specific entity or file only')
+	.option('--dry-run', 'just print the entities', false)
 	.describe('Apply the database scripts to database.')
 	.example('dbd apply')
 	.example('dbd apply -c database.yaml')
 	.example('dbd apply -d postgres://localhost:5432')
 	.action((opts) => {
-		using(opts.config, opts.database)
-		// .apply(opts.name)
-		console.log(`Applied scripts`)
+		using(opts.config, opts.database).apply(opts.name, opts['dry-run'])
 	})
 
 prog
