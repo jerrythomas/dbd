@@ -2,9 +2,13 @@ import fs from 'fs'
 import path from 'path'
 import csv from 'csvtojson'
 
-const typesWithoutSchema = ['role', 'schema']
-const defaultExportOptions = { format: 'csv' }
-const defaultImportOptions = { format: 'csv', nullValue: '', truncate: true }
+import {
+	typesWithoutSchema,
+	typesWithSchema,
+	allowedTypes,
+	defaultExportOptions,
+	defaultImportOptions
+} from './constants.js'
 
 /**
  * Converts a file path into an Entity object
@@ -181,17 +185,24 @@ export async function dataFromEntity(entity) {
  */
 export function validateEntityFile(entity, ddl = true) {
 	let errors = []
+	ddl = ddl && entity.type !== 'import'
 
-	if (['schema', 'extension'].includes(entity.type)) return entity
-	if (
-		['table', 'view', 'function', 'procedure'].includes(entity.type) &&
-		entity.name.split('.').length != 2
-	) {
-		errors.push('Use fully qualified name <schema>.<name>')
+	if (!allowedTypes.includes(entity.type)) {
+		errors.push('Unknown or unsupported entity type.')
+		if (entity.file) errors.push('Unknown or unsupported entity ddl script.')
 	}
 
-	if (!entity.file && entity.type != 'role') {
-		errors.push('File missing for entity')
+	if (typesWithoutSchema.includes(entity.type) && entity.file) {
+		errors.push(`"${entity.type}" does not need a ddl file.`)
+	}
+
+	if (typesWithSchema.includes(entity.type)) {
+		if (entity.name.split('.').length != 2) {
+			errors.push('Use fully qualified name <schema>.<name>')
+		}
+		if (!entity.file) {
+			errors.push('File missing for entity')
+		}
 	}
 
 	if (entity.file) {

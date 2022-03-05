@@ -280,6 +280,35 @@ validations:
     message: No errors for extension
   - input:
       entity:
+        type: extension
+        name: test
+        file: ddl/test.ddl
+      ddl: true
+    output:
+      type: extension
+      name: test
+      file: ddl/test.ddl
+      errors:
+        - '"extension" does not need a ddl file.'
+        - File does not exist
+    message: File is not allowed for extension
+  - input:
+      entity:
+        type: 'ddl'
+        name: test
+        file: 'ddl/test.ddl'
+      ddl: true
+    output:
+      type: 'ddl'
+      name: test
+      file: 'ddl/test.ddl'
+      errors:
+        - 'Unknown or unsupported entity type.'
+        - 'Unknown or unsupported entity ddl script.'
+        - 'File does not exist'
+    message: Unsupported entity type
+  - input:
+      entity:
         type: table
         name: test
       ddl: true

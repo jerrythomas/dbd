@@ -1,0 +1,1 @@
+create stuff test (id int);

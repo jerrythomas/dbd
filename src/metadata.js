@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import yaml from 'js-yaml'
+import { allowedTypes } from './constants.js'
 import { entityFromFile, entityFromImportConfig } from './entity.js'
 import { fillMissingInfoForEntities } from './filler.js'
 
@@ -83,7 +84,9 @@ export function clean(data) {
 	let schemas = [
 		...new Set([
 			...data.schemas,
-			...entities.map((entity) => entity.name.split('.')[0])
+			...entities
+				.filter((entity) => allowedTypes.includes(entity.type))
+				.map((entity) => entity.name.split('.')[0])
 		])
 	]
 

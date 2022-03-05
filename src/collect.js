@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { omit } from 'ramda'
+import { omit, pick } from 'ramda'
 import { execSync } from 'child_process'
 import { ModelExporter, Parser } from '@dbml/core'
 import { read, clean, organize } from './metadata.js'
@@ -92,6 +92,7 @@ class Design {
 
 	async apply(name, dryRun = false) {
 		const TMP_SCRIPT = '_temp.ddl'
+		if (!this.isValidated) this.validate()
 
 		if (dryRun) {
 			this.entities.map((entity) => {
@@ -99,10 +100,11 @@ class Design {
 					entity.file || entity.type === 'extension'
 						? ` using "${entity.file || entity.schema}"`
 						: ''
-
-				console.info(`${entity.type} => ${entity.name}${using}`)
+				const detail = `${entity.type} => ${entity.name}${using}`
 				if (entity.errors) {
-					console.error(entity.errors)
+					console.error(pick(['type', 'name', 'errors'], entity))
+				} else {
+					console.info(detail)
 				}
 			})
 			// console.log(this.databaseURL.replace(/\$/, '\\$'))

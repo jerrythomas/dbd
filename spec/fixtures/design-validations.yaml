@@ -54,6 +54,22 @@ entities:
     errors:
     - Use fully qualified name <schema>.<name>
     - File missing for entity
+  - type: core
+    name: core.stuff
+    file: ddl/core/stuff.ddl
+    schema: core
+    refers: []
+    errors:
+    - Unknown or unsupported entity type.
+    - Unknown or unsupported entity ddl script.
+  - type: test
+    name: ddl.test
+    file: ddl/test.ddl
+    schema: ddl
+    refers: []
+    errors:
+    - Unknown or unsupported entity type.
+    - Unknown or unsupported entity ddl script.
   - refers:
     - core.lookups
     name: core.lookup_values

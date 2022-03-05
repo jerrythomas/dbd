@@ -17,61 +17,61 @@ import {
 	exportScriptForEntity
 } from '../src/entity.js'
 
-const EntitySuite = suite('Suite for entity')
+const test = suite('Suite for entity')
 
-EntitySuite.before((context) => {
+test.before((context) => {
 	context.path = process.cwd()
 	const data = yaml.load(fs.readFileSync('spec/fixtures/entities.yaml', 'utf8'))
 	Object.keys(data).map((key) => (context[key] = data[key]))
 })
-EntitySuite.before.each((context) => {
+test.before.each((context) => {
 	process.chdir(context.path)
 })
 
-EntitySuite('Should convert filenames to entities', (context) => {
+test('Should convert filenames to entities', (context) => {
 	context.files.map(({ input, output }) => {
 		assert.equal(entityFromFile(input), output)
 	})
 })
 
-EntitySuite('Should convert export configuration to entities', (context) => {
+test('Should convert export configuration to entities', (context) => {
 	context.exportConfig.map(({ input, output, message }) => {
 		assert.equal(entityFromExportConfig(input), output, message)
 	})
 })
 
-EntitySuite('Should convert import configuration to entities', (context) => {
+test('Should convert import configuration to entities', (context) => {
 	context.importConfig.map(({ input, output, message }) => {
 		assert.equal(entityFromImportConfig(input), output, message)
 	})
 })
 
-EntitySuite('Should convert schema names to entities', (context) => {
+test('Should convert schema names to entities', (context) => {
 	context.schemaNames.map(({ input, output }) => {
 		assert.equal(entityFromSchemaName(input), output)
 	})
 })
 
-EntitySuite('Should convert role names to entities', (context) => {
+test('Should convert role names to entities', (context) => {
 	context.roleNames.map(({ input, output }) => {
 		assert.equal(entityFromRoleName(input), output)
 	})
 })
 
-EntitySuite('Should convert extension config to entities', (context) => {
+test('Should convert extension config to entities', (context) => {
 	context.extensionConfig.map(({ input, output }) => {
 		assert.equal(entityFromExtensionConfig(input), output)
 	})
 })
 
-EntitySuite('Should provide ddl for entity', (context) => {
+test('Should provide ddl for entity', (context) => {
 	process.chdir('spec/fixtures/alternate')
 	context.ddlScripts.map(({ input, output, message }) => {
 		assert.equal(ddlFromEntity(input), output, message)
 	})
 })
 
-EntitySuite('Should get data for entity', async (context) => {
+test('Should get data for entity', async (context) => {
 	process.chdir('spec/fixtures/alternate')
 	let data = await dataFromEntity(context.dataFiles.json.input)
 	assert.equal(
@@ -87,22 +87,22 @@ EntitySuite('Should get data for entity', async (context) => {
 	)
 })
 
-EntitySuite('Should validate entity data', (context) => {
+test('Should validate entity data', (context) => {
 	process.chdir('spec/fixtures/alternate')
 	context.validations.map(({ input, output }) => {
 		assert.equal(validateEntityFile(input.entity, input.ddl), output)
 	})
 })
 
-EntitySuite('Should generate import script for entity', (context) => {
+test('Should generate import script for entity', (context) => {
 	context.importScripts.map(({ input, output }) => {
 		assert.equal(importScriptForEntity(input), output)
 	})
 })
 
-EntitySuite('Should generate import script for entity', (context) => {
+test('Should generate import script for entity', (context) => {
 	const { input, output, message } = context.exportScripts
 	assert.equal(exportScriptForEntity(input), output, message)
 })
 
-EntitySuite.run()
+test.run()
