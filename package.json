@@ -23,6 +23,7 @@
     "access": "public"
   },
   "dependencies": {
+    "@dbml/core": "^2.3.1",
     "@databases/pg": "^5.4.1",
     "csvtojson": "^2.0.10",
     "js-yaml": "^4.1.0",
@@ -31,7 +32,6 @@
   },
   "devDependencies": {
     "@databases/pg-test": "^3.1.2",
-    "@dbml/core": "^2.3.1",
     "@vanillaes/mock-console": "^3.0.0",
     "c8": "^7.11.0",
     "release-it": "^14.12.5",

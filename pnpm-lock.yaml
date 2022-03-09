@@ -16,6 +16,7 @@ specifiers:
 
 dependencies:
   '@databases/pg': 5.4.1
+  '@dbml/core': 2.3.1
   csvtojson: 2.0.10
   js-yaml: 4.1.0
   ramda: 0.28.0
@@ -23,7 +24,6 @@ dependencies:
 
 devDependencies:
   '@databases/pg-test': 3.1.2
-  '@dbml/core': 2.3.1
   '@vanillaes/mock-console': 3.0.0
   c8: 7.11.0
   release-it: 14.12.5
@@ -179,7 +179,7 @@ packages:
       lodash: 4.17.21
       parsimmon: 1.18.1
       pluralize: 8.0.0
-    dev: true
+    dev: false
 
   /@iarna/toml/2.2.5:
     resolution: {integrity: sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==}
@@ -1820,7 +1820,6 @@ packages:
 
   /parsimmon/1.18.1:
     resolution: {integrity: sha512-u7p959wLfGAhJpSDJVYXoyMCXWYwHia78HhRBWqk7AIbxdmlrfdp5wX0l3xv/iTSH5HvhN9K7o26hwwpgS5Nmw==}
-    dev: true
 
   /path-exists/4.0.0:
     resolution: {integrity: sha512-ak9Qy5Q7jYb2Wwcey5Fpvg2KoAc/ZIhLSLOSBmRmygPsGwkVVt0fZa0qrtMz+m6tJTAHfZQ8FnmB4MG4LWy7/w==}
@@ -1923,7 +1922,6 @@ packages:
   /pluralize/8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
-    dev: true
 
   /postgres-array/2.0.0:
     resolution: {integrity: sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==}
