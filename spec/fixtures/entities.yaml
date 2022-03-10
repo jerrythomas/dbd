@@ -98,15 +98,14 @@ ddlScripts:
       refers: []
     output: |
       DO
-          $do$
-          BEGIN
-             IF NOT EXISTS (
-                SELECT FROM pg_catalog.pg_roles
-                WHERE  rolname = 'basic') THEN
-                CREATE ROLE basic;
-             END IF;
-          END
-          $do$;
+      $do$
+      BEGIN
+         IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles
+                         WHERE rolname = 'basic') THEN
+            CREATE ROLE basic;
+         END IF;
+      END
+      $do$;
     message: Should create basic role
   - input:
       type: role
@@ -115,15 +114,14 @@ ddlScripts:
         - basic
     output: |-
       DO
-          $do$
-          BEGIN
-             IF NOT EXISTS (
-                SELECT FROM pg_catalog.pg_roles
-                WHERE  rolname = 'advanced') THEN
-                CREATE ROLE advanced;
-             END IF;
-          END
-          $do$;
+      $do$
+      BEGIN
+         IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles
+                         WHERE rolname = 'advanced') THEN
+            CREATE ROLE advanced;
+         END IF;
+      END
+      $do$;
       grant basic to advanced;
     message: Should create role with grants
   - input:

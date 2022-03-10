@@ -44,7 +44,7 @@ function getEntityWithConfig(item, defaultOptions) {
 
 	if (typeof item === 'object') {
 		name = Object.keys(item)[0]
-		opts = { ...opts, ...item[name] }
+		opts = omit(['name'], { ...opts, ...item[name] })
 	}
 
 	return { name, ...opts }
@@ -145,27 +145,35 @@ export function ddlFromEntity(entity) {
 		};`
 	}
 	if (entity.type === 'role') {
-		const grants = entity.refers
-			.map((name) => `grant ${name} to ${entity.name};`)
-			.join('\n')
-
-		return (
-			`DO
-    $do$
-    BEGIN
-       IF NOT EXISTS (
-          SELECT FROM pg_catalog.pg_roles
-          WHERE  rolname = '${entity.name}') THEN
-          CREATE ROLE ${entity.name};
-       END IF;
-    END
-    $do$;` +
-			'\n' +
-			grants
-		)
+		return getRoleScript(entity)
 	}
 }
 
+/**
+ * Generate the creation of script for role entity
+ *
+ * @param {Object} entity
+ * @returns
+ */
+function getRoleScript(entity) {
+	const grants = entity.refers
+		.map((name) => `grant ${name} to ${entity.name};`)
+		.join('\n')
+
+	const lines = [
+		'DO',
+		'$do$',
+		'BEGIN',
+		'   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles',
+		`                   WHERE rolname = '${entity.name}') THEN`,
+		`      CREATE ROLE ${entity.name};`,
+		'   END IF;',
+		'END',
+		'$do$;',
+		grants
+	]
+	return lines.join('\n')
+}
 /**
  * Fetch data from CSV or JSON files for an entity
  *
