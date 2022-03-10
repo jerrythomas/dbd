@@ -57,22 +57,8 @@ export function read(file) {
  * @returns
  */
 export function clean(data) {
-	let entities = scan('ddl')
-		.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
-		.map((file) => entityFromFile(file))
-		.map((entity) => ({ ...entity, refers: [] }))
-	entities = merge(entities, data.entities)
-
-	let importTables = scan('import')
-		.filter((file) => ['.csv'].includes(path.extname(file)))
-		.map((file) => entityFromFile(file))
-
-	importTables = merge(
-		importTables,
-		data.import.tables.map((table) =>
-			entityFromImportConfig(table, data.import.options)
-		)
-	)
+	let importTables = cleanImportTables(data)
+	let entities = cleanDDLEntities(data)
 
 	let roles = [
 		...data.roles,
@@ -80,7 +66,6 @@ export function clean(data) {
 	]
 
 	entities = entities.filter((entity) => entity.type !== 'role')
-
 	let schemas = [
 		...new Set([
 			...data.schemas,
@@ -93,6 +78,42 @@ export function clean(data) {
 	data = { ...data, roles, schemas, entities, importTables }
 
 	return data
+}
+
+/**
+ * Scan ddl folder and combine with configuration
+ *
+ * @param {Object} data
+ * @returns
+ */
+function cleanDDLEntities(data) {
+	let entities = scan('ddl')
+		.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
+		.map((file) => entityFromFile(file))
+		.map((entity) => ({ ...entity, refers: [] }))
+
+	return merge(entities, data.entities)
+}
+
+/**
+ * Scan import folder and combine with configuration
+ *
+ * @param {Object} data
+ * @returns
+ */
+function cleanImportTables(data) {
+	let importTables = scan('import')
+		.filter((file) => ['.csv'].includes(path.extname(file)))
+		.map((file) => entityFromFile(file))
+
+	importTables = merge(
+		importTables,
+		data.import.tables.map((table) =>
+			entityFromImportConfig(table, data.import.options)
+		)
+	)
+
+	return importTables
 }
 
 export function merge(x, y) {

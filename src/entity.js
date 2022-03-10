@@ -213,18 +213,33 @@ export function validateEntityFile(entity, ddl = true) {
 	}
 
 	if (entity.file) {
-		if (!fs.existsSync(entity.file)) {
-			errors.push('File does not exist')
-		}
-		if (ddl && path.extname(entity.file) !== '.ddl') {
-			errors.push('Unsupported file type for ddl')
-		}
-		if (!ddl && !['.csv', '.json'].includes(path.extname(entity.file))) {
-			errors.push('Unsupported data format')
-		}
+		errors = [...errors, ...validateFiles(entity, ddl)]
 	}
 
 	return errors.length > 0 ? { ...entity, errors } : entity
+}
+
+/**
+ * Validate file for the entity.
+ *
+ * @param {Object} entity
+ * @param {boolean} ddl
+ * @returns
+ */
+function validateFiles(entity, ddl) {
+	let errors = []
+
+	if (!fs.existsSync(entity.file)) {
+		errors.push('File does not exist')
+	}
+	if (ddl && path.extname(entity.file) !== '.ddl') {
+		errors.push('Unsupported file type for ddl')
+	}
+	if (!ddl && !['.csv', '.json'].includes(path.extname(entity.file))) {
+		errors.push('Unsupported data format')
+	}
+
+	return errors
 }
 
 export function importScriptForEntity(entity) {
