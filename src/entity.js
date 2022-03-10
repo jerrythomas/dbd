@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import csv from 'csvtojson'
+import { omit } from 'ramda'
 
 import {
 	typesWithoutSchema,
@@ -31,23 +32,35 @@ export function entityFromFile(file) {
 }
 
 /**
+ * Adds default options and overrides them if item is an object
+ *
+ * @param {(string|Object)} item
+ * @param {Object} defaultOptions
+ * @returns
+ */
+function getEntityWithConfig(item, defaultOptions) {
+	let name = item
+	let opts = defaultOptions
+
+	if (typeof item === 'object') {
+		name = Object.keys(item)[0]
+		opts = { ...opts, ...item[name] }
+	}
+
+	return { name, ...opts }
+}
+
+/**
  * Converts input into an export Entity
  *
  * @param {(string|Object)} item
  * @returns
  */
 export function entityFromExportConfig(item) {
-	let entity = item
-	let opts = defaultExportOptions
-
-	if (typeof item === 'object') {
-		entity = Object.keys(item)[0]
-		opts = { ...defaultExportOptions, ...item[entity] }
-	}
+	const entity = getEntityWithConfig(item, defaultExportOptions)
 	return {
 		type: 'export',
-		name: entity,
-		...opts
+		...entity
 	}
 }
 
@@ -58,18 +71,12 @@ export function entityFromExportConfig(item) {
  * @returns
  */
 export function entityFromImportConfig(item, opts = defaultImportOptions) {
-	let name = item
-	opts = { ...defaultImportOptions, ...opts }
+	let entity = getEntityWithConfig(item, { ...defaultImportOptions, ...opts })
 
-	if (typeof item === 'object') {
-		name = Object.keys(item)[0]
-		opts = { ...opts, ...item[name] }
-	}
 	return {
 		type: 'import',
-		name,
-		schema: name.split('.')[0],
-		...opts
+		...entity,
+		schema: entity.name.split('.')[0]
 	}
 }
 /**
