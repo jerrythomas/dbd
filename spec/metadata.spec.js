@@ -106,9 +106,15 @@ test('Should read the configuration file', () => {
 		extensionSchema: 'extensions',
 		staging: ['staging'],
 		dbdocs: {
-			exclude: {
-				schemas: ['staging', 'migrate', 'extensions'],
-				tables: []
+			base: {
+				exclude: {
+					schemas: ['staging', 'migrate', 'extensions']
+				}
+			},
+			core: {
+				include: {
+					schemas: ['core']
+				}
 			}
 		}
 	}

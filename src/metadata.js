@@ -4,7 +4,7 @@ import yaml from 'js-yaml'
 import { allowedTypes } from './constants.js'
 import { entityFromFile, entityFromImportConfig } from './entity.js'
 import { fillMissingInfoForEntities } from './filler.js'
-
+import { defaultImportOptions } from './constants.js'
 /**
  * Scans a folder and returns a list of file paths
  *
@@ -104,7 +104,7 @@ function cleanDDLEntities(data) {
 function cleanImportTables(data) {
 	let importTables = scan('import')
 		.filter((file) => ['.csv'].includes(path.extname(file)))
-		.map((file) => entityFromFile(file))
+		.map((file) => ({ ...entityFromFile(file), ...defaultImportOptions }))
 
 	importTables = merge(
 		importTables,
@@ -112,7 +112,6 @@ function cleanImportTables(data) {
 			entityFromImportConfig(table, data.import.options)
 		)
 	)
-
 	return importTables
 }
 

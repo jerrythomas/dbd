@@ -90,16 +90,21 @@ test('Should combine scripts and generate file', (context) => {
 test('Should combine scripts and generate dbml', (context) => {
 	using('design.yaml').dbml()
 
-	assert.ok(fs.existsSync('design.dbml'))
-	fs.unlinkSync('design.dbml')
+	assert.ok(fs.existsSync('Example-base-design.dbml'))
+	fs.unlinkSync('Example-base-design.dbml')
+	assert.ok(fs.existsSync('Example-core-design.dbml'))
+	fs.unlinkSync('Example-core-design.dbml')
 
-	assert.equal(context.logger.infos, ['Generated DBML in design.dbml'])
+	assert.equal(context.logger.infos, [
+		'Generated DBML in Example-base-design.dbml',
+		'Generated DBML in Example-core-design.dbml'
+	])
 })
 
 test('Should throw error for invalid ddl', (context) => {
 	process.chdir('../spec/fixtures/bad-example/')
 	using('design.yaml').dbml()
-	assert.not(fs.existsSync('design.dbml'))
+	assert.not(fs.existsSync('Example-design.dbml'))
 	assert.ok(context.logger.errors.length > 0)
 })
 

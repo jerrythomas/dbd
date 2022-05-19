@@ -5,12 +5,16 @@ project:
   staging:
   - staging
   dbdocs:
-    exclude:
-      schemas:
-        - staging
-        - migrate
-        - extensions
-      tables: []
+    base:
+      exclude:
+        schemas:
+          - staging
+          - migrate
+          - extensions
+    core:
+      include:
+        schemas:
+          - core
 schemas:
   - core
   - extensions

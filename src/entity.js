@@ -255,6 +255,7 @@ export function importScriptForEntity(entity) {
 	if (entity.truncate) {
 		commands.push(`truncate table ${entity.name};`)
 	}
+	console.log(entity.name, entity.nullValue)
 	commands.push(
 		`\\copy ${entity.name} from '${entity.file}' with delimiter ',' NULL as '${entity.nullValue}' csv header;`
 	)
@@ -264,4 +265,22 @@ export function importScriptForEntity(entity) {
 export function exportScriptForEntity(entity) {
 	const file = `export/${entity.name.replace('.', path.sep)}.csv`
 	return `\\copy (select * from ${entity.name}) to '${file}' with delimiter ',' csv header;`
+}
+
+export function entitiesForDBML(entities, config) {
+	const { include, exclude } = { exclude: {}, include: {}, ...config }
+
+	const result = entities
+		.filter((entity) => entity.type === 'table')
+		.filter(
+			(entity) => !include.schemas || include.schemas.includes(entity.schema)
+		)
+		.filter((entity) => !include.tables || include.tables.includes(entity.name))
+		.filter(
+			(entity) => !exclude.schemas || !exclude.schemas.includes(entity.schema)
+		)
+		.filter(
+			(entity) => !exclude.tables || !exclude.tables.includes(entity.name)
+		)
+	return result
 }

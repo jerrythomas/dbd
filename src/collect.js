@@ -11,7 +11,8 @@ import {
 	ddlFromEntity,
 	validateEntityFile,
 	importScriptForEntity,
-	exportScriptForEntity
+	exportScriptForEntity,
+	entitiesForDBML
 } from './entity.js'
 
 class Design {
@@ -137,24 +138,47 @@ class Design {
 	}
 
 	dbml(file = 'design.dbml') {
-		const { schemas, tables } = this.config.project.dbdocs.exclude
-		const combined = this.entities
-			.filter((entity) => entity.type === 'table')
-			.filter((entity) => !schemas.includes(entity.schema))
-			.filter((entity) => !tables.includes(entity.name))
-			.map((entity) => ddlFromEntity(entity))
+		const keys = Object.keys(this.config.project.dbdocs)
+		let docs = []
 
-		try {
-			// dbml currently does not output project info
-			const project = `Project "${this.config.project.name}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
-			let schema = Parser.parse(combined.join('\n'), 'postgres').normalize()
-
-			const dbml = ModelExporter.export(schema, 'dbml')
-			fs.writeFileSync(file, project + dbml)
-			console.info(`Generated DBML in ${file}`)
-		} catch (err) {
-			console.error(err)
+		if (keys.includes('exclude') || keys.includes('include')) {
+			docs = [
+				{
+					config: this.config.project.dbdocs,
+					project: this.config.project.name
+				}
+			]
 		}
+		docs = [
+			...docs,
+			...keys
+				.filter((key) => key !== 'exclude' && key !== 'include')
+				.map((key) => ({
+					config: this.config.project.dbdocs[key],
+					project: this.config.project.name + '-' + key
+				}))
+		]
+
+		docs.map((doc) => {
+			// console.log(doc.project, entitiesForDBML(this.entities, doc.config))
+			const combined = entitiesForDBML(this.entities, doc.config).map(
+				(entity) => ddlFromEntity(entity)
+			)
+
+			try {
+				// dbml currently does not output project info
+
+				const project = `Project "${doc.project}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
+				let schema = Parser.parse(combined.join('\n'), 'postgres').normalize()
+
+				const dbml = ModelExporter.export(schema, 'dbml')
+				const fileName = [doc.project, file].join('-')
+				fs.writeFileSync(fileName, project + dbml)
+				console.info(`Generated DBML in ${fileName}`)
+			} catch (err) {
+				console.error(err)
+			}
+		})
 
 		return this
 	}
