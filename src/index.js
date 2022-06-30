@@ -23,7 +23,7 @@ prog
 	.example('dbd init')
 	.example('dbd init -p app')
 	.action((opts) => {
-		execSync(`npx degit jerrythomas/dbd/example ${opts.name}`)
+		execSync(`npx degit jerrythomas/dbd/example ${opts.project}`)
 	})
 
 prog
