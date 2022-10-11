@@ -30,10 +30,11 @@ test.after.each((context) => {
 
 test('Should fetch all files in path', (context) => {
 	assert.equal(scan('ddl'), [
-		'ddl/table/core/lookup_values.ddl',
-		'ddl/table/core/lookups.ddl',
+		'ddl/procedure/staging/import_lookups.ddl',
+		'ddl/table/config/lookup_values.ddl',
+		'ddl/table/config/lookups.ddl',
 		'ddl/table/staging/lookup_values.ddl',
-		'ddl/view/core/genders.ddl',
+		'ddl/view/config/genders.ddl',
 		'ddl/view/migrate/lookup_values.ddl'
 	])
 })
@@ -58,7 +59,7 @@ test('Should read minimal configuration', () => {
 })
 
 test('Should read the configuration file', () => {
-	const schemas = ['core', 'extensions', 'staging', 'migrate']
+	const schemas = ['config', 'extensions', 'staging', 'migrate']
 	const roles = [
 		{
 			refers: ['basic'],
@@ -74,12 +75,12 @@ test('Should read the configuration file', () => {
 	const tables = [
 		{
 			refers: [],
-			name: 'core.lookups',
+			name: 'config.lookups',
 			type: 'table'
 		},
 		{
-			refers: ['core.lookups'],
-			name: 'core.lookup_values',
+			refers: ['config.lookups'],
+			name: 'config.lookup_values',
 			type: 'table'
 		},
 		{
@@ -90,14 +91,25 @@ test('Should read the configuration file', () => {
 	]
 	const views = [
 		{
-			refers: ['core.lookups', 'core.lookup_values'],
-			name: 'core.genders',
+			refers: ['config.lookups', 'config.lookup_values'],
+			name: 'config.genders',
 			type: 'view'
 		},
 		{
-			refers: ['core.lookups', 'core.lookup_values'],
+			refers: ['config.lookups', 'config.lookup_values'],
 			name: 'migrate.lookup_values',
 			type: 'view'
+		}
+	]
+	const procedures = [
+		{
+			refers: [
+				'config.lookup_values',
+				'config.lookups',
+				'staging.lookup_values'
+			],
+			name: 'staging.import_lookups',
+			type: 'procedure'
 		}
 	]
 	const project = {
@@ -113,7 +125,7 @@ test('Should read the configuration file', () => {
 			},
 			core: {
 				include: {
-					schemas: ['core']
+					schemas: ['config']
 				}
 			}
 		}
@@ -128,9 +140,9 @@ test('Should read the configuration file', () => {
 		after: ['import/loader.sql']
 	}
 	const exportTables = [
-		'core.lookups',
-		'core.lookup_values',
-		'core.genders',
+		'config.lookups',
+		'config.lookup_values',
+		'config.genders',
 		'migrate.lookup_values'
 	]
 
@@ -140,10 +152,14 @@ test('Should read the configuration file', () => {
 	assert.equal(config.tables, tables, 'read tables from configuration')
 	assert.equal(config.views, views, 'read views from configuration')
 	assert.equal(config.functions, [], 'read functions from configuration')
-	assert.equal(config.procedures, [], 'read procedures from configuration')
+	assert.equal(
+		config.procedures,
+		procedures,
+		'read procedures from configuration'
+	)
 	assert.equal(
 		config.entities,
-		[...tables, ...views],
+		[...tables, ...views, ...procedures],
 		'combined entities from configuration'
 	)
 	assert.equal(config.project, project, 'read project from configuration')
@@ -153,13 +169,21 @@ test('Should read the configuration file', () => {
 
 test('Should merge entities', (context) => {
 	const x = [
-		{ type: 'table', name: 'core.lookups', file: 'ddl/table/core/lookups.ddl' },
 		{
 			type: 'table',
-			name: 'core.lookup_values',
-			file: 'ddl/table/core/lookup_values.ddl'
+			name: 'config.lookups',
+			file: 'ddl/table/config/lookups.ddl'
 		},
-		{ type: 'view', name: 'core.genders', file: 'ddl/table/core/genders.ddl' },
+		{
+			type: 'table',
+			name: 'config.lookup_values',
+			file: 'ddl/table/config/lookup_values.ddl'
+		},
+		{
+			type: 'view',
+			name: 'config.genders',
+			file: 'ddl/table/config/genders.ddl'
+		},
 		{
 			type: 'table',
 			name: 'staging.lookup_values',
@@ -167,27 +191,31 @@ test('Should merge entities', (context) => {
 		}
 	]
 	const y = [
-		{ type: 'table', name: 'core.lookup_values', refers: ['core.lookups'] },
+		{ type: 'table', name: 'config.lookup_values', refers: ['config.lookups'] },
 		{
 			type: 'view',
-			name: 'core.genders',
-			refers: ['core.lookups', 'core.lookup_values']
+			name: 'config.genders',
+			refers: ['config.lookups', 'config.lookup_values']
 		}
 	]
 	const output = [
 		{
 			type: 'table',
-			name: 'core.lookup_values',
-			file: 'ddl/table/core/lookup_values.ddl',
-			refers: ['core.lookups']
+			name: 'config.lookup_values',
+			file: 'ddl/table/config/lookup_values.ddl',
+			refers: ['config.lookups']
 		},
 		{
 			type: 'view',
-			name: 'core.genders',
-			file: 'ddl/table/core/genders.ddl',
-			refers: ['core.lookups', 'core.lookup_values']
+			name: 'config.genders',
+			file: 'ddl/table/config/genders.ddl',
+			refers: ['config.lookups', 'config.lookup_values']
 		},
-		{ type: 'table', name: 'core.lookups', file: 'ddl/table/core/lookups.ddl' },
+		{
+			type: 'table',
+			name: 'config.lookups',
+			file: 'ddl/table/config/lookups.ddl'
+		},
 		{
 			type: 'table',
 			name: 'staging.lookup_values',
@@ -200,7 +228,6 @@ test('Should merge entities', (context) => {
 
 test('Should add missing roles, schemas and entities', (context) => {
 	let data = clean(context.clean.input)
-	// console.log(data)
 	assert.equal(data, context.clean.output)
 })
 

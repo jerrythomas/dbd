@@ -8,6 +8,6 @@ select lkp.name
      , lkv.is_active
      , lkv.modified_on
      , lkv.modified_by
-  from core.lookups lkp
- inner join core.lookup_values lkv
+  from config.lookups lkp
+ inner join config.lookup_values lkv
     on lkp.id = lkv.lookup_id;

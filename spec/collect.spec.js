@@ -13,7 +13,8 @@ const test = suite('Suite for collector')
 test.before((context) => {
 	context.logger = new MockConsole()
 
-	context.databaseURL = 'postgres://test-user@localhost:5234/test-db'
+	context.databaseURL =
+		process.env.DATABASE_URL || 'postgres://test-user@localhost:5234/test-db'
 	context.combinedDDL = '_combined.ddl'
 	context.path = process.cwd()
 
@@ -103,7 +104,7 @@ test('Should combine scripts and generate dbml', (context) => {
 
 test('Should throw error for invalid ddl', (context) => {
 	process.chdir('../spec/fixtures/bad-example/')
-	using('design.yaml').dbml()
+	using('design-bad.yaml').dbml()
 	assert.not(fs.existsSync('Example-design.dbml'))
 	assert.ok(context.logger.errors.length > 0)
 })
@@ -112,12 +113,12 @@ test('Should display execution sequence in dry-run mode', async (context) => {
 	const { beforeApply } = context.collect
 	const schemas = sql`select schema_name
 	                      from information_schema.schemata
-                       where schema_name in ('core', 'extensions', 'staging', 'migrate')`
+                       where schema_name in ('config', 'extensions', 'staging', 'migrate')`
 	const tables = sql`select table_schema
                         	, table_name
 	                        , table_type
                        from information_schema.tables
-                      where table_schema in ('core', 'staging', 'migrate')
+                      where table_schema in ('config', 'staging', 'migrate')
                       order by table_schema
                              , table_name`
 
@@ -129,18 +130,19 @@ test('Should display execution sequence in dry-run mode', async (context) => {
 	await using('design.yaml', context.databaseURL).apply(null, true)
 
 	assert.equal(context.logger.infos, [
-		'schema => core',
+		'schema => config',
 		'schema => extensions',
 		'schema => staging',
 		'schema => migrate',
 		'extension => uuid-ossp using "extensions"',
 		'role => basic',
 		'role => advanced',
-		'table => core.lookups using "ddl/table/core/lookups.ddl"',
+		'table => config.lookups using "ddl/table/config/lookups.ddl"',
 		'table => staging.lookup_values using "ddl/table/staging/lookup_values.ddl"',
-		'table => core.lookup_values using "ddl/table/core/lookup_values.ddl"',
-		'view => core.genders using "ddl/view/core/genders.ddl"',
-		'view => migrate.lookup_values using "ddl/view/migrate/lookup_values.ddl"'
+		'table => config.lookup_values using "ddl/table/config/lookup_values.ddl"',
+		'view => config.genders using "ddl/view/config/genders.ddl"',
+		'view => migrate.lookup_values using "ddl/view/migrate/lookup_values.ddl"',
+		'procedure => staging.import_lookups using "ddl/procedure/staging/import_lookups.ddl"'
 	])
 	assert.equal(context.logger.errors, [])
 
@@ -154,12 +156,12 @@ test('Should display execution sequence with errors in dry-run mode', async (con
 	const { beforeApply } = context.collect
 	const schemas = sql`select schema_name
 	                      from information_schema.schemata
-                       where schema_name in ('core', 'extensions', 'staging', 'migrate')`
+                       where schema_name in ('config', 'extensions', 'staging', 'migrate')`
 	const tables = sql`select table_schema
                         	, table_name
 	                        , table_type
                        from information_schema.tables
-                      where table_schema in ('core', 'staging', 'migrate')
+                      where table_schema in ('config', 'staging', 'migrate')
                       order by table_schema
                              , table_name`
 
@@ -170,7 +172,7 @@ test('Should display execution sequence with errors in dry-run mode', async (con
 
 	process.chdir('../spec/fixtures/bad-example')
 
-	await using('design.yaml', context.databaseURL).apply(null, true)
+	await using('design-bad.yaml', context.databaseURL).apply(null, true)
 
 	assert.equal(context.logger.infos, [
 		'schema => core',
@@ -231,12 +233,12 @@ test('Should apply the ddl scripts', async (context) => {
 	const { beforeApply, afterApply } = context.collect
 	const schemas = sql`select schema_name
 	                      from information_schema.schemata
-                       where schema_name in ('core', 'extensions', 'staging', 'migrate')`
+                       where schema_name in ('config', 'extensions', 'staging', 'migrate')`
 	const tables = sql`select table_schema
                         	, table_name
 	                        , table_type
                        from information_schema.tables
-                      where table_schema in ('core', 'staging', 'migrate')
+                      where table_schema in ('config', 'staging', 'migrate')
                       order by table_schema
                              , table_name`
 
@@ -248,18 +250,19 @@ test('Should apply the ddl scripts', async (context) => {
 	await using('design.yaml', context.databaseURL).apply()
 
 	assert.equal(context.logger.infos, [
-		'Applying schema: core',
+		'Applying schema: config',
 		'Applying schema: extensions',
 		'Applying schema: staging',
 		'Applying schema: migrate',
 		'Applying extension: uuid-ossp',
 		'Applying role: basic',
 		'Applying role: advanced',
-		'Applying table: core.lookups',
+		'Applying table: config.lookups',
 		'Applying table: staging.lookup_values',
-		'Applying table: core.lookup_values',
-		'Applying view: core.genders',
-		'Applying view: migrate.lookup_values'
+		'Applying table: config.lookup_values',
+		'Applying view: config.genders',
+		'Applying view: migrate.lookup_values',
+		'Applying procedure: staging.import_lookups'
 	])
 
 	result = await context.db.query(schemas)
@@ -291,10 +294,12 @@ test('Should import data using psql', async (context) => {
 	)
 	assert.equal(result, [{ count: 2n }])
 
-	result = await context.db.query(sql`select count(*) from core.lookups`)
+	result = await context.db.query(sql`select count(*) from config.lookups`)
 	assert.equal(result, [{ count: 1n }])
 
-	result = await context.db.query(sql`select count(*) from core.lookup_values`)
+	result = await context.db.query(
+		sql`select count(*) from config.lookup_values`
+	)
 	assert.equal(result, [{ count: 2n }])
 })
 
@@ -303,16 +308,16 @@ test('Should export data using psql', (context) => {
 
 	assert.not(dx.isValidated)
 	assert.ok(fs.existsSync('export'))
-	assert.ok(fs.existsSync('export/core'))
-	assert.ok(fs.existsSync('export/core/lookups.csv'))
-	assert.ok(fs.existsSync('export/core/lookup_values.csv'))
-	assert.ok(fs.existsSync('export/core/genders.csv'))
+	assert.ok(fs.existsSync('export/config'))
+	assert.ok(fs.existsSync('export/config/lookups.csv'))
+	assert.ok(fs.existsSync('export/config/lookup_values.csv'))
+	assert.ok(fs.existsSync('export/config/genders.csv'))
 	assert.ok(fs.existsSync('export/migrate/lookup_values.csv'))
 })
 
 test('Should allow only staging tables in import', (context) => {
 	process.chdir('../spec/fixtures/bad-example')
-	const dx = using('design.yaml', context.databaseURL).validate()
+	const dx = using('design-bad.yaml', context.databaseURL).validate()
 
 	assert.equal(dx.importTables, context.validations.importTables)
 
@@ -340,8 +345,8 @@ test('Should apply for single entity', async (context) => {
 
 test('Should import a single entity using entity name', async (context) => {
 	// cleanup
-	await context.db.query(sql`delete from core.lookup_values;`)
-	await context.db.query(sql`delete from core.lookups;`)
+	await context.db.query(sql`delete from config.lookup_values;`)
+	await context.db.query(sql`delete from config.lookups;`)
 	await context.db.query(sql`delete from staging.lookup_values;`)
 
 	using('design.yaml', context.databaseURL).importData('staging.lookup_values')
@@ -356,16 +361,18 @@ test('Should import a single entity using entity name', async (context) => {
 	)
 
 	assert.equal(result, [{ count: 2n }])
-	result = await context.db.query(sql`select count(*) from core.lookups`)
+	result = await context.db.query(sql`select count(*) from config.lookups`)
 	assert.equal(result, [{ count: 1n }])
-	result = await context.db.query(sql`select count(*) from core.lookup_values`)
+	result = await context.db.query(
+		sql`select count(*) from config.lookup_values`
+	)
 	assert.equal(result, [{ count: 2n }])
 })
 
 test('Should skip import when invalid name or file is provided', async (context) => {
 	// cleanup
-	await context.db.query(sql`delete from core.lookup_values;`)
-	await context.db.query(sql`delete from core.lookups;`)
+	await context.db.query(sql`delete from config.lookup_values;`)
+	await context.db.query(sql`delete from config.lookups;`)
 	await context.db.query(sql`delete from staging.lookup_values;`)
 
 	using('design.yaml', context.databaseURL).importData(
@@ -375,16 +382,18 @@ test('Should skip import when invalid name or file is provided', async (context)
 		sql`select count(*) from staging.lookup_values`
 	)
 	assert.equal(result, [{ count: 0n }])
-	result = await context.db.query(sql`select count(*) from core.lookups`)
+	result = await context.db.query(sql`select count(*) from config.lookups`)
 	assert.equal(result, [{ count: 0n }])
-	result = await context.db.query(sql`select count(*) from core.lookup_values`)
+	result = await context.db.query(
+		sql`select count(*) from config.lookup_values`
+	)
 	assert.equal(result, [{ count: 0n }])
 })
 
 test('Should import single entity using filepath', async (context) => {
 	// cleanup
-	await context.db.query(sql`delete from core.lookup_values;`)
-	await context.db.query(sql`delete from core.lookups;`)
+	await context.db.query(sql`delete from config.lookup_values;`)
+	await context.db.query(sql`delete from config.lookups;`)
 	await context.db.query(sql`delete from staging.lookup_values;`)
 
 	using('design.yaml', context.databaseURL).importData(
@@ -394,41 +403,43 @@ test('Should import single entity using filepath', async (context) => {
 		sql`select count(*) from staging.lookup_values`
 	)
 	assert.equal(result, [{ count: 2n }])
-	result = await context.db.query(sql`select count(*) from core.lookups`)
+	result = await context.db.query(sql`select count(*) from config.lookups`)
 	assert.equal(result, [{ count: 1n }])
-	result = await context.db.query(sql`select count(*) from core.lookup_values`)
+	result = await context.db.query(
+		sql`select count(*) from config.lookup_values`
+	)
 	assert.equal(result, [{ count: 2n }])
 })
 
 test('Should export a single entity by name', (context) => {
-	using('design.yaml', context.databaseURL).exportData('core.unknown')
+	using('design.yaml', context.databaseURL).exportData('config.unknown')
 	assert.not(
-		fs.existsSync('export/core/genders.csv'),
-		'core.genders.csv should not exist'
+		fs.existsSync('export/config/genders.csv'),
+		'config.genders.csv should not exist'
 	)
 	assert.not(
-		fs.existsSync('export/core/lookups.csv'),
-		'core.lookups.csv should not exist'
+		fs.existsSync('export/config/lookups.csv'),
+		'config.lookups.csv should not exist'
 	)
 	assert.not(
 		fs.existsSync(
-			'export/core/lookup_values.csv',
-			'core.lookup_values.csv should not exist'
+			'export/config/lookup_values.csv',
+			'config.lookup_values.csv should not exist'
 		)
 	)
 
-	using('design.yaml', context.databaseURL).exportData('core.genders')
+	using('design.yaml', context.databaseURL).exportData('config.genders')
 	assert.ok(
-		fs.existsSync('export/core/genders.csv'),
+		fs.existsSync('export/config/genders.csv'),
 		'Selected export file should exist'
 	)
 	assert.not(
-		fs.existsSync('export/core/lookups.csv'),
-		'core.lookups.csv should not exist'
+		fs.existsSync('export/config/lookups.csv'),
+		'config.lookups.csv should not exist'
 	)
 	assert.not(
-		fs.existsSync('export/core/lookup_values.csv'),
-		'core.lookup_values.csv should not exist'
+		fs.existsSync('export/config/lookup_values.csv'),
+		'config.lookup_values.csv should not exist'
 	)
 })
 

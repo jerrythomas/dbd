@@ -11,15 +11,15 @@ prog
 	.option(
 		'-d, --database',
 		'Database URL',
-		process.env.DATABASE_URL.replace(/\$/, '\\$')
+		(process.env.DATABASE_URL || '').replace(/\$/, '\\$')
 	)
 	.option('-e, --environment', 'Environment to load data', 'development')
 	.option('-p, --preview', 'Preview the action', false)
 
 prog
 	.command('init')
-	.option('-p, --project', 'Name of the project', 'design')
-	.describe('Initialize an empty project')
+	.option('-p, --project', 'Name of the project', 'database')
+	.describe('Initialize a starter project')
 	.example('dbd init')
 	.example('dbd init -p app')
 	.action((opts) => {
@@ -54,7 +54,7 @@ prog
 prog
 	.command('combine')
 	.option('-f, --file', 'Destination sql file', 'init.sql')
-	.describe('Combine all ddl scripts and generate dbml.')
+	.describe('Combine all ddl scripts into one script.')
 	.example('dbd combine')
 	.example('dbd combine -f init.sql')
 	.action((opts) => {
@@ -76,7 +76,7 @@ prog
 
 prog
 	.command('export')
-	.option('-n, --name', 'Name if specific entity to export.')
+	.option('-n, --name', 'Name of specific entity to export.')
 	.describe('Export specific tables from the database')
 	.example('dbd export')
 	.example('dbd export -n staging.lookups')

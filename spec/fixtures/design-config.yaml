@@ -10,9 +10,9 @@ config:
     type: role
   entities:
   - type: table
-    name: core.lookups
-    file: ddl/table/core/lookups.ddl
-    schema: core
+    name: config.lookups
+    file: ddl/table/config/lookups.ddl
+    schema: config
     refers: []
   - type: table
     name: staging.lookup_values
@@ -20,25 +20,33 @@ config:
     schema: staging
     refers: []
   - type: table
-    name: core.lookup_values
-    file: ddl/table/core/lookup_values.ddl
-    schema: core
+    name: config.lookup_values
+    file: ddl/table/config/lookup_values.ddl
+    schema: config
     refers:
-      - core.lookups
+      - config.lookups
   - type: view
-    name: core.genders
-    file: ddl/view/core/genders.ddl
-    schema: core
+    name: config.genders
+    file: ddl/view/config/genders.ddl
+    schema: config
     refers:
-      - core.lookups
-      - core.lookup_values
+      - config.lookups
+      - config.lookup_values
   - type: view
     name: migrate.lookup_values
     file: ddl/view/migrate/lookup_values.ddl
     schema: migrate
     refers:
-      - core.lookups
-      - core.lookup_values
+      - config.lookups
+      - config.lookup_values
+  - type: procedure
+    name: staging.import_lookups
+    file: ddl/procedure/staging/import_lookups.ddl
+    schema: staging
+    refers:
+      - config.lookup_values
+      - config.lookups
+      - staging.lookup_values
 
 roles:
 - type: role
@@ -51,7 +59,7 @@ roles:
 
 entities:
   - type: schema
-    name: core
+    name: config
   - type: schema
     name: extensions
   - type: schema
@@ -69,9 +77,9 @@ entities:
     refers:
     - basic
   - type: table
-    name: core.lookups
-    file: ddl/table/core/lookups.ddl
-    schema: core
+    name: config.lookups
+    file: ddl/table/config/lookups.ddl
+    schema: config
     refers: []
   - type: table
     name: staging.lookup_values
@@ -79,43 +87,51 @@ entities:
     schema: staging
     refers: []
   - type: table
-    name: core.lookup_values
-    file: ddl/table/core/lookup_values.ddl
-    schema: core
+    name: config.lookup_values
+    file: ddl/table/config/lookup_values.ddl
+    schema: config
     refers:
-      - core.lookups
+      - config.lookups
   - type: view
-    name: core.genders
-    file: ddl/view/core/genders.ddl
-    schema: core
+    name: config.genders
+    file: ddl/view/config/genders.ddl
+    schema: config
     refers:
-      - core.lookups
-      - core.lookup_values
+      - config.lookups
+      - config.lookup_values
   - type: view
     name: migrate.lookup_values
     file: ddl/view/migrate/lookup_values.ddl
     schema: migrate
     refers:
-      - core.lookups
-      - core.lookup_values
+      - config.lookups
+      - config.lookup_values
+  - type: procedure
+    name: staging.import_lookups
+    file: ddl/procedure/staging/import_lookups.ddl
+    schema: staging
+    refers:
+      - config.lookup_values
+      - config.lookups
+      - staging.lookup_values
 
 beforeApply:
   schemas: []
   tables: []
 afterApply:
   schemas:
-    - schema_name: core
+    - schema_name: config
     - schema_name: extensions
     - schema_name: staging
     - schema_name: migrate
   tables:
-    - table_schema: core
+    - table_schema: config
       table_name: genders
       table_type: VIEW
-    - table_schema: core
+    - table_schema: config
       table_name: lookup_values
       table_type: BASE TABLE
-    - table_schema: core
+    - table_schema: config
       table_name: lookups
       table_type: BASE TABLE
     - table_schema: migrate

@@ -1,4 +1,4 @@
-set search_path to core, extensions;
+set search_path to config, extensions;
 
 create table if not exists lookups (
   id                uuid primary key default uuid_generate_v4()

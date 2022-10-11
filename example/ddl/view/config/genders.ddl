@@ -1,4 +1,4 @@
-set search_path to core;
+set search_path to config;
 
 create or replace view genders
 as

@@ -3,23 +3,23 @@ input:
     staging: []
   schemas:
     - extensions
-    - core
+    - config
   entities:
     - type: role
       name: advanced
       refers:
         - basic
     - type: table
-      name: core.lookups
+      name: config.lookups
     - type: table
-      name: core.lookup_values
+      name: config.lookup_values
       refers:
-        - core.lookups
+        - config.lookups
     - type: view
-      name: core.genders
+      name: config.genders
       refers:
-        - core.lookups
-        - core.lookup_values
+        - config.lookups
+        - config.lookup_values
     - type: table
       name: staging.lookup_values
   roles: []
@@ -32,31 +32,36 @@ output:
     staging: []
   schemas:
     - extensions
-    - core
+    - config
     - staging
     - migrate
   entities:
     - type: table
-      name: core.lookups
-      file: ddl/table/core/lookups.ddl
+      name: config.lookups
+      file: ddl/table/config/lookups.ddl
       refers: []
-      schema: core
+      schema: config
     - type: table
-      name: core.lookup_values
-      file: ddl/table/core/lookup_values.ddl
+      name: config.lookup_values
+      file: ddl/table/config/lookup_values.ddl
       refers:
-        - core.lookups
-      schema: core
+        - config.lookups
+      schema: config
     - type: view
-      name: core.genders
-      file: ddl/view/core/genders.ddl
+      name: config.genders
+      file: ddl/view/config/genders.ddl
       refers:
-        - core.lookups
-        - core.lookup_values
-      schema: core
+        - config.lookups
+        - config.lookup_values
+      schema: config
     - type: table
       name: staging.lookup_values
       file: ddl/table/staging/lookup_values.ddl
+      refers: []
+      schema: staging
+    - type: procedure
+      name: staging.import_lookups
+      file: ddl/procedure/staging/import_lookups.ddl
       refers: []
       schema: staging
     - type: view

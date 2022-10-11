@@ -14,9 +14,9 @@ project:
     core:
       include:
         schemas:
-          - core
+          - config
 schemas:
-  - core
+  - config
   - extensions
   - staging
   - migrate
@@ -30,21 +30,28 @@ roles:
       - basic
   - name: basic
 tables:
-  - name: core.lookups
-  - name: core.lookup_values
+  - name: config.lookups
+  - name: config.lookup_values
     refers:
-      - core.lookups
+      - config.lookups
   - name: staging.lookup_values
 
 views:
-  - name: core.genders
+  - name: config.genders
     refers:
-    - core.lookups
-    - core.lookup_values
+    - config.lookups
+    - config.lookup_values
   - name: migrate.lookup_values
     refers:
-    - core.lookups
-    - core.lookup_values
+    - config.lookups
+    - config.lookup_values
+
+procedures:
+  - name: staging.import_lookups
+    refers:
+      - config.lookup_values
+      - config.lookups
+      - staging.lookup_values
 
 import:
   options:
@@ -56,7 +63,7 @@ import:
   - import/loader.sql
 
 export:
-  - core.lookups
-  - core.lookup_values
-  - core.genders
+  - config.lookups
+  - config.lookup_values
+  - config.genders
   - migrate.lookup_values

@@ -164,7 +164,7 @@ class Design {
 			const combined = entitiesForDBML(this.entities, doc.config).map(
 				(entity) => ddlFromEntity(entity)
 			)
-
+			fs.writeFileSync('combined.sql', combined.join('\n'))
 			try {
 				// dbml currently does not output project info
 
