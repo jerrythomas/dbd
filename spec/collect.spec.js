@@ -13,8 +13,7 @@ const test = suite('Suite for collector')
 test.before((context) => {
 	context.logger = new MockConsole()
 
-	context.databaseURL =
-		process.env.DATABASE_URL || 'postgres://test-user@localhost:5234/test-db'
+	context.databaseURL = 'postgresql://postgres:pg-test@localhost:5234/postgres'
 	context.combinedDDL = '_combined.ddl'
 	context.path = process.cwd()
 

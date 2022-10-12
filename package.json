@@ -1,41 +1,41 @@
 {
-  "name": "@jerrythomas/dbd",
-  "version": "1.0.2-beta.7",
-  "description": "Deploy databases using DDL scripts.",
-  "private": false,
-  "bin": "src/index.js",
-  "main": "src/index.js",
-  "module": "src/index.js",
-  "scripts": {
-    "start": "src/index.js",
-    "pg-test": "pg-test start -p 5234",
-    "test:nopg": "uvu spec",
-    "test": "pnpm pg-test && uvu spec",
-    "test:one": "pnpm pg-test && node",
-    "release": "release-it --preRelease=beta",
-    "coverage": "pnpm pg-test && c8 --include=src uvu spec",
-    "coverage:lcov": "pnpm pg-test && c8 --reporter=lcov --include=src uvu spec "
-  },
-  "author": "Jerry Thomas <me@jerrythomas.name>",
-  "license": "MIT",
-  "type": "module",
-  "publishConfig": {
-    "access": "public"
-  },
-  "dependencies": {
-    "@databases/pg": "^5.4.1",
-    "@dbml/core": "^2.4.2",
-    "csvtojson": "^2.0.10",
-    "js-yaml": "^4.1.0",
-    "ramda": "^0.28.0",
-    "sade": "^1.8.1"
-  },
-  "devDependencies": {
-    "@databases/pg-test": "^3.1.2",
-    "@vanillaes/mock-console": "^3.0.0",
-    "c8": "^7.12.0",
-    "release-it": "^14.14.3",
-    "rimraf": "^3.0.2",
-    "uvu": "^0.5.6"
-  }
+	"name": "@jerrythomas/dbd",
+	"version": "1.0.2-beta.7",
+	"description": "Deploy databases using DDL scripts.",
+	"private": false,
+	"bin": "src/index.js",
+	"main": "src/index.js",
+	"module": "src/index.js",
+	"scripts": {
+		"start": "src/index.js",
+		"pg-test": "docker run --name pg-test -p 5234:5432 -e POSTGRES_PASSWORD=pg-test -d postgres",
+		"test:nopg": "uvu spec",
+		"test": "pnpm pg-test && uvu spec",
+		"test:one": "pnpm pg-test && node",
+		"test:clean": "docker stop pg-test && docker rm pg-test",
+		"release": "release-it --preRelease=beta",
+		"coverage": "pnpm pg-test && c8 --include=src uvu spec",
+		"coverage:lcov": "pnpm pg-test && c8 --reporter=lcov --include=src uvu spec "
+	},
+	"author": "Jerry Thomas <me@jerrythomas.name>",
+	"license": "MIT",
+	"type": "module",
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@databases/pg": "^5.4.1",
+		"@dbml/core": "^2.4.2",
+		"csvtojson": "^2.0.10",
+		"js-yaml": "^4.1.0",
+		"ramda": "^0.28.0",
+		"sade": "^1.8.1"
+	},
+	"devDependencies": {
+		"@vanillaes/mock-console": "^3.0.0",
+		"c8": "^7.12.0",
+		"release-it": "^14.14.3",
+		"rimraf": "^3.0.2",
+		"uvu": "^0.5.6"
+	}
 }
