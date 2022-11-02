@@ -24,8 +24,7 @@ jobs:
         with:
           version: 6
       - name: Install dependencies
-        run: |
-          pnpm i
+        run: pnpm i
 
       - name: Run tests
         run: pnpm test

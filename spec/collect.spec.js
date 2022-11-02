@@ -265,9 +265,9 @@ test('Should apply the ddl scripts', async (context) => {
 	])
 
 	result = await context.db.query(schemas)
-	assert.equal(result, afterApply.schemas)
+	assert.equal(result.length, afterApply.schemas.length)
 	result = await context.db.query(tables)
-	assert.equal(result, afterApply.tables)
+	assert.equal(result.length, afterApply.tables.length)
 })
 
 test('Should validate data', (context) => {

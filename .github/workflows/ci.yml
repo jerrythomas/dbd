@@ -25,9 +25,7 @@ jobs:
         with:
           version: ${{ matrix.pnpm-version }}
       - name: Install dependencies
-        run: |
-          pnpm i
-
+        run: pnpm i
       - name: Run tests
         run: pnpm test
       - name: Test & publish code coverage
