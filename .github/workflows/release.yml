@@ -28,7 +28,9 @@ jobs:
           pnpm i
 
       - name: Run tests
-        run: pnpm test
+        run: |
+          pnpm test
+          pnpm test:clean
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

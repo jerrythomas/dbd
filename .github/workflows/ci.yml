@@ -25,11 +25,11 @@ jobs:
         with:
           version: ${{ matrix.pnpm-version }}
       - name: Install dependencies
-        run: |
-          pnpm i
-
+        run: pnpm i
       - name: Run tests
-        run: pnpm test
+        run: |
+          pnpm test
+          pnpm test:clean
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v3.0.0
         env:
