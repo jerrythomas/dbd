@@ -24,13 +24,10 @@ jobs:
         with:
           version: 6
       - name: Install dependencies
-        run: |
-          pnpm i
+        run: pnpm i
 
       - name: Run tests
-        run: |
-          pnpm test
-          pnpm test:clean
+        run: pnpm test
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

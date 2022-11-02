@@ -27,9 +27,7 @@ jobs:
       - name: Install dependencies
         run: pnpm i
       - name: Run tests
-        run: |
-          pnpm test
-          pnpm test:clean
+        run: pnpm test
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v3.0.0
         env:
