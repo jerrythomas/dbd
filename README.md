@@ -4,22 +4,24 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/55861d839f6d2c7f0c5e/maintainability)](https://codeclimate.com/github/jerrythomas/dbd/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/55861d839f6d2c7f0c5e/test_coverage)](https://codeclimate.com/github/jerrythomas/dbd/test_coverage)
 
-This is a simple cli to apply ddl scripts for individual objects for developers who are more comfortable writing sql scripts.
+This is a simple CLI to apply DDL scripts for individual objects for developers who are more comfortable writing SQL scripts.
 
-- [x] Apply set of individual ddl scripts
+- [x] Apply a set of individual DDL scripts
 - [x] Rollback (drop) objects applied
-- [x] Load staging data with post process scripts for development/testing
+- [x] Load staging data with post-process scripts for development/testing
 - [x] Export data from tables & views
-- [x] Generate [dbdocs](https://dbdocs.io) dbml for all (or subset) tables
-- [ ] Generate ddl from yaml
+- [x] Generate [dbdocs](https://dbdocs.io) DBML for all (or subset) tables
+- [x] Support for multiple schemas where names are unique across all schemas.
+- [ ] Support for multiple schemas with the same names in multiple schemas.
+- [ ] Generate DDL from yaml
 - [ ] Migration (diff objects, backup and rollback)
 
 ## Usage
 
-Install the cli globally using npm (or pnpm/yarn)
+Install the CLI globally using npm (or pnpm/yarn)
 
 ```bash
-npm i --global @jerrythomas/dbd@beta
+npm i --global @jerrythomas/dbd@next
 ```
 
 ### Folder Structure

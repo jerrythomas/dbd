@@ -164,6 +164,16 @@ class Design {
 			const combined = entitiesForDBML(this.entities, doc.config).map(
 				(entity) => ddlFromEntity(entity)
 			)
+			const replacer = entitiesForDBML(this.entities, doc.config)
+				.filter((entity) => entity.type === 'table')
+				.map(({ name, schema }) => ({
+					name: name.replace(schema + '.', ''),
+					schema
+				}))
+				.map(({ name, schema }) => ({
+					original: `Table "${name}"`,
+					replacement: `Table "${schema}"."${name}" as "${name}"`
+				}))
 			fs.writeFileSync('combined.sql', combined.join('\n'))
 			try {
 				// dbml currently does not output project info
@@ -171,8 +181,11 @@ class Design {
 				const project = `Project "${doc.project}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
 				let schema = Parser.parse(combined.join('\n'), 'postgres').normalize()
 
-				const dbml = ModelExporter.export(schema, 'dbml')
+				let dbml = ModelExporter.export(schema, 'dbml')
 				const fileName = [doc.project, file].join('-')
+				replacer.map(({ original, replacement }) => {
+					dbml = dbml.replaceAll(original, replacement)
+				})
 				fs.writeFileSync(fileName, project + dbml)
 				console.info(`Generated DBML in ${fileName}`)
 			} catch (err) {

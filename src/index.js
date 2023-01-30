@@ -6,7 +6,7 @@ import { using } from './collect.js'
 const prog = sade('dbd')
 
 prog
-	.version('1.0.2-beta.8')
+	.version('1.0.2-next.1')
 	.option('-c, --config', 'Provide path to custom config', 'design.yaml')
 	.option(
 		'-d, --database',
