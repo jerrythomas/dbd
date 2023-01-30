@@ -160,7 +160,6 @@ class Design {
 		]
 
 		docs.map((doc) => {
-			// console.log(doc.project, entitiesForDBML(this.entities, doc.config))
 			const combined = entitiesForDBML(this.entities, doc.config).map(
 				(entity) => ddlFromEntity(entity)
 			)
@@ -174,15 +173,17 @@ class Design {
 					original: `Table "${name}"`,
 					replacement: `Table "${schema}"."${name}" as "${name}"`
 				}))
+
 			fs.writeFileSync('combined.sql', combined.join('\n'))
 			try {
 				// dbml currently does not output project info
-
 				const project = `Project "${doc.project}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
 				let schema = Parser.parse(combined.join('\n'), 'postgres').normalize()
 
 				let dbml = ModelExporter.export(schema, 'dbml')
 				const fileName = [doc.project, file].join('-')
+
+				// replace table names with schem.table
 				replacer.map(({ original, replacement }) => {
 					dbml = dbml.replaceAll(original, replacement)
 				})

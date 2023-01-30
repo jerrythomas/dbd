@@ -13,8 +13,8 @@ This is a simple CLI to apply DDL scripts for individual objects for developers 
 - [x] Generate [dbdocs](https://dbdocs.io) DBML for all (or subset) tables
 - [x] Support for multiple schemas where names are unique across all schemas.
 - [ ] Support for multiple schemas with the same names in multiple schemas.
-- [ ] Generate DDL from yaml
-- [ ] Migration (diff objects, backup and rollback)
+- [ ] <del>Generate DDL from yaml</del>
+- [ ] <del>Migration (diff objects, backup and rollback)</del>
 
 ## Usage
 
