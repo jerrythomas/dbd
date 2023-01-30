@@ -1,14 +1,12 @@
 #!/usr/bin/env node
-import { readFileSync } from 'fs'
 import sade from 'sade'
 import { execSync } from 'child_process'
 import { using } from './collect.js'
 
-const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
 const prog = sade('dbd')
 
 prog
-	.version(pkg.version)
+	.version('1.0.4')
 	.option('-c, --config', 'Provide path to custom config', 'design.yaml')
 	.option(
 		'-d, --database',
