@@ -180,12 +180,12 @@ class Design {
 				const project = `Project "${doc.project}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
 				let schema = Parser.parse(combined.join('\n'), 'postgres').normalize()
 
-				let dbml = ModelExporter.export(schema, 'dbml')
+				let dbml = ModelExporter.export(schema, 'dbml').toString()
 				const fileName = [doc.project, file].join('-')
 
 				// replace table names with schem.table
 				replacer.map(({ original, replacement }) => {
-					dbml = dbml.replaceAll(original, replacement)
+					dbml = dbml.replace(new RegExp(original, 'g'), replacement)
 				})
 				fs.writeFileSync(fileName, project + dbml)
 				console.info(`Generated DBML in ${fileName}`)

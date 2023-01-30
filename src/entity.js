@@ -255,7 +255,7 @@ export function importScriptForEntity(entity) {
 	if (entity.truncate) {
 		commands.push(`truncate table ${entity.name};`)
 	}
-	console.log(entity.name, entity.nullValue)
+
 	commands.push(
 		`\\copy ${entity.name} from '${entity.file}' with delimiter ',' NULL as '${entity.nullValue}' csv header;`
 	)
