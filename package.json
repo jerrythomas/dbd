@@ -1,6 +1,6 @@
 {
 	"name": "@jerrythomas/dbd",
-	"version": "1.0.2-next.10",
+	"version": "1.0.3-next.0",
 	"description": "Deploy databases using DDL scripts.",
 	"private": false,
 	"bin": "src/index.js",
@@ -13,7 +13,8 @@
 		"test": "pnpm pg-test && uvu spec && pnpm test:clean",
 		"test:one": "pnpm pg-test && node",
 		"test:clean": "docker stop pg-test && docker rm pg-test",
-		"release": "release-it --preRelease=next",
+		"release:next": "release-it --preRelease=next",
+		"release": "release-it",
 		"coverage": "pnpm pg-test && c8 --include=src uvu spec && pnpm test:clean",
 		"coverage:lcov": "pnpm pg-test && c8 --reporter=lcov --include=src uvu spec "
 	},
@@ -34,8 +35,15 @@
 	"devDependencies": {
 		"@vanillaes/mock-console": "^3.0.0",
 		"c8": "^7.12.0",
-		"release-it": "^14.14.3",
+		"release-it": "^15.6.0",
 		"rimraf": "^3.0.2",
 		"uvu": "^0.5.6"
+	},
+	"exports": {
+		"./package.json": "./package.json",
+		"./src": "./src",
+		".": {
+			"import": "./src/index.js"
+		}
 	}
 }
