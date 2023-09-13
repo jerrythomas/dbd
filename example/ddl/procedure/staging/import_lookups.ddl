@@ -8,7 +8,7 @@ begin
   insert into config.lookups(name, modified_on, modified_by)
   select distinct name
        , first_value(modified_on)  over (partition by name order by modified_on)
-       , (first_value(modified_by) over (partition by name order by modified_on))::uuid
+       , current_user
     from staging.lookup_values slv
    where not exists (select 1
                        from config.lookups lkp
@@ -16,19 +16,25 @@ begin
 
   update config.lookup_values lv
      set ( sequence
-         , details) = (select slv.sequence
-                           , slv.details
-                        from staging.lookup_values slv
-                       inner join config.lookups lkp
-                          on lkp.name  = slv.name
-                       where slv.value = lv.value
-                         and lkp.id    = lv.lookup_id )
-   where exists (select 1
-                   from staging.lookup_values slv
-                  inner join config.lookups lkp
-                     on lkp.name = slv.name
-                  where slv.value = lv.value
-                    and lkp.id = lv.lookup_id);
+         , details
+         , modified_by
+         , modified_on
+         ) = (select slv.sequence
+                   , slv.details
+                   , current_user
+                   , slv.modified_on
+                from staging.lookup_values slv
+               inner join config.lookups lkp
+                  on lkp.name  = slv.name
+               where slv.value = lv.value
+                 and lkp.id    = lv.lookup_id )
+   where exists
+        (select 1
+           from staging.lookup_values slv
+          inner join config.lookups lkp
+             on lkp.name  = slv.name
+          where slv.value = lv.value
+            and lkp.id    = lv.lookup_id);
 
   insert into config.lookup_values(
      lookup_id
@@ -47,14 +53,15 @@ begin
        , slv.details
        , slv.is_active
        , slv.modified_on
-       , slv.modified_by::uuid
+       , current_user
     from staging.lookup_values slv
    inner join config.lookups lkp
       on lkp.name = slv.name
-   where not exists (select 1
-                       from config.lookup_values lkv
-                      where lkv.lookup_id = lkp.id
-                        and lkv.value     = slv.value);
+   where not exists
+            (select 1
+               from config.lookup_values lkv
+              where lkv.lookup_id = lkp.id
+                and lkv.value     = slv.value);
 
 end;
 $$
