@@ -97,6 +97,7 @@ test('Should combine scripts and generate dbml', (context) => {
 	fs.unlinkSync('Example-base-design.dbml')
 	assert.ok(fs.existsSync('Example-core-design.dbml'))
 	fs.unlinkSync('Example-core-design.dbml')
+	fs.unlinkSync('combined.sql')
 })
 
 test('Should throw error for invalid ddl', (context) => {
