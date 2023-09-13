@@ -1,6 +1,6 @@
 {
 	"name": "@jerrythomas/dbd",
-	"version": "1.0.5-next.2",
+	"version": "1.0.6",
 	"description": "Deploy databases using DDL scripts.",
 	"private": false,
 	"bin": "src/index.js",
