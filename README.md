@@ -1,6 +1,5 @@
 # dbd
 
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/jerrythomas/dbd/Release)
 [![Maintainability](https://api.codeclimate.com/v1/badges/55861d839f6d2c7f0c5e/maintainability)](https://codeclimate.com/github/jerrythomas/dbd/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/55861d839f6d2c7f0c5e/test_coverage)](https://codeclimate.com/github/jerrythomas/dbd/test_coverage)
 
