@@ -103,7 +103,7 @@ function cleanDDLEntities(data) {
  */
 function cleanImportTables(data) {
 	let importTables = scan('import')
-		.filter((file) => ['.csv'].includes(path.extname(file)))
+		.filter((file) => ['.jsonl', '.csv'].includes(path.extname(file)))
 		.map((file) => ({ ...entityFromFile(file), ...defaultImportOptions }))
 
 	importTables = merge(

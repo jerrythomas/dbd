@@ -19,6 +19,11 @@ config:
     file: ddl/table/staging/lookup_values.ddl
     schema: staging
     refers: []
+  - type: procedure
+    name: staging.import_json_to_table
+    file: ddl/procedure/staging/import_json_to_table.ddl
+    schema: staging
+    refers: []
   - type: table
     name: config.lookup_values
     file: ddl/table/config/lookup_values.ddl
@@ -39,6 +44,7 @@ config:
     refers:
       - config.lookups
       - config.lookup_values
+
   - type: procedure
     name: staging.import_lookups
     file: ddl/procedure/staging/import_lookups.ddl
@@ -84,6 +90,11 @@ entities:
   - type: table
     name: staging.lookup_values
     file: ddl/table/staging/lookup_values.ddl
+    schema: staging
+    refers: []
+  - type: procedure
+    name: staging.import_json_to_table
+    file: ddl/procedure/staging/import_json_to_table.ddl
     schema: staging
     refers: []
   - type: table

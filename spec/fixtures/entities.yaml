@@ -272,15 +272,6 @@ importScripts:
     message: Should use defaults with name
   - input:
       type: import
-      name: staging.test
-      file: lookup.jsonl
-      format: jsonl
-      nullValue: ''
-      truncate: false
-    output: \copy staging.test from 'lookup.jsonl';
-    message: Should override truncate option when provided
-  - input:
-      type: import
       name: staging.lookup
       file: lookup.csv
       format: csv
@@ -290,6 +281,20 @@ importScripts:
       truncate table staging.lookup;
       \copy staging.lookup from 'lookup.csv' with delimiter ',' NULL as 'NULL' csv header;
     message: Should override nullValue option when provided
+  - input:
+      type: import
+      name: staging.test
+      file: lookup.jsonl
+      format: jsonl
+      nullValue: ''
+      truncate: false
+    output: |-
+      create table if not exists _temp (data jsonb);
+      \copy _temp from 'lookup.jsonl';
+      call staging.import_jsonb_to_table('_temp', 'staging.test');
+      drop table if exists _temp;
+    message: Should override truncate option when provided
+
 
 exportScripts:
   - input:

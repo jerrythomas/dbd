@@ -14,6 +14,7 @@ import {
 	exportScriptForEntity,
 	entitiesForDBML
 } from './entity.js'
+import { type } from 'os'
 
 class Design {
 	#config = {}
@@ -199,7 +200,6 @@ class Design {
 
 	importData(name) {
 		if (!this.isValidated) this.validate()
-
 		this.importTables
 			.filter((entity) => !entity.errors)
 			.filter((entity) => !name || entity.name === name || entity.file === name)
@@ -218,17 +218,16 @@ class Design {
 	}
 
 	exportData(name) {
-		const folders = [
-			...new Set(
-				this.config.export.map((entity) =>
-					path.join('export', entity.split('.')[0])
-				)
-			)
-		]
-		let commands = this.config.export
+		const entities = this.config.export
 			.map((entity) => entityFromExportConfig(entity))
 			.filter((entity) => !name || entity.name === name)
-			.map((entity) => exportScriptForEntity(entity))
+
+		const folders = [
+			...new Set(
+				entities.map((entity) => path.join('export', entity.name.split('.')[0]))
+			)
+		]
+		let commands = entities.map((entity) => exportScriptForEntity(entity))
 
 		if (commands.length > 0) {
 			folders.map((folder) => fs.mkdirSync(folder, { recursive: true }))

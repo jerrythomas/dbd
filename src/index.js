@@ -2,11 +2,18 @@
 import sade from 'sade'
 import { execSync } from 'child_process'
 import { using } from './collect.js'
+import fs from 'fs'
+import path from 'path'
+
+const location = path.dirname(new URL(import.meta.url).pathname)
+const pkg = JSON.parse(
+	fs.readFileSync(path.join(location, '../package.json'), 'utf8')
+)
 
 const prog = sade('dbd')
 
 prog
-	.version('1.0.4')
+	.version(pkg.version)
 	.option('-c, --config', 'Provide path to custom config', 'design.yaml')
 	.option(
 		'-d, --database',

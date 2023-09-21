@@ -60,6 +60,11 @@ output:
       refers: []
       schema: staging
     - type: procedure
+      name: staging.import_json_to_table
+      file: ddl/procedure/staging/import_json_to_table.ddl
+      refers: []
+      schema: staging
+    - type: procedure
       name: staging.import_lookups
       file: ddl/procedure/staging/import_lookups.ddl
       refers: []

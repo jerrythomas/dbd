@@ -258,9 +258,14 @@ export function importScriptForEntity(entity) {
 	if (entity.truncate) {
 		commands.push(`truncate table ${entity.name};`)
 	}
-	if (['json', 'jsonl'].includes(entity.format))
-		commands.push(`\\copy ${entity.name} from '${entity.file}';`)
-	else
+	if (['json', 'jsonl'].includes(entity.format)) {
+		commands.push('create table if not exists _temp (data jsonb);')
+		commands.push(`\\copy _temp from '${entity.file}';`)
+		commands.push(
+			`call staging.import_jsonb_to_table('_temp', '${entity.name}');`
+		)
+		commands.push('drop table if exists _temp;')
+	} else
 		commands.push(
 			`\\copy ${entity.name} from '${entity.file}' with delimiter ',' NULL as '${entity.nullValue}' csv header;`
 		)

@@ -30,6 +30,7 @@ test.after.each((context) => {
 
 test('Should fetch all files in path', (context) => {
 	assert.equal(scan('ddl'), [
+		'ddl/procedure/staging/import_json_to_table.ddl',
 		'ddl/procedure/staging/import_lookups.ddl',
 		'ddl/table/config/lookup_values.ddl',
 		'ddl/table/config/lookups.ddl',
