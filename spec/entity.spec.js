@@ -61,8 +61,8 @@ test('Should convert name to export entity', () => {
 })
 
 test('Should override options for export entity', () => {
-	const actual = entityFromExportConfig({ 'core.lookup': { format: 'json' } })
-	assert.equal(actual, { type: 'export', name: 'core.lookup', format: 'json' })
+	const actual = entityFromExportConfig({ 'core.lookup': { format: 'jsonl' } })
+	assert.equal(actual, { type: 'export', name: 'core.lookup', format: 'jsonl' })
 })
 
 test('Should convert name to import entity', () => {
@@ -189,8 +189,9 @@ test('Should generate import script for entity', (context) => {
 })
 
 test('Should generate import script for entity', (context) => {
-	const { input, output, message } = context.exportScripts
-	assert.equal(exportScriptForEntity(input), output, message)
+	context.exportScripts.map(({ input, output, message }) => {
+		assert.equal(exportScriptForEntity(input), output, message)
+	})
 })
 
 test.run()

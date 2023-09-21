@@ -8,7 +8,7 @@ begin
   insert into config.lookups(name, modified_on, modified_by)
   select distinct name
        , first_value(modified_on)  over (partition by name order by modified_on)
-       , current_user
+       , coalesce(first_value(modified_by) over (partition by name order by modified_on), current_user)
     from staging.lookup_values slv
    where not exists (select 1
                        from config.lookups lkp
@@ -21,7 +21,7 @@ begin
          , modified_on
          ) = (select slv.sequence
                    , slv.details
-                   , current_user
+                   , coalesce(slv.modified_by,current_user)
                    , slv.modified_on
                 from staging.lookup_values slv
                inner join config.lookups lkp
@@ -53,7 +53,7 @@ begin
        , slv.details
        , slv.is_active
        , slv.modified_on
-       , current_user
+       , coalesce(slv.modified_by,current_user)
     from staging.lookup_values slv
    inner join config.lookups lkp
       on lkp.name = slv.name

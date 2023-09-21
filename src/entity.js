@@ -243,7 +243,10 @@ function validateFiles(entity, ddl) {
 	if (ddl && path.extname(entity.file) !== '.ddl') {
 		errors.push('Unsupported file type for ddl')
 	}
-	if (!ddl && !['.csv', '.json'].includes(path.extname(entity.file))) {
+	if (
+		!ddl &&
+		!['.csv', '.json', '.jsonl'].includes(path.extname(entity.file))
+	) {
 		errors.push('Unsupported data format')
 	}
 
@@ -255,15 +258,21 @@ export function importScriptForEntity(entity) {
 	if (entity.truncate) {
 		commands.push(`truncate table ${entity.name};`)
 	}
-
-	commands.push(
-		`\\copy ${entity.name} from '${entity.file}' with delimiter ',' NULL as '${entity.nullValue}' csv header;`
-	)
+	if (['json', 'jsonl'].includes(entity.format))
+		commands.push(`\\copy ${entity.name} from '${entity.file}';`)
+	else
+		commands.push(
+			`\\copy ${entity.name} from '${entity.file}' with delimiter ',' NULL as '${entity.nullValue}' csv header;`
+		)
 	return commands.join('\n')
 }
 
 export function exportScriptForEntity(entity) {
-	const file = `export/${entity.name.replace('.', path.sep)}.csv`
+	const file =
+		`export/${entity.name.replace('.', path.sep)}.` + (entity.format || 'csv')
+	if (['json', 'jsonl'].includes(entity.format)) {
+		return `\\copy (select row_to_json(t) from ${entity.name} t) to '${file}';`
+	}
 	return `\\copy (select * from ${entity.name}) to '${file}' with delimiter ',' csv header;`
 }
 
