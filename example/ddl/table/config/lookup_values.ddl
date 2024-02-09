@@ -8,7 +8,7 @@ create table if not exists lookup_values (
 , sequence                 integer
 , exclude                  boolean default false
 , is_active                boolean default true
-, modified_on              timestamp not null default now()
+, modified_on              timestamp with time zone not null default now()
 , modified_by              varchar
 );
 

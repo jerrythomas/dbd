@@ -3,7 +3,7 @@ set search_path to config, extensions;
 create table if not exists lookups (
   id                       uuid primary key default uuid_generate_v4()
 , name                     varchar(30)
-, modified_on              timestamp not null default now()
+, modified_on              timestamp with time zone not null default now()
 , modified_by              varchar
 );
 create unique index if not exists lookup_ukey on lookups(name);
