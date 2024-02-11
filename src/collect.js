@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { omit, pick } from 'ramda'
 import { execSync } from 'child_process'
-import { ModelExporter, Parser } from '@dbml/core'
+import { importer } from '@dbml/core'
 import { read, clean, organize } from './metadata.js'
 import {
 	entityFromSchemaName,
@@ -14,7 +14,7 @@ import {
 	exportScriptForEntity,
 	entitiesForDBML
 } from './entity.js'
-import { type } from 'os'
+// import { type } from 'os'
 
 class Design {
 	#config = {}
@@ -161,9 +161,12 @@ class Design {
 		]
 
 		docs.map((doc) => {
-			const combined = entitiesForDBML(this.entities, doc.config).map(
-				(entity) => ddlFromEntity(entity)
-			)
+			let combined = entitiesForDBML(this.entities, doc.config)
+				.map((entity) => ddlFromEntity(entity))
+				.map((ddl) =>
+					ddl ? ddl.replace(/create\s.*index\s.*on\s.*;/gi, '') : ddl
+				)
+
 			const replacer = entitiesForDBML(this.entities, doc.config)
 				.filter((entity) => entity.type === 'table')
 				.map(({ name, schema }) => ({
@@ -176,12 +179,10 @@ class Design {
 				}))
 
 			fs.writeFileSync('combined.sql', combined.join('\n'))
+			console.log(combined.join('\n'))
 			try {
-				// dbml currently does not output project info
 				const project = `Project "${doc.project}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
-				let schema = Parser.parse(combined.join('\n'), 'postgres').normalize()
-
-				let dbml = ModelExporter.export(schema, 'dbml').toString()
+				let dbml = importer.import(combined.join('\n'), 'postgres')
 				const fileName = [doc.project, file].join('-')
 
 				// replace table names with schem.table

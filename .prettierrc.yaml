@@ -1,15 +1,11 @@
 ---
 tabWidth: 2
-useTabs: true
+useTabs: false
 semi: false
 singleQuote: true
 trailingComma: none
-svelteSortOrder: options-scripts-markup-styles
 overrides:
   - files:
-      - "*.md"
-      - "*.yaml"
-      - "*.sql"
-      - "*.ddl"
+      - "*.js"
     options:
-      useTabs: false
+      useTabs: true

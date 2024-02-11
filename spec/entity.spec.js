@@ -1,5 +1,6 @@
-import { suite } from 'uvu'
-import * as assert from 'uvu/assert'
+import { describe, expect, it, beforeAll, beforeEach } from 'bun:test'
+// import { suite } from 'uvu'
+// import * as assert from 'uvu/assert'
 import fs from 'fs'
 import yaml from 'js-yaml'
 
@@ -17,181 +18,190 @@ import {
 	exportScriptForEntity
 } from '../src/entity.js'
 
-const test = suite('Suite for entity')
+describe('entity', () => {
+	let context = {}
 
-test.before((context) => {
-	context.path = process.cwd()
-	const data = yaml.load(fs.readFileSync('spec/fixtures/entities.yaml', 'utf8'))
-	Object.keys(data).map((key) => (context[key] = data[key]))
-})
-
-test.before.each((context) => {
-	process.chdir(context.path)
-})
-
-test('Should convert filepath for schemaless entity', (context) => {
-	assert.equal(entityFromFile('ddl/role/admin.ddl'), {
-		type: 'role',
-		name: 'admin',
-		file: 'ddl/role/admin.ddl'
+	beforeAll(() => {
+		context.path = process.cwd()
+		const data = yaml.load(
+			fs.readFileSync('spec/fixtures/entities.yaml', 'utf8')
+		)
+		Object.keys(data).map((key) => (context[key] = data[key]))
 	})
-})
 
-test('Should convert filepath for schema entities', (context) => {
-	assert.equal(entityFromFile('ddl/table/core/lookup.ddl'), {
-		type: 'table',
-		name: 'core.lookup',
-		file: 'ddl/table/core/lookup.ddl',
-		schema: 'core'
+	beforeEach(() => {
+		process.chdir(context.path)
 	})
-})
 
-test('Should convert filepath for import entities', (context) => {
-	assert.equal(entityFromFile('import/staging/lookup.csv'), {
-		type: 'import',
-		name: 'staging.lookup',
-		file: 'import/staging/lookup.csv',
-		schema: 'staging'
+	it('Should convert filepath for schemaless entity', () => {
+		expect(entityFromFile('ddl/role/admin.ddl')).toEqual({
+			type: 'role',
+			name: 'admin',
+			file: 'ddl/role/admin.ddl'
+		})
 	})
-})
 
-test('Should convert name to export entity', () => {
-	const actual = entityFromExportConfig('core.lookup')
-	assert.equal(actual, { type: 'export', name: 'core.lookup', format: 'csv' })
-})
+	it('Should convert filepath for schema entities', () => {
+		expect(entityFromFile('ddl/table/core/lookup.ddl')).toEqual({
+			type: 'table',
+			name: 'core.lookup',
+			file: 'ddl/table/core/lookup.ddl',
+			schema: 'core'
+		})
+	})
 
-test('Should override options for export entity', () => {
-	const actual = entityFromExportConfig({ 'core.lookup': { format: 'jsonl' } })
-	assert.equal(actual, { type: 'export', name: 'core.lookup', format: 'jsonl' })
-})
+	it('Should convert filepath for import entities', () => {
+		expect(entityFromFile('import/staging/lookup.csv')).toEqual({
+			type: 'import',
+			name: 'staging.lookup',
+			file: 'import/staging/lookup.csv',
+			schema: 'staging'
+		})
+	})
 
-test('Should convert name to import entity', () => {
-	const actual = entityFromImportConfig('staging.lookup')
-	assert.equal(actual, {
-		type: 'import',
-		name: 'staging.lookup',
-		schema: 'staging',
-		format: 'csv',
-		nullValue: '',
-		truncate: true
+	it('Should convert name to export entity', () => {
+		const actual = entityFromExportConfig('core.lookup')
+		expect(actual).toEqual({
+			type: 'export',
+			name: 'core.lookup',
+			format: 'csv'
+		})
 	})
-})
 
-test('Should override format for import entity', (context) => {
-	const actual = entityFromImportConfig({
-		'staging.lookup': { format: 'json' }
+	it('Should override options for export entity', () => {
+		const actual = entityFromExportConfig({
+			'core.lookup': { format: 'jsonl' }
+		})
+		expect(actual).toEqual({
+			type: 'export',
+			name: 'core.lookup',
+			format: 'jsonl'
+		})
 	})
-	assert.equal(actual, {
-		type: 'import',
-		name: 'staging.lookup',
-		schema: 'staging',
-		format: 'json',
-		nullValue: '',
-		truncate: true
-	})
-})
 
-test('Should override truncate option for import entity', (context) => {
-	const actual = entityFromImportConfig({
-		'staging.lookup': { truncate: false }
+	it('Should convert name to import entity', () => {
+		const actual = entityFromImportConfig('staging.lookup')
+		expect(actual).toEqual({
+			type: 'import',
+			name: 'staging.lookup',
+			schema: 'staging',
+			format: 'csv',
+			nullValue: '',
+			truncate: true
+		})
 	})
-	assert.equal(actual, {
-		type: 'import',
-		name: 'staging.lookup',
-		schema: 'staging',
-		format: 'csv',
-		nullValue: '',
-		truncate: false
-	})
-})
 
-test('Should override nullvalue option for import entity', (context) => {
-	const actual = entityFromImportConfig({
-		'staging.lookup': { nullValue: 'NULL' }
+	it('Should override format for import entity', () => {
+		const actual = entityFromImportConfig({
+			'staging.lookup': { format: 'json' }
+		})
+		expect(actual).toEqual({
+			type: 'import',
+			name: 'staging.lookup',
+			schema: 'staging',
+			format: 'json',
+			nullValue: '',
+			truncate: true
+		})
 	})
-	assert.equal(actual, {
-		type: 'import',
-		name: 'staging.lookup',
-		schema: 'staging',
-		format: 'csv',
-		nullValue: 'NULL',
-		truncate: true
-	})
-})
 
-test('Should convert schema names to entities', (context) => {
-	assert.equal(entityFromSchemaName('public'), {
-		type: 'schema',
-		name: 'public'
+	it('Should override truncate option for import entity', () => {
+		const actual = entityFromImportConfig({
+			'staging.lookup': { truncate: false }
+		})
+		expect(actual).toEqual({
+			type: 'import',
+			name: 'staging.lookup',
+			schema: 'staging',
+			format: 'csv',
+			nullValue: '',
+			truncate: false
+		})
 	})
-})
 
-test('Should convert role names to entities', (context) => {
-	assert.equal(entityFromRoleName('alpha'), {
-		type: 'role',
-		name: 'alpha'
+	it('Should override nullvalue option for import entity', () => {
+		const actual = entityFromImportConfig({
+			'staging.lookup': { nullValue: 'NULL' }
+		})
+		expect(actual).toEqual({
+			type: 'import',
+			name: 'staging.lookup',
+			schema: 'staging',
+			format: 'csv',
+			nullValue: 'NULL',
+			truncate: true
+		})
 	})
-})
 
-test('Should convert extension name to entities', (context) => {
-	assert.equal(entityFromExtensionConfig('uuid-ossp'), {
-		type: 'extension',
-		name: 'uuid-ossp',
-		schema: 'public'
+	it('Should convert schema names to entities', () => {
+		expect(entityFromSchemaName('public')).toEqual({
+			type: 'schema',
+			name: 'public'
+		})
 	})
-})
 
-test('Should override schema for extension entity', (context) => {
-	assert.equal(
-		entityFromExtensionConfig({ 'uuid-ossp': { schema: 'extensions' } }),
-		{
+	it('Should convert role names to entities', () => {
+		expect(entityFromRoleName('alpha')).toEqual({
+			type: 'role',
+			name: 'alpha'
+		})
+	})
+
+	it('Should convert extension name to entities', () => {
+		const result = entityFromExtensionConfig('uuid-ossp')
+		expect(result).toEqual({
+			type: 'extension',
+			name: 'uuid-ossp',
+			schema: 'public'
+		})
+	})
+
+	it('Should override schema for extension entity', () => {
+		const result = entityFromExtensionConfig({
+			'uuid-ossp': { schema: 'extensions' }
+		})
+		expect(result).toEqual({
 			type: 'extension',
 			name: 'uuid-ossp',
 			schema: 'extensions'
-		}
-	)
-})
+		})
+	})
 
-test('Should provide ddl for entity', (context) => {
-	process.chdir('spec/fixtures/alternate')
-	context.ddlScripts.map(({ input, output, message }) => {
-		assert.equal(ddlFromEntity(input), output, message)
+	it('Should provide ddl for entity', () => {
+		process.chdir('spec/fixtures/alternate')
+		context.ddlScripts.map(({ input, output, message }) => {
+			expect(ddlFromEntity(input)).toEqual(output, message)
+		})
+	})
+
+	it('Should get data for entity', async () => {
+		process.chdir('spec/fixtures/alternate')
+		let data = await dataFromEntity(context.dataFiles.json.input)
+		expect(data, context.dataFiles.json.output, context.dataFiles.json.message)
+		data = await dataFromEntity(context.dataFiles.csv.input)
+		expect(data, context.dataFiles.csv.output, context.dataFiles.csv.message)
+	})
+
+	it('Should validate entity data', () => {
+		process.chdir('spec/fixtures/alternate')
+		context.validations.map(({ input, output }) => {
+			expect(validateEntityFile(input.entity, input.ddl)).toEqual(output)
+		})
+	})
+
+	it('Should generate import script for entity', () => {
+		context.importScripts.map(({ input, output }) => {
+			expect(importScriptForEntity(input)).toEqual(output)
+		})
+	})
+
+	it('Should generate import script for entity', () => {
+		context.exportScripts.map(({ input, output, message }) => {
+			expect(exportScriptForEntity(input)).toEqual(output, message)
+		})
 	})
 })
 
-test('Should get data for entity', async (context) => {
-	process.chdir('spec/fixtures/alternate')
-	let data = await dataFromEntity(context.dataFiles.json.input)
-	assert.equal(
-		data,
-		context.dataFiles.json.output,
-		context.dataFiles.json.message
-	)
-	data = await dataFromEntity(context.dataFiles.csv.input)
-	assert.equal(
-		data,
-		context.dataFiles.csv.output,
-		context.dataFiles.csv.message
-	)
-})
-
-test('Should validate entity data', (context) => {
-	process.chdir('spec/fixtures/alternate')
-	context.validations.map(({ input, output }) => {
-		assert.equal(validateEntityFile(input.entity, input.ddl), output)
-	})
-})
-
-test('Should generate import script for entity', (context) => {
-	context.importScripts.map(({ input, output }) => {
-		assert.equal(importScriptForEntity(input), output)
-	})
-})
-
-test('Should generate import script for entity', (context) => {
-	context.exportScripts.map(({ input, output, message }) => {
-		assert.equal(exportScriptForEntity(input), output, message)
-	})
-})
-
-test.run()
+// it.before.each((context) => {
+// 	process.chdir(context.path)
+// })

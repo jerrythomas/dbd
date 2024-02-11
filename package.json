@@ -1,49 +1,49 @@
 {
-	"name": "@jerrythomas/dbd",
-	"version": "1.0.11",
-	"description": "Deploy databases using DDL scripts.",
-	"private": false,
-	"bin": "src/index.js",
-	"main": "src/index.js",
-	"module": "src/index.js",
-	"scripts": {
-		"start": "src/index.js",
-		"pg-test": "docker run --name pg-test -p 5234:5432 -e POSTGRES_PASSWORD=pg-test -d postgres",
-		"test:nopg": "uvu spec",
-		"test": "pnpm pg-test && uvu spec && pnpm test:clean",
-		"test:one": "pnpm pg-test && node",
-		"test:clean": "docker stop pg-test && docker rm pg-test",
-		"release:next": "release-it --preRelease=next",
-		"release": "release-it",
-		"coverage": "pnpm pg-test && c8 --include=src uvu spec && pnpm test:clean",
-		"coverage:lcov": "pnpm pg-test && c8 --reporter=lcov --include=src uvu spec "
-	},
-	"author": "Jerry Thomas <me@jerrythomas.name>",
-	"license": "MIT",
-	"type": "module",
-	"publishConfig": {
-		"access": "public"
-	},
-	"dependencies": {
-		"@databases/pg": "^5.5.0",
-		"@dbml/core": "^3.0.0",
-		"csvtojson": "^2.0.10",
-		"js-yaml": "^4.1.0",
-		"ramda": "^0.29.1",
-		"sade": "^1.8.1"
-	},
-	"devDependencies": {
-		"@vanillaes/mock-console": "^3.0.0",
-		"c8": "^9.0.0",
-		"release-it": "^17.0.1",
-		"rimraf": "^5.0.5",
-		"uvu": "^0.5.6"
-	},
-	"exports": {
-		"./package.json": "./package.json",
-		"./src": "./src",
-		".": {
-			"import": "./src/index.js"
-		}
-	}
+  "name": "@jerrythomas/dbd",
+  "version": "1.0.11",
+  "description": "Deploy databases using DDL scripts.",
+  "private": false,
+  "bin": "src/index.js",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "scripts": {
+    "start": "src/index.js",
+    "pg-test": "docker run --name pg-test -p 5234:5432 -e POSTGRES_PASSWORD=pg-test -d postgres",
+    "test:unit": "bun pg-test && bun test ./spec/collect.spec.js && bun test:clean",
+    "test:nopg": "bun test ./spec/entity.spec.js ./spec/filler.spec.js ./spec/metadata.spec.js ./spec/references.spec.js",
+    "test:clean": "docker stop pg-test && docker rm pg-test",
+    "release:next": "release-it --preRelease=next",
+    "release": "release-it",
+    "coverage": "bun pg-test && bun test --coverage && bun test:clean",
+    "coverage:lcov": "bun pg-test && bun test --coverage --reporter=lcov && bun test:clean"
+  },
+  "author": "Jerry Thomas <me@jerrythomas.name>",
+  "license": "MIT",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@databases/pg": "^5.5.0",
+    "@dbml/core": "^3.1.5",
+    "csvtojson": "^2.0.10",
+    "js-yaml": "^4.1.0",
+    "ramda": "^0.29.1",
+    "sade": "^1.8.1"
+  },
+  "devDependencies": {
+    "@vanillaes/mock-console": "^3.0.0",
+    "c8": "^9.0.0",
+    "release-it": "^17.0.1",
+    "rimraf": "^5.0.5",
+    "uvu": "^0.5.6",
+    "vitest": "^1.2.2"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    "./src": "./src",
+    ".": {
+      "import": "./src/index.js"
+    }
+  }
 }

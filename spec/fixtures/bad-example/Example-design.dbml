@@ -1,0 +1,4 @@
+Project "Example" {
+ database_type: 'PostgreSQL'
+ Note: "undefined" 
+}

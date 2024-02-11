@@ -25,7 +25,7 @@ input:
   roles: []
   import:
     tables:
-    - staging.lookup_values
+      - staging.lookup_values
 
 output:
   project:
@@ -60,15 +60,16 @@ output:
       refers: []
       schema: staging
     - type: procedure
-      name: staging.import_json_to_table
-      file: ddl/procedure/staging/import_json_to_table.ddl
-      refers: []
-      schema: staging
-    - type: procedure
       name: staging.import_lookups
       file: ddl/procedure/staging/import_lookups.ddl
       refers: []
       schema: staging
+    - type: procedure
+      name: staging.import_json_to_table
+      file: ddl/procedure/staging/import_json_to_table.ddl
+      refers: []
+      schema: staging
+
     - type: view
       name: migrate.lookup_values
       file: ddl/view/migrate/lookup_values.ddl
@@ -81,13 +82,12 @@ output:
         - basic
   import:
     tables:
-    - staging.lookup_values
+      - staging.lookup_values
   importTables:
-  - type: import
-    name: staging.lookup_values
-    schema: staging
-    format: csv
-    nullValue: ""
-    truncate: true
-    file: import/staging/lookup_values.csv
-
+    - type: import
+      name: staging.lookup_values
+      schema: staging
+      format: csv
+      nullValue: ''
+      truncate: true
+      file: import/staging/lookup_values.csv

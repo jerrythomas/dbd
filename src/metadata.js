@@ -86,7 +86,7 @@ export function clean(data) {
  * @param {Object} data
  * @returns
  */
-function cleanDDLEntities(data) {
+export function cleanDDLEntities(data) {
 	let entities = scan('ddl')
 		.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
 		.map((file) => entityFromFile(file))
