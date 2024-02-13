@@ -1,9 +1,7 @@
 import fs from 'fs'
 import yaml from 'js-yaml'
 import { rimraf } from 'rimraf'
-import { importer } from '@dbml/core'
-// import { suite } from 'uvu'
-// import * as assert from 'uvu/assert'
+// import { importer } from '@dbml/core'
 import {
 	describe,
 	it,
@@ -254,11 +252,11 @@ describe('collect', () => {
 	it('Should apply the ddl scripts', async () => {
 		const { beforeApply, afterApply } = context.collect
 		const schemas = sql`select schema_name
-	                      from information_schema.schemata
-	                        where schema_name in ('config', 'extensions', 'staging', 'migrate')`
+	                        from information_schema.schemata
+	                       where schema_name in ('config', 'extensions', 'staging', 'migrate')`
 		const tables = sql`select table_schema
 	                         	, table_name
-	                        , table_type
+	                          , table_type
 	                        from information_schema.tables
 	                       where table_schema in ('config', 'staging', 'migrate')
 	                       order by table_schema

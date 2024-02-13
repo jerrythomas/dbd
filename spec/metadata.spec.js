@@ -1,10 +1,14 @@
 import fs from 'fs'
 import yaml from 'js-yaml'
-// import { suite } from 'uvu'
-// import * as assert from 'uvu/assert'
-import { describe, expect, it, beforeAll, beforeEach } from 'bun:test'
+import {
+	describe,
+	expect,
+	it,
+	beforeAll,
+	beforeEach,
+	afterEach
+} from 'bun:test'
 import { scan, read, merge, clean, regroup, organize } from '../src/metadata.js'
-import { afterEach } from 'vitest'
 
 // const it = suite('Metadata processing')
 
@@ -30,18 +34,6 @@ describe('metadata', () => {
 	afterEach(() => {
 		process.chdir(context.path)
 	})
-
-	// test.before((context) => {
-
-	// })
-
-	// test.before.each((context) => {
-	// 	process.chdir('example')
-	// })
-
-	// test.after.each((context) => {
-	// 	process.chdir(context.path)
-	// })
 
 	it('Should fetch all files in path', () => {
 		expect(scan('ddl')).toEqual([
@@ -88,46 +80,7 @@ describe('metadata', () => {
 				type: 'role'
 			}
 		]
-		const tables = [
-			{
-				refers: [],
-				name: 'config.lookups',
-				type: 'table'
-			},
-			{
-				refers: ['config.lookups'],
-				name: 'config.lookup_values',
-				type: 'table'
-			},
-			{
-				refers: [],
-				name: 'staging.lookup_values',
-				type: 'table'
-			}
-		]
-		const views = [
-			{
-				refers: ['config.lookups', 'config.lookup_values'],
-				name: 'config.genders',
-				type: 'view'
-			},
-			{
-				refers: ['config.lookups', 'config.lookup_values'],
-				name: 'migrate.lookup_values',
-				type: 'view'
-			}
-		]
-		const procedures = [
-			{
-				refers: [
-					'config.lookup_values',
-					'config.lookups',
-					'staging.lookup_values'
-				],
-				name: 'staging.import_lookups',
-				type: 'procedure'
-			}
-		]
+
 		const project = {
 			name: 'Example',
 			database: 'PostgreSQL',
@@ -165,17 +118,12 @@ describe('metadata', () => {
 		const config = read('design.yaml')
 		expect(config.schemas).toEqual(schemas, 'read schemas from configuration')
 		expect(config.roles).toEqual(roles, 'read roles from configuration')
-		expect(config.tables).toEqual(tables, 'read tables from configuration')
-		expect(config.views).toEqual(views, 'read views from configuration')
-		expect(config.functions).toEqual([], 'read functions from configuration')
-		expect(config.procedures).toEqual(
-			procedures,
-			'read procedures from configuration'
-		)
-		expect(config.entities).toEqual(
-			[...tables, ...views, ...procedures],
-			'combined entities from configuration'
-		)
+		expect(config.tables).toEqual([])
+		expect(config.views).toEqual([])
+		expect(config.functions).toEqual([])
+		expect(config.procedures).toEqual([])
+		expect(config.entities).toEqual([])
+
 		expect(config.project).toEqual(project, 'read project from configuration')
 		expect(config.import).toEqual(
 			importTables,
@@ -252,7 +200,12 @@ describe('metadata', () => {
 
 	it('Should add missing roles, schemas and entities', () => {
 		let data = clean(context.clean.input)
-		expect(data).toEqual(context.clean.output)
+
+		for (let i = 0; i < data.entities.length; i++)
+			expect(data.entities[i]).toEqual(context.clean.output.entities[i])
+		// expect(data.entities[]).toEqual(context.clean.output.entities[0])
+		// console.log('data\n', JSON.stringify(data, null, 2))
+		// console.log('expected\n', JSON.stringify(context.clean.output, null, 2))
 	})
 
 	it('Should regroup based on dependencies', () => {

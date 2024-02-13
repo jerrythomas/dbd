@@ -9,8 +9,8 @@
   "scripts": {
     "start": "src/index.js",
     "pg-test": "docker run --name pg-test -p 5234:5432 -e POSTGRES_PASSWORD=pg-test -d postgres",
-    "test:unit": "bun pg-test && bun test ./spec/collect.spec.js && bun test:clean",
-    "test:nopg": "bun test ./spec/entity.spec.js ./spec/filler.spec.js ./spec/metadata.spec.js ./spec/references.spec.js",
+    "test:pg": "bun pg-test && bun test ./spec/collect.spec.js && bun test:clean",
+    "test:nopg": "bun test ./spec/entity.spec.js ./spec/filler.spec.js ./spec/metadata.spec.js ./spec/parser.spec.js",
     "test:clean": "docker stop pg-test && docker rm pg-test",
     "release:next": "release-it --preRelease=next",
     "release": "release-it",
@@ -36,8 +36,7 @@
     "c8": "^9.0.0",
     "release-it": "^17.0.1",
     "rimraf": "^5.0.5",
-    "uvu": "^0.5.6",
-    "vitest": "^1.2.2"
+    "uvu": "^0.5.6"
   },
   "exports": {
     "./package.json": "./package.json",

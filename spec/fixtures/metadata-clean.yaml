@@ -40,41 +40,112 @@ output:
       name: config.lookups
       file: ddl/table/config/lookups.ddl
       refers: []
+      references:
+        - name: uuid_generate_v4
+          type: null
+          errors:
+            - was not found in [config, extensions] in procedure
+            - was not found in [config, extensions] in table
+            - was not found in [config, extensions] in view
       schema: config
+      searchPaths:
+        - config
+        - extensions
+      errors: []
     - type: table
       name: config.lookup_values
       file: ddl/table/config/lookup_values.ddl
       refers:
         - config.lookups
+      references:
+        - name: uuid_generate_v4
+          type: null
+          errors:
+            - was not found in [config, extensions] in procedure
+            - was not found in [config, extensions] in table
+            - was not found in [config, extensions] in view
+        - name: config.lookups
+          schema: config
+          type: table
       schema: config
+      searchPaths:
+        - config
+        - extensions
+      errors: []
     - type: view
       name: config.genders
       file: ddl/view/config/genders.ddl
       refers:
         - config.lookups
         - config.lookup_values
+      references:
+        - name: config.lookups
+          schema: config
+          type: table
+        - name: config.lookup_values
+          schema: config
+          type: table
       schema: config
+      searchPaths:
+        - config
+      errors: []
     - type: table
       name: staging.lookup_values
       file: ddl/table/staging/lookup_values.ddl
       refers: []
+      references: []
       schema: staging
+      searchPaths:
+        - staging
+      errors: []
     - type: procedure
       name: staging.import_lookups
       file: ddl/procedure/staging/import_lookups.ddl
-      refers: []
+      refers:
+        - config.lookups
+        - config.lookup_values
+        - staging.lookup_values
+      references:
+        - name: config.lookups
+          schema: config
+          type: table
+        - name: config.lookup_values
+          schema: config
+          type: table
+        - name: staging.lookup_values
+          schema: staging
+          type: table
       schema: staging
+      searchPaths:
+        - staging
+      errors: []
     - type: procedure
-      name: staging.import_json_to_table
+      name: staging.import_jsonb_to_table
       file: ddl/procedure/staging/import_json_to_table.ddl
       refers: []
+      references: []
       schema: staging
-
+      searchPaths:
+        - staging
+      errors:
+        - Entity name in script does not match file name
     - type: view
       name: migrate.lookup_values
       file: ddl/view/migrate/lookup_values.ddl
-      refers: []
+      references:
+        - name: config.lookups
+          schema: config
+          type: table
+        - name: config.lookup_values
+          schema: config
+          type: table
+      refers:
+        - config.lookups
+        - config.lookup_values
       schema: migrate
+      searchPaths:
+        - migrate
+      errors: []
   roles:
     - type: role
       name: advanced

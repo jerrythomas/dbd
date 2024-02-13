@@ -3,7 +3,7 @@ project:
   database: PostgreSQL
   extensionSchema: extensions
   staging:
-  - staging
+    - staging
   dbdocs:
     base:
       exclude:
@@ -29,38 +29,38 @@ roles:
     refers:
       - basic
   - name: basic
-tables:
-  - name: config.lookups
-  - name: config.lookup_values
-    refers:
-      - config.lookups
-  - name: staging.lookup_values
+# tables:
+#   - name: config.lookups
+#   - name: config.lookup_values
+#     refers:
+#       - config.lookups
+#   - name: staging.lookup_values
 
-views:
-  - name: config.genders
-    refers:
-    - config.lookups
-    - config.lookup_values
-  - name: migrate.lookup_values
-    refers:
-    - config.lookups
-    - config.lookup_values
+# views:
+#   - name: config.genders
+#     refers:
+#     - config.lookups
+#     - config.lookup_values
+#   - name: migrate.lookup_values
+#     refers:
+#     - config.lookups
+#     - config.lookup_values
 
-procedures:
-  - name: staging.import_lookups
-    refers:
-      - config.lookup_values
-      - config.lookups
-      - staging.lookup_values
+# procedures:
+#   - name: staging.import_lookups
+#     refers:
+#       - config.lookup_values
+#       - config.lookups
+#       - staging.lookup_values
 
 import:
   options:
     truncate: true
     nullValue: ''
   tables:
-  - staging.lookup_values
+    - staging.lookup_values
   after:
-  - import/loader.sql
+    - import/loader.sql
 
 export:
   - config.lookups

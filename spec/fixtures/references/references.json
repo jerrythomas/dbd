@@ -1,0 +1,196 @@
+[
+  {
+    "type": "procedure",
+    "name": "staging.import_lookups",
+    "file": "ddl/procedure/staging/import_lookups.ddl",
+    "schema": "staging",
+    "searchPaths": [
+      "staging"
+    ],
+    "references": [
+      {
+        "name": "config.lookups",
+        "schema": "config",
+        "type": "table"
+      },
+      {
+        "name": "config.lookup_values",
+        "schema": "config",
+        "type": "table"
+      },
+      {
+        "name": "staging.lookup_values",
+        "schema": "staging",
+        "type": "table"
+      }
+    ],
+    "errors": [],
+    "refers": [
+      "config.lookups",
+      "config.lookup_values",
+      "staging.lookup_values"
+    ]
+  },
+  {
+    "type": "procedure",
+    "name": "staging.import_jsonb_to_table",
+    "file": "ddl/procedure/staging/import_json_to_table.ddl",
+    "schema": "staging",
+    "searchPaths": [
+      "staging"
+    ],
+    "references": [],
+    "errors": [
+      "Entity name in script does not match file name"
+    ],
+    "refers": []
+  },
+  {
+    "type": "table",
+    "name": "staging.lookup_values",
+    "file": "ddl/table/staging/lookup_values.ddl",
+    "schema": "staging",
+    "searchPaths": [
+      "staging"
+    ],
+    "references": [],
+    "errors": [],
+    "refers": []
+  },
+  {
+    "type": "table",
+    "name": "core.users",
+    "file": "ddl/table/core/users.ddl",
+    "schema": "core",
+    "searchPaths": [
+      "core",
+      "config",
+      "extensions"
+    ],
+    "references": [
+      {
+        "name": "uuid_generate_v4",
+        "type": null,
+        "errors": [
+          "was not found in [core, config, extensions] in procedure",
+          "was not found in [core, config, extensions] in table",
+          "was not found in [core, config, extensions] in view"
+        ]
+      },
+      {
+        "name": "config.lookup_values",
+        "schema": "config",
+        "type": "table"
+      }
+    ],
+    "errors": [],
+    "refers": [
+      "config.lookup_values"
+    ]
+  },
+  {
+    "type": "table",
+    "name": "config.lookup_values",
+    "file": "ddl/table/config/lookup_values.ddl",
+    "schema": "config",
+    "searchPaths": [
+      "config",
+      "extensions"
+    ],
+    "references": [
+      {
+        "name": "uuid_generate_v4",
+        "type": null,
+        "errors": [
+          "was not found in [config, extensions] in procedure",
+          "was not found in [config, extensions] in table",
+          "was not found in [config, extensions] in view"
+        ]
+      },
+      {
+        "name": "config.lookups",
+        "schema": "config",
+        "type": "table"
+      }
+    ],
+    "errors": [],
+    "refers": [
+      "config.lookups"
+    ]
+  },
+  {
+    "type": "table",
+    "name": "config.lookups",
+    "file": "ddl/table/config/lookups.ddl",
+    "schema": "config",
+    "searchPaths": [
+      "config",
+      "extensions"
+    ],
+    "references": [
+      {
+        "name": "uuid_generate_v4",
+        "type": null,
+        "errors": [
+          "was not found in [config, extensions] in procedure",
+          "was not found in [config, extensions] in table",
+          "was not found in [config, extensions] in view"
+        ]
+      }
+    ],
+    "errors": [],
+    "refers": []
+  },
+  {
+    "type": "view",
+    "name": "config.genders",
+    "file": "ddl/view/config/genders.ddl",
+    "schema": "config",
+    "searchPaths": [
+      "config"
+    ],
+    "references": [
+      {
+        "name": "config.lookups",
+        "schema": "config",
+        "type": "table"
+      },
+      {
+        "name": "config.lookup_values",
+        "schema": "config",
+        "type": "table"
+      }
+    ],
+    "errors": [],
+    "refers": [
+      "config.lookups",
+      "config.lookup_values"
+    ]
+  },
+  {
+    "type": "view",
+    "name": "migrate.lookup_values",
+    "file": "ddl/view/migrate/lookup_values.ddl",
+    "schema": "migrate",
+    "searchPaths": [
+      "migrate"
+    ],
+    "references": [
+      {
+        "name": "config.lookups",
+        "schema": "config",
+        "type": "table"
+      },
+      {
+        "name": "config.lookup_values",
+        "schema": "config",
+        "type": "table"
+      }
+    ],
+    "errors": [],
+    "refers": [
+      "config.lookups",
+      "config.lookup_values"
+    ]
+  }
+]
