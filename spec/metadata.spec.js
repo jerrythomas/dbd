@@ -38,7 +38,7 @@ describe('metadata', () => {
 	it('Should fetch all files in path', () => {
 		expect(scan('ddl')).toEqual([
 			'ddl/procedure/staging/import_lookups.ddl',
-			'ddl/procedure/staging/import_json_to_table.ddl',
+			'ddl/procedure/staging/import_jsonb_to_table.ddl',
 			'ddl/table/staging/lookup_values.ddl',
 			'ddl/table/config/lookup_values.ddl',
 			'ddl/table/config/lookups.ddl',

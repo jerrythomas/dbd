@@ -121,14 +121,13 @@ output:
       errors: []
     - type: procedure
       name: staging.import_jsonb_to_table
-      file: ddl/procedure/staging/import_json_to_table.ddl
+      file: ddl/procedure/staging/import_jsonb_to_table.ddl
       refers: []
       references: []
       schema: staging
       searchPaths:
         - staging
-      errors:
-        - Entity name in script does not match file name
+      errors: []
     - type: view
       name: migrate.lookup_values
       file: ddl/view/migrate/lookup_values.ddl
