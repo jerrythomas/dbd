@@ -85,8 +85,8 @@ class Design {
 	report() {
 		if (!this.isValidated) this.validate()
 		const issues = [
-			...this.entities.filter((entity) => entity.errors),
-			...this.importTables.filter((table) => table.errors)
+			...this.entities.filter((entity) => entity.errors.length > 0),
+			...this.importTables.filter((table) => table.errors.length > 0)
 		].map(({ name, errors }) => `${name}: ${errors.join(', ')}`)
 
 		return issues
@@ -103,18 +103,17 @@ class Design {
 						? ` using "${entity.file || entity.schema}"`
 						: ''
 				const detail = `${entity.type} => ${entity.name}${using}`
-				if (entity.errors) {
+				if (entity.errors && entity.errors.length > 0) {
 					console.error(pick(['type', 'name', 'errors'], entity))
 				} else {
 					console.info(detail)
 				}
 			})
-			// console.log(this.databaseURL.replace(/\$/, '\\$'))
 			return
 		}
 
 		this.entities
-			.filter((entity) => !entity.errors)
+			.filter((entity) => !entity.errors || entity.errors.length === 0)
 			.filter((entity) => !name || entity.name === name)
 			.map((entity) => {
 				const file = entity.file || TMP_SCRIPT

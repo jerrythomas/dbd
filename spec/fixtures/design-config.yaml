@@ -1,67 +1,68 @@
-
 config:
   roles:
-  - refers: []
-    name: basic
-    type: role
-  - name: advanced
-    refers:
-    - basic
-    type: role
+    - refers: []
+      name: basic
+      type: role
+    - name: advanced
+      refers:
+        - basic
+      type: role
   entities:
-  - type: table
-    name: config.lookups
-    file: ddl/table/config/lookups.ddl
-    schema: config
-    refers: []
-  - type: table
-    name: staging.lookup_values
-    file: ddl/table/staging/lookup_values.ddl
-    schema: staging
-    refers: []
-  - type: procedure
-    name: staging.import_json_to_table
-    file: ddl/procedure/staging/import_json_to_table.ddl
-    schema: staging
-    refers: []
-  - type: table
-    name: config.lookup_values
-    file: ddl/table/config/lookup_values.ddl
-    schema: config
-    refers:
-      - config.lookups
-  - type: view
-    name: config.genders
-    file: ddl/view/config/genders.ddl
-    schema: config
-    refers:
-      - config.lookups
-      - config.lookup_values
-  - type: view
-    name: migrate.lookup_values
-    file: ddl/view/migrate/lookup_values.ddl
-    schema: migrate
-    refers:
-      - config.lookups
-      - config.lookup_values
+    - type: table
+      name: config.lookups
+      file: ddl/table/config/lookups.ddl
+      schema: config
+      refers: []
+    - type: table
+      name: staging.lookup_values
+      file: ddl/table/staging/lookup_values.ddl
+      schema: staging
+      refers: []
+    - type: procedure
+      name: staging.import_json_to_table
+      file: ddl/procedure/staging/import_json_to_table.ddl
+      schema: staging
+      refers: []
+      errors:
+        - Entity name in script does not match file name
+    - type: table
+      name: config.lookup_values
+      file: ddl/table/config/lookup_values.ddl
+      schema: config
+      refers:
+        - config.lookups
+    - type: view
+      name: config.genders
+      file: ddl/view/config/genders.ddl
+      schema: config
+      refers:
+        - config.lookups
+        - config.lookup_values
+    - type: view
+      name: migrate.lookup_values
+      file: ddl/view/migrate/lookup_values.ddl
+      schema: migrate
+      refers:
+        - config.lookups
+        - config.lookup_values
 
-  - type: procedure
-    name: staging.import_lookups
-    file: ddl/procedure/staging/import_lookups.ddl
-    schema: staging
-    refers:
-      - config.lookup_values
-      - config.lookups
-      - staging.lookup_values
+    - type: procedure
+      name: staging.import_lookups
+      file: ddl/procedure/staging/import_lookups.ddl
+      schema: staging
+      refers:
+        - config.lookup_values
+        - config.lookups
+        - staging.lookup_values
 
 roles:
-- type: role
-  name: basic
-  refers: []
-- type: role
-  name: advanced
-  refers:
-  - basic
+  - type: role
+    name: basic
+    refers: []
+  - type: role
+    name: advanced
+    refers:
+      - basic
 
 entities:
   - type: schema
@@ -81,28 +82,82 @@ entities:
   - type: role
     name: advanced
     refers:
-    - basic
-  - type: table
-    name: config.lookups
-    file: ddl/table/config/lookups.ddl
-    schema: config
+      - basic
+  - type: procedure
+    name: staging.import_jsonb_to_table
+    file: ddl/procedure/staging/import_jsonb_to_table.ddl
+    schema: staging
     refers: []
+    references: []
+    searchPaths:
+      - staging
+    errors: []
   - type: table
     name: staging.lookup_values
     file: ddl/table/staging/lookup_values.ddl
     schema: staging
     refers: []
-  - type: procedure
-    name: staging.import_json_to_table
-    file: ddl/procedure/staging/import_json_to_table.ddl
-    schema: staging
+    references: []
+    errors: []
+    searchPaths:
+      - staging
+  - type: table
+    name: config.lookups
+    file: ddl/table/config/lookups.ddl
+    schema: config
     refers: []
+    references:
+      - name: uuid_generate_v4
+        type: null
+        errors:
+          - was not found in [config, extensions] in procedure
+          - was not found in [config, extensions] in table
+          - was not found in [config, extensions] in view
+    searchPaths:
+      - config
+      - extensions
+    errors: []
   - type: table
     name: config.lookup_values
     file: ddl/table/config/lookup_values.ddl
     schema: config
     refers:
       - config.lookups
+    references:
+      - name: uuid_generate_v4
+        type: null
+        errors:
+          - was not found in [config, extensions] in procedure
+          - was not found in [config, extensions] in table
+          - was not found in [config, extensions] in view
+      - name: config.lookups
+        type: table
+        schema: config
+    searchPaths:
+      - config
+      - extensions
+    errors: []
+  - type: procedure
+    name: staging.import_lookups
+    file: ddl/procedure/staging/import_lookups.ddl
+    schema: staging
+    refers:
+      - config.lookups
+      - config.lookup_values
+      - staging.lookup_values
+    references:
+      - name: config.lookups
+        type: table
+        schema: config
+      - name: config.lookup_values
+        type: table
+        schema: config
+      - name: staging.lookup_values
+        type: table
+        schema: staging
+    searchPaths:
+      - staging
+    errors: []
   - type: view
     name: config.genders
     file: ddl/view/config/genders.ddl
@@ -110,6 +165,16 @@ entities:
     refers:
       - config.lookups
       - config.lookup_values
+    references:
+      - name: config.lookups
+        type: table
+        schema: config
+      - name: config.lookup_values
+        type: table
+        schema: config
+    searchPaths:
+      - config
+    errors: []
   - type: view
     name: migrate.lookup_values
     file: ddl/view/migrate/lookup_values.ddl
@@ -117,15 +182,16 @@ entities:
     refers:
       - config.lookups
       - config.lookup_values
-  - type: procedure
-    name: staging.import_lookups
-    file: ddl/procedure/staging/import_lookups.ddl
-    schema: staging
-    refers:
-      - config.lookup_values
-      - config.lookups
-      - staging.lookup_values
-
+    references:
+      - name: config.lookups
+        type: table
+        schema: config
+      - name: config.lookup_values
+        type: table
+        schema: config
+    searchPaths:
+      - migrate
+    errors: []
 beforeApply:
   schemas: []
   tables: []
