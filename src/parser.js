@@ -1,4 +1,4 @@
-import { internalKeywords, excludePatterns } from './constants'
+import { internalKeywords, excludePatterns } from './constants.js'
 import fs from 'fs'
 import { pick, uniq } from 'ramda'
 
