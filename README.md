@@ -5,22 +5,22 @@
 
 This is a simple CLI to apply DDL scripts for individual objects for developers who are more comfortable writing SQL scripts.
 
-- [x] Apply a set of individual DDL scripts
-- [x] Rollback (drop) objects applied
+- [x] Apply a set of individual DDL scripts to a database
 - [x] Load staging data with post-process scripts for development/testing
 - [x] Export data from tables & views
 - [x] Generate [dbdocs](https://dbdocs.io) DBML for all (or subset) tables
 - [x] Support for multiple schemas where names are unique across all schemas.
+- [x] Parse files and identify dependencies. (e.g. views depend on tables)
+- [x] Combine all scripts into a single file for deployment
+- [ ] Support for multiple databases (e.g. postgres, mysql, mssql)
 - [ ] Support for multiple schemas with the same names in multiple schemas.
-- [ ] <del>Generate DDL from yaml</del>
-- [ ] <del>Migration (diff objects, backup and rollback)</del>
 
 ## Usage
 
 Install the CLI globally using npm (or pnpm/yarn)
 
 ```bash
-npm i --global @jerrythomas/dbd@next
+npm i --global @jerrythomas/dbd
 ```
 
 ### Folder Structure
