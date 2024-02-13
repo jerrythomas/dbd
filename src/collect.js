@@ -85,8 +85,12 @@ class Design {
 	report() {
 		if (!this.isValidated) this.validate()
 		const issues = [
-			...this.entities.filter((entity) => entity.errors.length > 0),
-			...this.importTables.filter((table) => table.errors.length > 0)
+			...this.entities.filter(
+				(entity) => entity.errors && entity.errors.length > 0
+			),
+			...this.importTables.filter(
+				(table) => table.errors && table.errors.length > 0
+			)
 		].map(({ name, errors }) => `${name}: ${errors.join(', ')}`)
 
 		return issues

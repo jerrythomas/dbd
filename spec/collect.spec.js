@@ -357,124 +357,124 @@ describe('collect', async () => {
 		})
 	})
 
-	// it('Should apply for single entity', async () => {
-	// 	// cleanup
-	// 	await context.db.query(sql`drop table staging.lookup_values;`)
+	it('Should apply for single entity', async () => {
+		// cleanup
+		await context.db.query(sql`drop table staging.lookup_values;`)
 
-	// 	const dx = using('design.yaml', context.databaseURL)
-	// 	await dx.apply('staging.lookup_values')
+		const dx = using('design.yaml', context.databaseURL)
+		await dx.apply('staging.lookup_values')
 
-	// 	expect(context.logger.infos).toEqual([
-	// 		'Applying table: staging.lookup_values'
-	// 	])
+		expect(context.logger.infos).toEqual([
+			'Applying table: staging.lookup_values'
+		])
 
-	// 	let result = await context.db.query(
-	// 		sql`select count(*)
-	//            from information_schema.tables
-	//           where table_schema = 'staging'
-	// 			   and table_name = 'lookup_values'`
-	// 	)
-	// 	expect(result).toEqual([{ count: 1n }])
-	// })
+		let result = await context.db.query(
+			sql`select count(*)
+	           from information_schema.tables
+	          where table_schema = 'staging'
+				   and table_name = 'lookup_values'`
+		)
+		expect(result).toEqual([{ count: 1n }])
+	})
 
-	// it('Should import a single entity using entity name', async () => {
-	// 	// cleanup
-	// 	await context.db.query(sql`delete from config.lookup_values;`)
-	// 	await context.db.query(sql`delete from config.lookups;`)
-	// 	await context.db.query(sql`delete from staging.lookup_values;`)
+	it('Should import a single entity using entity name', async () => {
+		// cleanup
+		await context.db.query(sql`delete from config.lookup_values;`)
+		await context.db.query(sql`delete from config.lookups;`)
+		await context.db.query(sql`delete from staging.lookup_values;`)
 
-	// 	using('design.yaml', context.databaseURL).importData(
-	// 		'staging.lookup_values'
-	// 	)
-	// 	// context.logger.restore()
-	// 	// console.log(context.logger.infos)
-	// 	expect(context.logger.infos).toEqual([
-	// 		'Importing staging.lookup_values',
-	// 		'Processing import/loader.sql'
-	// 	])
-	// 	let result = await context.db.query(
-	// 		sql`select count(*) from staging.lookup_values`
-	// 	)
+		using('design.yaml', context.databaseURL).importData(
+			'staging.lookup_values'
+		)
+		// context.logger.restore()
+		// console.log(context.logger.infos)
+		expect(context.logger.infos).toEqual([
+			'Importing staging.lookup_values',
+			'Processing import/loader.sql'
+		])
+		let result = await context.db.query(
+			sql`select count(*) from staging.lookup_values`
+		)
 
-	// 	expect(result).toEqual([{ count: 2n }])
-	// 	result = await context.db.query(sql`select count(*) from config.lookups`)
-	// 	expect(result).toEqual([{ count: 1n }])
-	// 	result = await context.db.query(
-	// 		sql`select count(*) from config.lookup_values`
-	// 	)
-	// 	expect(result).toEqual([{ count: 2n }])
-	// })
+		expect(result).toEqual([{ count: 2n }])
+		result = await context.db.query(sql`select count(*) from config.lookups`)
+		expect(result).toEqual([{ count: 1n }])
+		result = await context.db.query(
+			sql`select count(*) from config.lookup_values`
+		)
+		expect(result).toEqual([{ count: 2n }])
+	})
 
-	// it('Should skip import when invalid name or file is provided', async () => {
-	// 	// cleanup
-	// 	await context.db.query(sql`delete from config.lookup_values;`)
-	// 	await context.db.query(sql`delete from config.lookups;`)
-	// 	await context.db.query(sql`delete from staging.lookup_values;`)
+	it('Should skip import when invalid name or file is provided', async () => {
+		// cleanup
+		await context.db.query(sql`delete from config.lookup_values;`)
+		await context.db.query(sql`delete from config.lookups;`)
+		await context.db.query(sql`delete from staging.lookup_values;`)
 
-	// 	using('design.yaml', context.databaseURL).importData(
-	// 		'import/staging/lookup_values'
-	// 	)
-	// 	let result = await context.db.query(
-	// 		sql`select count(*) from staging.lookup_values`
-	// 	)
-	// 	expect(result).toEqual([{ count: 0n }])
-	// 	result = await context.db.query(sql`select count(*) from config.lookups`)
-	// 	expect(result).toEqual([{ count: 0n }])
-	// 	result = await context.db.query(
-	// 		sql`select count(*) from config.lookup_values`
-	// 	)
-	// 	expect(result).toEqual([{ count: 0n }])
-	// })
+		using('design.yaml', context.databaseURL).importData(
+			'import/staging/lookup_values'
+		)
+		let result = await context.db.query(
+			sql`select count(*) from staging.lookup_values`
+		)
+		expect(result).toEqual([{ count: 0n }])
+		result = await context.db.query(sql`select count(*) from config.lookups`)
+		expect(result).toEqual([{ count: 0n }])
+		result = await context.db.query(
+			sql`select count(*) from config.lookup_values`
+		)
+		expect(result).toEqual([{ count: 0n }])
+	})
 
-	// it('Should import single entity using filepath', async () => {
-	// 	// cleanup
-	// 	await context.db.query(sql`delete from config.lookup_values;`)
-	// 	await context.db.query(sql`delete from config.lookups;`)
-	// 	await context.db.query(sql`delete from staging.lookup_values;`)
+	it('Should import single entity using filepath', async () => {
+		// cleanup
+		await context.db.query(sql`delete from config.lookup_values;`)
+		await context.db.query(sql`delete from config.lookups;`)
+		await context.db.query(sql`delete from staging.lookup_values;`)
 
-	// 	using('design.yaml', context.databaseURL).importData(
-	// 		'import/staging/lookup_values.csv'
-	// 	)
-	// 	let result = await context.db.query(
-	// 		sql`select count(*) from staging.lookup_values`
-	// 	)
-	// 	expect(result).toEqual([{ count: 2n }])
-	// 	result = await context.db.query(sql`select count(*) from config.lookups`)
-	// 	expect(result).toEqual([{ count: 1n }])
-	// 	result = await context.db.query(
-	// 		sql`select count(*) from config.lookup_values`
-	// 	)
-	// 	expect(result).toEqual([{ count: 2n }])
-	// })
+		using('design.yaml', context.databaseURL).importData(
+			'import/staging/lookup_values.csv'
+		)
+		let result = await context.db.query(
+			sql`select count(*) from staging.lookup_values`
+		)
+		expect(result).toEqual([{ count: 2n }])
+		result = await context.db.query(sql`select count(*) from config.lookups`)
+		expect(result).toEqual([{ count: 1n }])
+		result = await context.db.query(
+			sql`select count(*) from config.lookup_values`
+		)
+		expect(result).toEqual([{ count: 2n }])
+	})
 
-	// it('Should export a single entity by name', () => {
-	// 	using('design.yaml', context.databaseURL).exportData('config.unknown')
-	// 	expect(fs.existsSync('export/config/genders.csv')).toBeFalsy(
-	// 		'config.genders.csv should not exist'
-	// 	)
-	// 	expect(fs.existsSync('export/config/lookups.csv')).toBeFalsy(
-	// 		'config.lookups.csv should not exist'
-	// 	)
-	// 	expect(fs.existsSync('export/config/lookup_values.csv')).toBeFalsy(
-	// 		'config.lookup_values.csv should not exist'
-	// 	)
+	it('Should export a single entity by name', () => {
+		using('design.yaml', context.databaseURL).exportData('config.unknown')
+		expect(fs.existsSync('export/config/genders.csv')).toBeFalsy(
+			'config.genders.csv should not exist'
+		)
+		expect(fs.existsSync('export/config/lookups.csv')).toBeFalsy(
+			'config.lookups.csv should not exist'
+		)
+		expect(fs.existsSync('export/config/lookup_values.csv')).toBeFalsy(
+			'config.lookup_values.csv should not exist'
+		)
 
-	// 	using('design.yaml', context.databaseURL).exportData('config.genders')
-	// 	expect(fs.existsSync('export/config/genders.csv')).toBeTruthy(
-	// 		'Selected export file should exist'
-	// 	)
-	// 	expect(fs.existsSync('export/config/lookups.csv')).toBeFalsy(
-	// 		'config.lookups.csv should not exist'
-	// 	)
-	// 	expect(fs.existsSync('export/config/lookup_values.csv')).toBeFalsy(
-	// 		'config.lookup_values.csv should not exist'
-	// 	)
-	// })
+		using('design.yaml', context.databaseURL).exportData('config.genders')
+		expect(fs.existsSync('export/config/genders.csv')).toBeTruthy(
+			'Selected export file should exist'
+		)
+		expect(fs.existsSync('export/config/lookups.csv')).toBeFalsy(
+			'config.lookups.csv should not exist'
+		)
+		expect(fs.existsSync('export/config/lookup_values.csv')).toBeFalsy(
+			'config.lookup_values.csv should not exist'
+		)
+	})
 
-	// it('Should report zero issues in example', () => {
-	// 	let issues = using('design.yaml', context.databaseURL).validate().report()
-	// 	expect(issues).toEqual([])
-	// 	issues = using('design.yaml', context.databaseURL).report()
-	// 	expect(issues).toEqual([])
-	// })
+	it('Should report zero issues in example', () => {
+		let issues = using('design.yaml', context.databaseURL).validate().report()
+		expect(issues).toEqual([])
+		issues = using('design.yaml', context.databaseURL).report()
+		expect(issues).toEqual([])
+	})
 })
