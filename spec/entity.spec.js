@@ -1,6 +1,4 @@
 import { describe, expect, it, beforeAll, beforeEach } from 'bun:test'
-// import { suite } from 'uvu'
-// import * as assert from 'uvu/assert'
 import fs from 'fs'
 import yaml from 'js-yaml'
 
@@ -201,7 +199,3 @@ describe('entity', () => {
 		})
 	})
 })
-
-// it.before.each((context) => {
-// 	process.chdir(context.path)
-// })

@@ -25,12 +25,14 @@ class Design {
 
 	constructor(file, databaseURL) {
 		let config = clean(read(file))
+
 		let extensionSchema = config.project.extensionSchema
 		this.#databaseURL = databaseURL
 		this.#config = omit(['importTables'], config)
-
+		this.#config.extensions = this.#config.extensions ?? []
 		this.#config.roles = organize(config.roles)
 		this.#config.entities = organize(config.entities)
+		// console.log(this.#config.entities.length)
 		this.#entities = [
 			...this.#config.schemas.map((schema) => entityFromSchemaName(schema)),
 			...this.#config.extensions.map((item) =>
@@ -90,7 +92,7 @@ class Design {
 			...this.importTables.filter(
 				(table) => table.errors && table.errors.length > 0
 			)
-		].map(({ name, errors }) => `${name}: ${errors.join(', ')}`)
+		]
 
 		return issues
 	}

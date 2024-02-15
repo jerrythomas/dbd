@@ -1,0 +1,26 @@
+project:
+  name: Example
+  database: PostgreSQL
+  staging:
+    - staging
+  dbdocs:
+    exclude:
+      schemas:
+        - staging
+      tables: []
+schemas:
+  - core
+  - staging
+
+import:
+  tables:
+    - core.lookup_values
+    - core.lookups
+    - staging.lookup:
+        nullValue: NULL
+        truncate: false
+  after:
+    - import/loader.sql
+export:
+  - core.lookups
+  - core.lookup_values

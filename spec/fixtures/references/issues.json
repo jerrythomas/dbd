@@ -1,0 +1,129 @@
+[
+  {
+    "type": "procedure",
+    "name": "staging.import_jsonb_to_table",
+    "file": "ddl/procedure/staging/import_json_to_table.ddl",
+    "schema": "staging",
+    "searchPaths": [
+      "staging"
+    ],
+    "references": [],
+    "errors": [
+      "Entity name in script does not match file name"
+    ],
+    "refers": []
+  },
+  {
+    "type": "table",
+    "name": "config.lookups",
+    "file": "ddl/table/config/lookups.ddl",
+    "schema": "config",
+    "searchPaths": [
+      "config",
+      "extensions"
+    ],
+    "references": [
+      {
+        "name": "uuid_generate_v4",
+        "type": null,
+        "error": "Reference uuid_generate_v4 not found in [config, extensions]"
+      }
+    ],
+    "errors": [
+      "Reference uuid_generate_v4 not found in [config, extensions]"
+    ],
+    "refers": []
+  },
+  {
+    "type": "table",
+    "name": "config.lookup_values",
+    "file": "ddl/table/config/lookup_values.ddl",
+    "schema": "config",
+    "searchPaths": [
+      "config",
+      "extensions"
+    ],
+    "references": [
+      {
+        "name": "uuid_generate_v4",
+        "type": null,
+        "error": "Reference uuid_generate_v4 not found in [config, extensions]"
+      },
+      {
+        "name": "config.lookups",
+        "schema": "config",
+        "type": "table"
+      }
+    ],
+    "errors": [
+      "Reference uuid_generate_v4 not found in [config, extensions]"
+    ],
+    "refers": [
+      "config.lookups"
+    ]
+  },
+  {
+    "type": "table",
+    "name": "core.users",
+    "file": "ddl/table/core/users.ddl",
+    "schema": "core",
+    "searchPaths": [
+      "core",
+      "config",
+      "extensions"
+    ],
+    "references": [
+      {
+        "name": "uuid_generate_v4",
+        "type": null,
+        "error": "Reference uuid_generate_v4 not found in [core, config, extensions]"
+      },
+      {
+        "name": "config.lookup_values",
+        "schema": "config",
+        "type": "table"
+      }
+    ],
+    "errors": [
+      "Reference uuid_generate_v4 not found in [core, config, extensions]"
+    ],
+    "refers": [
+      "config.lookup_values"
+    ]
+  },
+  {
+    "type": "import",
+    "name": "core.lookup_values",
+    "format": "csv",
+    "nullValue": "",
+    "truncate": true,
+    "schema": "core",
+    "errors": [
+      "File missing for entity",
+      "Import is only allowed for staging schemas"
+    ]
+  },
+  {
+    "type": "import",
+    "name": "core.lookups",
+    "format": "csv",
+    "nullValue": "",
+    "truncate": true,
+    "schema": "core",
+    "errors": [
+      "File missing for entity",
+      "Import is only allowed for staging schemas"
+    ]
+  },
+  {
+    "type": "import",
+    "name": "staging.lookup",
+    "format": "csv",
+    "nullValue": null,
+    "truncate": false,
+    "schema": "staging",
+    "errors": [
+      "File missing for entity"
+    ]
+  }
+]

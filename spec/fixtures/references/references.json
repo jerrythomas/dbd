@@ -59,8 +59,7 @@
       {
         "name": "uuid_generate_v4",
         "type": null,
-        "errors": ["was not found in [core, config, extensions]"],
-        "schema": null
+        "error": "Reference uuid_generate_v4 not found in [core, config, extensions]"
       },
       {
         "name": "config.lookup_values",
@@ -81,8 +80,7 @@
       {
         "name": "uuid_generate_v4",
         "type": null,
-        "errors": ["was not found in [config, extensions]"],
-        "schema": null
+        "error": "Reference uuid_generate_v4 not found in [config, extensions]"
       },
       {
         "name": "config.lookups",
@@ -103,8 +101,7 @@
       {
         "name": "uuid_generate_v4",
         "type": null,
-        "errors": ["was not found in [config, extensions]"],
-        "schema": null
+        "error": "Reference uuid_generate_v4 not found in [config, extensions]"
       }
     ],
     "errors": [],

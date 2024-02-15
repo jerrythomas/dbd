@@ -56,6 +56,15 @@ entities:
     errors:
       - Use fully qualified name <schema>.<name>
       - File missing for entity
+  - type: core
+    name: core.stuff
+    file: ddl/core/stuff.ddl
+    schema: core
+    refers: []
+    references: []
+    errors:
+      - Unknown or unsupported entity type.
+      - Unknown or unsupported entity ddl script.
   - type: table
     name: public.test
     file: ddl/test.ddl
@@ -74,18 +83,3 @@ entities:
       - core.lookups
     errors:
       - File missing for entity
-  - type: core
-    name: public.undefined
-    file: ddl/core/stuff.ddl
-    schema: public
-    refers:
-      - public.test
-    references:
-      - name: public.test
-        type: table
-        schema: public
-    searchPaths:
-      - public
-    errors:
-      - Unknown or unsupported entity type.
-      - Unknown or unsupported entity ddl script.

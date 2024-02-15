@@ -10,8 +10,6 @@ import {
 } from 'bun:test'
 import { scan, read, merge, clean, regroup, organize } from '../src/metadata.js'
 
-// const it = suite('Metadata processing')
-
 describe('metadata', () => {
 	let context = {}
 	beforeAll(() => {
@@ -203,9 +201,6 @@ describe('metadata', () => {
 
 		for (let i = 0; i < data.entities.length; i++)
 			expect(data.entities[i]).toEqual(context.clean.output.entities[i])
-		// expect(data.entities[]).toEqual(context.clean.output.entities[0])
-		// console.log('data\n', JSON.stringify(data, null, 2))
-		// console.log('expected\n', JSON.stringify(context.clean.output, null, 2))
 	})
 
 	it('Should regroup based on dependencies', () => {
@@ -225,4 +220,3 @@ describe('metadata', () => {
 		expect(data).toEqual(context.mdfix.missing.output)
 	})
 })
-// test.run()

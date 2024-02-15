@@ -219,6 +219,11 @@ export function validateEntityFile(entity, ddl = true) {
 			errors.push('File missing for entity')
 		}
 	}
+	if (entity.references && entity.references.length > 0) {
+		entity.references
+			.filter((ref) => ref.error)
+			.map((ref) => errors.push(ref.error))
+	}
 
 	if (entity.file) {
 		errors = [...errors, ...validateFiles(entity, ddl)]

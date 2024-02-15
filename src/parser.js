@@ -1,5 +1,5 @@
 import fs from 'fs'
-import { pick, uniq, omit } from 'ramda'
+import { pick, uniq } from 'ramda'
 import { allowedTypes } from './constants.js'
 import { isInternal } from './exclusions.js'
 
@@ -34,12 +34,12 @@ export function extractReferences(sqlScript) {
 	let functionCalls = {}
 	let match
 	while ((match = pattern.exec(sqlScript)) !== null) {
-		// console.log(match.groups)
 		const { prefix, schema, name } = match.groups
 		const type = extractEntityType(prefix)
 		const fullName = schema ? schema + '.' + name : name
 		if (!isInternal(fullName)) functionCalls[fullName] = type
 	}
+
 	return Object.entries(functionCalls).map(([name, type]) => ({ name, type }))
 }
 
@@ -49,17 +49,19 @@ export function extractEntityType(input) {
 
 	// pattern
 	match = PATTERNS.TABLE_TYPE.exec(input)
-	if (match) return 'table'
+	if (match) return 'table/view'
 	match = PATTERNS.ALIAS_TYPE.exec(input)
 	if (match) return 'alias'
 	return null
 }
 
 export function extractSearchPaths(content, defaultPath = 'public') {
-	const matches = content.match(/SET\s+search_path\s*to\s*([a-z0-9_]+,?)+.*/gi)
+	const matches = content.match(
+		/SET\s+search_path\s*to\s*([a-z0-9_]+(,\s*)?)+;/gi
+	)
 	if (matches) {
 		return matches[matches.length - 1]
-			.split('to')[1]
+			.split('to ')[1]
 			.replaceAll(';', '')
 			.split(',')
 			.map((p) => p.trim())
@@ -73,7 +75,6 @@ export function extractTableReferences(sqlScript) {
 	let match
 
 	while ((match = pattern.exec(sqlScript)) !== null) {
-		// console.log(match.groups)
 		const { schema, name } = match.groups
 		const fullName = schema ? schema + '.' + name : name
 		tableReferences.add(fullName)
@@ -81,7 +82,7 @@ export function extractTableReferences(sqlScript) {
 
 	return Array.from(tableReferences)
 		.filter((name) => !isInternal(name))
-		.map((name) => ({ name, type: 'table' }))
+		.map((name) => ({ name, type: 'table/view' }))
 }
 
 export function extractEntity(script) {
@@ -95,12 +96,18 @@ export function parseEntityScript(entity) {
 	const searchPaths = extractSearchPaths(content)
 	let info = extractEntity(content)
 
-	// return info
 	let references = uniq([
 		...extractReferences(content),
 		...extractTableReferences(content)
 	])
+
 	let errors = []
+	if (!info.name)
+		return {
+			...entity,
+			references: [],
+			errors: ['Entity name not found in script']
+		}
 	if (!info.schema) info.schema = searchPaths[0]
 	let fullName = info.schema + '.' + info.name
 
@@ -114,78 +121,72 @@ export function parseEntityScript(entity) {
 	const excludeEntity = [info.name, fullName]
 	info.name = fullName
 	references = references
-		.filter(({ type }) => type === null || allowedTypes.includes(type))
+		.filter(({ type }) => type !== 'alias')
 		.filter(({ name }) => !excludeEntity.includes(name))
 	return { ...entity, ...info, searchPaths, references, errors }
 }
 
+/**
+ * Generate a lookup tree for the given entities
+ * @param {Array} entities - An array of entities
+ * @returns {Object} A lookup tree
+ */
 export function generateLookupTree(entities) {
-	let tree = entities.reduce((cur, { type }) => ({ ...cur, [type]: {} }), {})
-	entities.map(({ name, type, schema }) => {
-		tree[type][schema] = {
-			...tree[type][schema],
-			[name.split('.').pop()]: name
-		}
-	})
-	return tree
+	return entities.reduce(
+		(cur, entity) => ({
+			...cur,
+			[entity.name]: pick(['name', 'schema', 'type'], entity)
+		}),
+		{}
+	)
 }
 
 export function matchReferences(entities, extensions = []) {
-	const lookupTree = generateLookupTree(entities)
+	const lookup = generateLookupTree(entities)
 
 	return entities.map((entity) => {
-		let references = entity.references.map((ref) => {
-			let { name, type } = ref
-			let result = { ...ref }
-
-			if (type === null) {
-				if (isInternal(name.split('.').pop(), extensions))
-					return { name, type: 'internal' }
-				const types = Object.keys(lookupTree)
-
-				for (let i = 0; i < types.length; i++) {
-					result = findEntityByName(
-						name,
-						entity.searchPaths,
-						lookupTree[types[i]]
-					)
-					if (!result.error) return { ...result, type: types[i] }
-				}
-			} else {
-				result = findEntityByName(name, entity.searchPaths, lookupTree[type])
-				if (!result.error) return { ...result, type }
-			}
-			return { errors: [result.error], ...omit(['error'], result), type }
-		})
-
+		let references = entity.references.map((ref) =>
+			findEntityByName(ref, entity.searchPaths, lookup, extensions)
+		)
 		return {
 			...entity,
 			references,
 			refers: references
-				.filter((r) => !r.errors)
+				.filter((r) => !r.error)
 				.filter((r) => allowedTypes.includes(r.type))
 				.map((r) => r.name)
 		}
 	})
 }
 
-export function findEntityByName(fullName, searchPaths, lookup) {
-	let schema = null
-	let name = fullName
-	if (fullName.indexOf('.') > -1) {
-		;[schema, name] = fullName.split('.')
-	}
-	if (schema) return { name: lookup[schema][name], schema }
+export function findEntityByName(
+	{ name, type },
+	searchPaths,
+	lookup,
+	extensions = []
+) {
+	let matched
 
-	for (let i = 0; i < searchPaths.length; i++) {
-		if (lookup[searchPaths[i]]) {
-			let entity = lookup[searchPaths[i]][name]
-			if (entity) return { name: entity, schema: searchPaths[i] }
-		}
+	if (isInternal(name, extensions)) return { name, type: 'internal' }
+
+	if (name.indexOf('.') > 0) {
+		if (isInternal(name.split('.').pop(), extensions))
+			return { name, type: 'internal' }
+
+		matched = lookup[name]
+		return matched
+			? matched
+			: { name, type, error: `Reference ${name} not found` }
 	}
-	return {
-		name: fullName,
-		schema: null,
-		error: 'was not found in [' + searchPaths.join(', ') + ']'
+
+	for (let i = 0; i < searchPaths.length && !matched; i++) {
+		matched = lookup[searchPaths[i] + '.' + name]
 	}
+	return matched
+		? matched
+		: {
+				name,
+				type,
+				error: `Reference ${name} not found in [${searchPaths.join(', ')}]`
+			}
 }

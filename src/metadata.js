@@ -89,12 +89,12 @@ export function clean(data) {
  * @returns
  */
 export function cleanDDLEntities(data) {
+	// const ignore = data.ignore ?? []
 	let entities = scan('ddl')
 		.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
 		.map((file) => entityFromFile(file))
-		// .map((entity) => ({ ...entity, refers: [] }))
 		.map(parseEntityScript)
-	// console.log('extensions', data.extensions, getCache())
+
 	entities = matchReferences(entities, data.extensions ?? [])
 
 	return merge(entities, data.entities)
@@ -131,7 +131,6 @@ export function merge(x, y) {
 			yAsObj[key] = xAsObj[key]
 		}
 	})
-
 	return Object.keys(yAsObj).map((key) => yAsObj[key])
 }
 
@@ -148,7 +147,16 @@ export function organize(data) {
 			(obj, entity) => ((obj[entity] = { name: entity, refers: [] }), obj),
 			{}
 		)
-
+	// console.log(
+	// 	data.map((x) => {
+	// 		if (x.name === 'staging.migrate_accounts_and_teams')
+	// 			console.log('undefined references', x.references)
+	// 	})
+	// )
+	// console.log(
+	// 	'refs',
+	// 	data.flatMap((x) => x.refers)
+	// )
 	lookup = { ...lookup, ...missing }
 
 	return [].concat.apply([], regroup(lookup)).map((x) => lookup[x])

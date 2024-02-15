@@ -1,10 +1,4 @@
-// import fs from 'fs'
-// import yaml from 'js-yaml'
-// import { suite } from 'uvu'
-// import * as assert from 'uvu/assert'
 import { fillMissingInfoForEntities } from '../src/filler.js'
-
-// const it = suite('Filler for missing information')
 
 describe('filler', () => {
 	it('Should handle missing config attributes', () => {
@@ -56,5 +50,3 @@ describe('filler', () => {
 		})
 	})
 })
-
-// it.run()

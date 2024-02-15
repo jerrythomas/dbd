@@ -47,7 +47,23 @@ export const internals = {
 			'cume_dist',
 			'exists',
 			'set',
-			'varchar'
+			'varchar',
+			'join',
+			'inner',
+			'outer',
+			'in',
+			'on',
+			'from',
+			'as',
+			'replace',
+			'key',
+			'least',
+			'replace',
+			'initcap',
+			'check',
+			'using',
+			'unique'
+
 			// And many more as needed...
 		]
 	},
@@ -75,7 +91,10 @@ export const internals = {
 			'current_timestamp',
 			'localtime',
 			'localtimestamp',
-			'string_agg'
+			'string_agg',
+			'unnest',
+			'initcap',
+			'extract'
 			// Add more specific functions as necessary
 		]
 	}

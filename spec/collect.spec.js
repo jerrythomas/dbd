@@ -118,15 +118,6 @@ describe('collect', async () => {
 		])
 	})
 
-	// todo: check why this is not passing
-	// it('Should throw error for invalid ddl', () => {
-	// 	context.logger.restore()
-	// 	process.chdir('../spec/fixtures/bad-example/')
-	// 	using('design-bad.yaml').dbml()
-	// 	expect(context.logger.errors.length > 0).toBeTruthy()
-	// 	expect(fs.existsSync('Example-design.dbml')).toBeFalsy()
-	// })
-
 	it('Should display execution sequence in dry-run mode', async () => {
 		const { beforeApply } = context.collect
 		const schemas = sql`select schema_name
@@ -223,6 +214,14 @@ describe('collect', async () => {
 				]
 			},
 			{
+				name: 'core.stuff',
+				type: 'core',
+				errors: [
+					'Unknown or unsupported entity type.',
+					'Unknown or unsupported entity ddl script.'
+				]
+			},
+			{
 				type: 'table',
 				name: 'public.test',
 				errors: [
@@ -231,19 +230,10 @@ describe('collect', async () => {
 					'Entity name in script does not match file name'
 				]
 			},
-
 			{
 				type: 'table',
 				name: 'core.lookup_values',
 				errors: ['File missing for entity']
-			},
-			{
-				type: 'core',
-				name: 'public.undefined',
-				errors: [
-					'Unknown or unsupported entity type.',
-					'Unknown or unsupported entity ddl script.'
-				]
 			}
 		])
 
@@ -309,6 +299,7 @@ describe('collect', async () => {
 				'Entities should match'
 			)
 		}
+		expect(dx.report()).toEqual([])
 	})
 
 	it('Should import data using psql', async () => {
@@ -477,5 +468,14 @@ describe('collect', async () => {
 		expect(issues).toEqual([])
 		issues = using('design.yaml', context.databaseURL).report()
 		expect(issues).toEqual([])
+	})
+
+	it.only('Should list issues in report', () => {
+		// context.logger.restore()
+		process.chdir('../spec/fixtures/references')
+		const expected = JSON.parse(fs.readFileSync('issues.json'))
+		const issues = using('design.yaml', context.databaseURL).validate().report()
+		// fs.writeFileSync('issues.json', JSON.stringify(issues, null, 2))
+		expect(issues).toEqual(expected)
 	})
 })

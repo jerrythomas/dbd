@@ -33,8 +33,8 @@ describe('parser', () => {
 			const references = extractReferences(content)
 			expect(references).toEqual([
 				{ name: 'uuid_generate_v4', type: null },
-				{ name: 'log_entries', type: 'table' },
-				{ name: 'users', type: 'table' }
+				{ name: 'log_entries', type: 'table/view' },
+				{ name: 'users', type: 'table/view' }
 			])
 		})
 
@@ -48,8 +48,8 @@ describe('parser', () => {
 			const references = extractReferences(content)
 			expect(references).toEqual([
 				{ name: 'extensions.uuid_generate_v4', type: null },
-				{ name: 'logging.log_entries', type: 'table' },
-				{ name: 'core.users', type: 'table' }
+				{ name: 'logging.log_entries', type: 'table/view' },
+				{ name: 'core.users', type: 'table/view' }
 			])
 		})
 
@@ -60,9 +60,9 @@ describe('parser', () => {
 			)
 			const references = extractReferences(content)
 			expect(references).toEqual([
-				{ name: 'lookup_values', type: 'table' },
+				{ name: 'lookup_values', type: 'table/view' },
 				{ name: 'uuid_generate_v4', type: null },
-				{ name: 'lookups', type: 'table' }
+				{ name: 'lookups', type: 'table/view' }
 			])
 		})
 
@@ -83,8 +83,8 @@ describe('parser', () => {
 		let samples = [
 			{ input: '', expected: ['public'] },
 			{
-				input: 'set search_path to config, extensions;',
-				expected: ['config', 'extensions']
+				input: 'set search_path to history, extensions;',
+				expected: ['history', 'extensions']
 			},
 			{ input: 'set search_path to staging;', expected: ['staging'] },
 			{
@@ -103,8 +103,8 @@ describe('parser', () => {
 			const content = fs.readFileSync('ddl/view/config/genders.ddl', 'utf8')
 			const references = extractTableReferences(content)
 			expect(references).toEqual([
-				{ name: 'lookups', type: 'table' },
-				{ name: 'lookup_values', type: 'table' }
+				{ name: 'lookups', type: 'table/view' },
+				{ name: 'lookup_values', type: 'table/view' }
 			])
 		})
 
@@ -115,9 +115,9 @@ describe('parser', () => {
 			)
 			const references = extractTableReferences(content)
 			expect(references).toEqual([
-				{ name: 'staging.lookup_values', type: 'table' },
-				{ name: 'config.lookups', type: 'table' },
-				{ name: 'config.lookup_values', type: 'table' }
+				{ name: 'staging.lookup_values', type: 'table/view' },
+				{ name: 'config.lookups', type: 'table/view' },
+				{ name: 'config.lookup_values', type: 'table/view' }
 			])
 		})
 
@@ -183,9 +183,9 @@ describe('parser', () => {
 				file: 'ddl/procedure/staging/import_lookups.ddl',
 				searchPaths: ['staging'],
 				references: [
-					{ name: 'config.lookups', type: 'table' },
-					{ name: 'config.lookup_values', type: 'table' },
-					{ name: 'staging.lookup_values', type: 'table' }
+					{ name: 'config.lookups', type: 'table/view' },
+					{ name: 'config.lookup_values', type: 'table/view' },
+					{ name: 'staging.lookup_values', type: 'table/view' }
 				],
 				errors: []
 			})
@@ -205,7 +205,7 @@ describe('parser', () => {
 				searchPaths: ['config', 'extensions'],
 				references: [
 					{ name: 'uuid_generate_v4', type: null },
-					{ name: 'lookups', type: 'table' }
+					{ name: 'lookups', type: 'table/view' }
 				],
 				errors: []
 			})
@@ -224,8 +224,8 @@ describe('parser', () => {
 				...entity,
 				searchPaths: ['config'],
 				references: [
-					{ name: 'lookups', type: 'table' },
-					{ name: 'lookup_values', type: 'table' }
+					{ name: 'lookups', type: 'table/view' },
+					{ name: 'lookup_values', type: 'table/view' }
 				],
 				errors: []
 			})
@@ -240,31 +240,45 @@ describe('parser', () => {
 
 			const tree = generateLookupTree(entities)
 			expect(tree).toEqual({
-				table: {
-					config: {
-						lookup_values: 'config.lookup_values',
-						lookups: 'config.lookups'
-					},
-					core: {
-						users: 'core.users'
-					},
-					staging: {
-						lookup_values: 'staging.lookup_values'
-					}
+				'config.genders': {
+					name: 'config.genders',
+					schema: 'config',
+					type: 'view'
 				},
-				view: {
-					config: {
-						genders: 'config.genders'
-					},
-					migrate: {
-						lookup_values: 'migrate.lookup_values'
-					}
+				'config.lookup_values': {
+					name: 'config.lookup_values',
+					schema: 'config',
+					type: 'table'
 				},
-				procedure: {
-					staging: {
-						import_json_to_table: 'staging.import_json_to_table',
-						import_lookups: 'staging.import_lookups'
-					}
+				'config.lookups': {
+					name: 'config.lookups',
+					schema: 'config',
+					type: 'table'
+				},
+				'core.users': {
+					name: 'core.users',
+					schema: 'core',
+					type: 'table'
+				},
+				'migrate.lookup_values': {
+					name: 'migrate.lookup_values',
+					schema: 'migrate',
+					type: 'view'
+				},
+				'staging.import_json_to_table': {
+					name: 'staging.import_json_to_table',
+					schema: 'staging',
+					type: 'procedure'
+				},
+				'staging.import_lookups': {
+					name: 'staging.import_lookups',
+					schema: 'staging',
+					type: 'procedure'
+				},
+				'staging.lookup_values': {
+					name: 'staging.lookup_values',
+					schema: 'staging',
+					type: 'table'
 				}
 			})
 		})
@@ -278,59 +292,70 @@ describe('parser', () => {
 
 		it('should find procedure by name', () => {
 			let entity = findEntityByName(
-				'staging.import_json_to_table',
+				{ name: 'staging.import_json_to_table', type: null },
 				['staging'],
-				lookupTree['procedure']
+				lookupTree
 			)
 			expect(entity).toEqual({
 				name: 'staging.import_json_to_table',
-				schema: 'staging'
+				schema: 'staging',
+				type: 'procedure'
 			})
 			entity = findEntityByName(
-				'import_lookups',
+				{ name: 'import_lookups', type: 'table' },
 				['core', 'config', 'staging'],
-				lookupTree['procedure']
+				lookupTree
 			)
 			expect(entity).toEqual({
 				name: 'staging.import_lookups',
-				schema: 'staging'
+				schema: 'staging',
+				type: 'procedure'
 			})
 			entity = findEntityByName(
-				'unknown',
+				{ name: 'unknown' },
 				['core', 'config', 'staging'],
-				lookupTree['procedure']
+				lookupTree
 			)
 			expect(entity).toEqual({
 				name: 'unknown',
-				schema: null,
-				error: 'was not found in [core, config, staging]'
+				type: undefined,
+				error: 'Reference unknown not found in [core, config, staging]'
 			})
 		})
 
 		it('should find table by name', () => {
 			let entity = findEntityByName(
-				'config.lookups',
+				{ name: 'config.lookups', type: 'table' },
 				['staging', 'config'],
-				lookupTree['table']
+				lookupTree
 			)
-			expect(entity).toEqual({ name: 'config.lookups', schema: 'config' })
+			expect(entity).toEqual({
+				name: 'config.lookups',
+				schema: 'config',
+				type: 'table'
+			})
 
 			entity = findEntityByName(
-				'lookup_values',
+				{ name: 'lookup_values' },
 				['config', 'staging'],
-				lookupTree['table']
+				lookupTree
 			)
-			expect(entity).toEqual({ name: 'config.lookup_values', schema: 'config' })
+			expect(entity).toEqual({
+				name: 'config.lookup_values',
+				schema: 'config',
+				type: 'table'
+			})
 
 			entity = findEntityByName(
-				'unknown',
+				{ name: 'unknown' },
 				['core', 'config', 'staging'],
-				lookupTree['table']
+				lookupTree
 			)
 			expect(entity).toEqual({
 				name: 'unknown',
 				schema: null,
-				error: 'was not found in [core, config, staging]'
+				type: undefined,
+				error: 'Reference unknown not found in [core, config, staging]'
 			})
 		})
 	})

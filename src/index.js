@@ -40,7 +40,9 @@ prog
 	.action((opts) => {
 		const issues = using(opts.config, opts.database).validate().report()
 		if (issues.length > 0) {
-			console.log(issues.join('\n'))
+			issues.map((entity) => {
+				console.log('\n', entity.file, '=>\n ', entity.errors.join('\n  '))
+			})
 		} else {
 			console.log('Everything looks ok')
 		}
