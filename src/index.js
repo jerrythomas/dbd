@@ -1,9 +1,9 @@
 #!/usr/bin/env node
+import fs from 'fs'
+import path from 'path'
 import sade from 'sade'
 import { execSync } from 'child_process'
 import { using } from './collect.js'
-import fs from 'fs'
-import path from 'path'
 
 const location = path.dirname(new URL(import.meta.url).pathname)
 const pkg = JSON.parse(

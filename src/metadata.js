@@ -6,6 +6,7 @@ import { entityFromFile, entityFromImportConfig } from './entity.js'
 import { fillMissingInfoForEntities } from './filler.js'
 import { defaultImportOptions } from './constants.js'
 import { parseEntityScript, matchReferences } from './parser.js'
+
 /**
  * Scans a folder and returns a list of file paths
  *
@@ -93,8 +94,8 @@ export function cleanDDLEntities(data) {
 		.map((file) => entityFromFile(file))
 		// .map((entity) => ({ ...entity, refers: [] }))
 		.map(parseEntityScript)
-
-	entities = matchReferences(entities)
+	// console.log('extensions', data.extensions, getCache())
+	entities = matchReferences(entities, data.extensions ?? [])
 
 	return merge(entities, data.entities)
 }

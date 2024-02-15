@@ -108,11 +108,7 @@ entities:
     refers: []
     references:
       - name: uuid_generate_v4
-        type: null
-        errors:
-          - was not found in [config, extensions] in procedure
-          - was not found in [config, extensions] in table
-          - was not found in [config, extensions] in view
+        type: internal
     searchPaths:
       - config
       - extensions
@@ -125,11 +121,7 @@ entities:
       - config.lookups
     references:
       - name: uuid_generate_v4
-        type: null
-        errors:
-          - was not found in [config, extensions] in procedure
-          - was not found in [config, extensions] in table
-          - was not found in [config, extensions] in view
+        type: internal
       - name: config.lookups
         type: table
         schema: config

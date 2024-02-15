@@ -1,6 +1,7 @@
-import { internalKeywords, excludePatterns } from './constants.js'
 import fs from 'fs'
-import { pick, uniq } from 'ramda'
+import { pick, uniq, omit } from 'ramda'
+import { allowedTypes } from './constants.js'
+import { isInternal } from './exclusions.js'
 
 const TYPES_GROUP = '(?<type>procedure|function|view|table)'
 const SCHEMA_GROUP = '((?<schema>[a-zA-Z_][a-zA-Z0-9_]*)?\\.)?'
@@ -83,15 +84,6 @@ export function extractTableReferences(sqlScript) {
 		.map((name) => ({ name, type: 'table' }))
 }
 
-function isInternal(word) {
-	let internal = internalKeywords.has(word.toLowerCase())
-	for (let i = 0; i < excludePatterns.length && !internal; i++) {
-		internal = excludePatterns[i].test(word)
-	}
-
-	return internal
-}
-
 export function extractEntity(script) {
 	const pattern = new RegExp(CREATE_ENTITY_PATTERN, 'gim')
 	const match = pattern.exec(script)
@@ -122,7 +114,7 @@ export function parseEntityScript(entity) {
 	const excludeEntity = [info.name, fullName]
 	info.name = fullName
 	references = references
-		.filter(({ type }) => type !== 'alias')
+		.filter(({ type }) => type === null || allowedTypes.includes(type))
 		.filter(({ name }) => !excludeEntity.includes(name))
 	return { ...entity, ...info, searchPaths, references, errors }
 }
@@ -138,42 +130,41 @@ export function generateLookupTree(entities) {
 	return tree
 }
 
-export function matchReferences(entities) {
+export function matchReferences(entities, extensions = []) {
 	const lookupTree = generateLookupTree(entities)
+
 	return entities.map((entity) => {
 		let references = entity.references.map((ref) => {
 			let { name, type } = ref
+			let result = { ...ref }
+
 			if (type === null) {
+				if (isInternal(name.split('.').pop(), extensions))
+					return { name, type: 'internal' }
 				const types = Object.keys(lookupTree)
-				let errors = []
+
 				for (let i = 0; i < types.length; i++) {
-					let result = findEntityByName(
+					result = findEntityByName(
 						name,
 						entity.searchPaths,
 						lookupTree[types[i]]
 					)
-					if (result.error) {
-						errors.push(result.error + ' in ' + types[i])
-					} else return { ...result, type: types[i] }
+					if (!result.error) return { ...result, type: types[i] }
 				}
-				return { ...ref, errors }
 			} else {
-				let result = findEntityByName(
-					name,
-					entity.searchPaths,
-					lookupTree[type]
-				)
-				if (result.error) {
-					return { ...result, type, errors: [result.error + ' in ' + type] }
-				}
-				return { ...result, type }
+				result = findEntityByName(name, entity.searchPaths, lookupTree[type])
+				if (!result.error) return { ...result, type }
 			}
+			return { errors: [result.error], ...omit(['error'], result), type }
 		})
 
 		return {
 			...entity,
 			references,
-			refers: references.filter((r) => !r.errors).map((r) => r.name)
+			refers: references
+				.filter((r) => !r.errors)
+				.filter((r) => allowedTypes.includes(r.type))
+				.map((r) => r.name)
 		}
 	})
 }

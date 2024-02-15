@@ -43,10 +43,9 @@ output:
       references:
         - name: uuid_generate_v4
           type: null
+          schema: null
           errors:
-            - was not found in [config, extensions] in procedure
-            - was not found in [config, extensions] in table
-            - was not found in [config, extensions] in view
+            - was not found in [config, extensions]
       schema: config
       searchPaths:
         - config
@@ -60,10 +59,9 @@ output:
       references:
         - name: uuid_generate_v4
           type: null
+          schema: null
           errors:
-            - was not found in [config, extensions] in procedure
-            - was not found in [config, extensions] in table
-            - was not found in [config, extensions] in view
+            - was not found in [config, extensions]
         - name: config.lookups
           schema: config
           type: table

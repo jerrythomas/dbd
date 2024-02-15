@@ -2,3 +2,6 @@ Project "Example" {
  database_type: 'PostgreSQL'
  Note: "undefined" 
 }
+Table "public"."test" as "test" {
+  "id" int
+}

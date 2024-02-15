@@ -14,7 +14,6 @@ import {
 	exportScriptForEntity,
 	entitiesForDBML
 } from './entity.js'
-// import { type } from 'os'
 
 class Design {
 	#config = {}

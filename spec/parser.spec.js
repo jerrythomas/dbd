@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll } from 'bun:test'
+import { describe, expect, it, beforeAll, beforeEach } from 'bun:test'
 import { chdir, cwd } from 'process'
 import {
 	extractReferences,
@@ -14,9 +14,11 @@ import { entityFromFile } from '../src/entity'
 import { scan } from '../src/metadata'
 import fs from 'fs'
 import path from 'path'
+import { resetCache } from '../src/exclusions'
 
 describe('parser', () => {
 	beforeAll(() => {
+		resetCache()
 		chdir('spec/fixtures/references')
 	})
 
@@ -334,6 +336,7 @@ describe('parser', () => {
 	})
 
 	describe('matchReferences', () => {
+		beforeEach(() => resetCache())
 		const entities = scan('ddl')
 			.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
 			.map((file) => entityFromFile(file))
@@ -341,7 +344,16 @@ describe('parser', () => {
 
 		it('should match all references', () => {
 			let result = matchReferences(entities)
-			fs.writeFileSync('references.json', JSON.stringify(result, null, 2))
+			let expected = JSON.parse(fs.readFileSync('references.json', 'utf8'))
+			for (let i = 0; i < result.length; i++)
+				expect(result[i]).toEqual(expected[i])
+		})
+
+		it('should identify installed extension entities', () => {
+			const result = matchReferences(entities, ['uuid-ossp'])
+			let expected = JSON.parse(fs.readFileSync('exclusions.json', 'utf8'))
+			for (let i = 0; i < result.length; i++)
+				expect(result[i]).toEqual(expected[i])
 		})
 	})
 })
