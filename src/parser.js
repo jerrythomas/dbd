@@ -23,7 +23,7 @@ const TABLE_REF_PATTERN =
 	TABLE_ALIAS_PATTERN
 
 const PATTERNS = {
-	ALIAS_TYPE: /(\s+as\s+)$/i,
+	ALIAS_TYPE: /(\s+(as|recursive)\s+)$/i,
 	TABLE_TYPE: /\b(from|join|update|into|on|references)\s$/i,
 	ENTITY_TYPE: /\bcreate.*(procedure|function|view|table)\s/i
 }
@@ -47,7 +47,6 @@ export function extractEntityType(input) {
 	let match = PATTERNS.ENTITY_TYPE.exec(input)
 	if (match) return match[1]
 
-	// pattern
 	match = PATTERNS.TABLE_TYPE.exec(input)
 	if (match) return 'table/view'
 	match = PATTERNS.ALIAS_TYPE.exec(input)
@@ -69,15 +68,32 @@ export function extractSearchPaths(content, defaultPath = 'public') {
 	return [defaultPath]
 }
 
+export function extractWithAliases(sqlScript) {
+	const pattern = new RegExp(
+		`with\\s*(recursive)\\s+${ENTITY_GROUP}\\s+as`,
+		'gim'
+	)
+	let aliases = new Set([])
+	let match
+	while ((match = pattern.exec(sqlScript)) !== null) {
+		const { name } = match.groups
+		aliases.add(name)
+	}
+	return Array.from(aliases)
+}
+
 export function extractTableReferences(sqlScript) {
 	const pattern = new RegExp(TABLE_REF_PATTERN, 'gim')
 	let tableReferences = new Set()
 	let match
+	let aliases = extractWithAliases(sqlScript)
 
 	while ((match = pattern.exec(sqlScript)) !== null) {
 		const { schema, name } = match.groups
-		const fullName = schema ? schema + '.' + name : name
-		tableReferences.add(fullName)
+		if (!aliases.includes(name)) {
+			const fullName = schema ? schema + '.' + name : name
+			tableReferences.add(fullName)
+		}
 	}
 
 	return Array.from(tableReferences)

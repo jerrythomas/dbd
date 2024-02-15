@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeAll, beforeEach } from 'bun:test'
 import { chdir, cwd } from 'process'
 import {
+	extractWithAliases,
 	extractReferences,
 	extractSearchPaths,
 	extractTableReferences,
@@ -20,6 +21,13 @@ describe('parser', () => {
 	beforeAll(() => {
 		resetCache()
 		chdir('spec/fixtures/references')
+	})
+
+	describe('extractWithAliases', () => {
+		const script =
+			'with recursive cte as (select * from table1) select * from cte;'
+		const aliases = extractWithAliases(script)
+		expect(aliases).toEqual(['cte'])
 	})
 
 	describe('extractFunctionCalls', () => {

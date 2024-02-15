@@ -62,7 +62,11 @@ export const internals = {
 			'initcap',
 			'check',
 			'using',
-			'unique'
+			'unique',
+			'and',
+			'or',
+			'nullif',
+			'if'
 
 			// And many more as needed...
 		]
@@ -94,7 +98,9 @@ export const internals = {
 			'string_agg',
 			'unnest',
 			'initcap',
-			'extract'
+			'extract',
+			'conflict'
+			// 'cte'
 			// Add more specific functions as necessary
 		]
 	}
