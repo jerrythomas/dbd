@@ -35,14 +35,25 @@ prog
 
 prog
 	.command('inspect')
+	.option('-n, --name', 'Name of specific entity to inspect.')
 	.describe('Inspect the current folder.')
 	.example('dbd inspect')
 	.action((opts) => {
-		const issues = using(opts.config, opts.database).validate().report()
+		const { entity, issues } = using(opts.config, opts.database)
+			.validate()
+			.report(opts.name)
+
+		if (entity) console.log(JSON.stringify(entity, null, 2))
+
 		if (issues.length > 0) {
-			issues.map((entity) => {
-				console.log('\n', entity.file, '=>\n ', entity.errors.join('\n  '))
-			})
+			issues.map((entity) =>
+				console.log(
+					'\n',
+					entity.file ? entity.file : entity.name,
+					'=>\n ',
+					entity.errors.join('\n  ')
+				)
+			)
 		} else {
 			console.log('Everything looks ok')
 		}

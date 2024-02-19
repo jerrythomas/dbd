@@ -32,7 +32,7 @@ class Design {
 		this.#config.extensions = this.#config.extensions ?? []
 		this.#config.roles = organize(config.roles)
 		this.#config.entities = organize(config.entities)
-		// console.log(this.#config.entities.length)
+
 		this.#entities = [
 			...this.#config.schemas.map((schema) => entityFromSchemaName(schema)),
 			...this.#config.extensions.map((item) =>
@@ -80,10 +80,11 @@ class Design {
 			})
 
 		this.#isValidated = true
+		// fs.writeFileSync('dbd-cache.json', JSON.stringify(this, null, 2))
 		return this
 	}
 
-	report() {
+	report(name) {
 		if (!this.isValidated) this.validate()
 		const issues = [
 			...this.entities.filter(
@@ -92,9 +93,9 @@ class Design {
 			...this.importTables.filter(
 				(table) => table.errors && table.errors.length > 0
 			)
-		]
-
-		return issues
+		].filter((entity) => !name || entity.name === name)
+		const entity = this.entities.filter((entity) => entity.name === name).pop()
+		return { entity, issues }
 	}
 
 	async apply(name, dryRun = false) {
@@ -205,8 +206,10 @@ class Design {
 
 	importData(name) {
 		if (!this.isValidated) this.validate()
+
 		this.importTables
 			.filter((entity) => !entity.errors)
+			.filter((entity) => this.config.import.tables.includes(entity.name))
 			.filter((entity) => !name || entity.name === name || entity.file === name)
 			.map((table) => {
 				fs.writeFileSync('_import.sql', importScriptForEntity(table))

@@ -58,7 +58,7 @@
     "references": [
       {
         "name": "uuid_generate_v4",
-        "type": "internal"
+        "type": "extension"
       },
       {
         "name": "config.lookup_values",
@@ -78,7 +78,7 @@
     "references": [
       {
         "name": "uuid_generate_v4",
-        "type": "internal"
+        "type": "extension"
       },
       {
         "name": "config.lookups",
@@ -98,7 +98,7 @@
     "references": [
       {
         "name": "uuid_generate_v4",
-        "type": "internal"
+        "type": "extension"
       }
     ],
     "errors": [],

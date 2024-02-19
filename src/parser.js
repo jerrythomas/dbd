@@ -6,12 +6,13 @@ import { isInternal } from './exclusions.js'
 const TYPES_GROUP = '(?<type>procedure|function|view|table)'
 const SCHEMA_GROUP = '((?<schema>[a-zA-Z_][a-zA-Z0-9_]*)?\\.)?'
 const ENTITY_GROUP = '(?<name>[a-zA-Z_][a-zA-Z0-9_]*)'
-const TABLE_ALIAS_PATTERN = '(\\s+(as\\s+)?(?<alias>[a-zA-Z_][a-zA-Z0-9_]*))?$'
+const TABLE_ALIAS_PATTERN =
+	'(\\s*;?|(\\s+((as\\s+)?(?<alias>[a-zA-Z_][a-zA-Z0-9_]*))?))$'
 
 const CREATE_ENTITY_PATTERN =
-	'create\\s+(or\\s+replace\\s*)?' +
+	'create\\s+(or\\s+replace\\s+)?' +
 	TYPES_GROUP +
-	'\\s+(if\\s+not\\s+exists\\s+)?' +
+	'\\s*(if\\s+not\\s+exists\\s+)?' +
 	SCHEMA_GROUP +
 	ENTITY_GROUP
 const FUNCTION_CALL_PATTERN =
@@ -169,6 +170,7 @@ export function matchReferences(entities, extensions = []) {
 			references,
 			refers: references
 				.filter((r) => !r.error)
+				.filter((r) => r.type !== 'extension')
 				.filter((r) => allowedTypes.includes(r.type))
 				.map((r) => r.name)
 		}
@@ -182,12 +184,12 @@ export function findEntityByName(
 	extensions = []
 ) {
 	let matched
-
-	if (isInternal(name, extensions)) return { name, type: 'internal' }
+	let internalType = isInternal(name, extensions)
+	if (internalType) return { name, type: internalType }
 
 	if (name.indexOf('.') > 0) {
-		if (isInternal(name.split('.').pop(), extensions))
-			return { name, type: 'internal' }
+		internalType = isInternal(name.split('.').pop(), extensions)
+		if (internalType) return { name, type: internalType }
 
 		matched = lookup[name]
 		return matched

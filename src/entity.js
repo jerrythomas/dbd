@@ -216,7 +216,7 @@ export function validateEntityFile(entity, ddl = true) {
 			errors.push('Use fully qualified name <schema>.<name>')
 		}
 		if (!entity.file) {
-			errors.push('File missing for entity')
+			errors.push('File missing for import entity')
 		}
 	}
 	if (entity.references && entity.references.length > 0) {

@@ -136,14 +136,14 @@ dataFiles:
     input:
       file: import/staging/test.json
     output:
-    - name: genders
+      - name: genders
     message: Should read data from json
   csv:
     input:
       file: import/staging/lookup.csv
     output:
-    - name: genders
-    - name: roles
+      - name: genders
+      - name: roles
     message: Should read data from csv
 
 validations:
@@ -203,9 +203,9 @@ validations:
       type: table
       name: test
       errors:
-      - Use fully qualified name <schema>.<name>
-      - File missing for entity
-    message: File missing for entity
+        - Use fully qualified name <schema>.<name>
+        - File missing for import entity
+    message: File missing for import entity
   - input:
       entity:
         type: table
@@ -217,7 +217,7 @@ validations:
       name: test.missing
       file: ddl/test/missing.ddl
       errors:
-      - File does not exist
+        - File does not exist
     message: File does not exist
   - input:
       entity:
@@ -230,7 +230,7 @@ validations:
       name: test.invalid
       file: ddl/test/invalid.sql
       errors:
-      - Unsupported file type for ddl
+        - Unsupported file type for ddl
     message: Unsupported file type for ddl
   - input:
       entity:
@@ -243,8 +243,8 @@ validations:
       name: test
       file: import/other/invalid.ddl
       errors:
-      - Use fully qualified name <schema>.<name>
-      - Unsupported data format
+        - Use fully qualified name <schema>.<name>
+        - Unsupported data format
     message: Unsupported data format
   - input:
       entity:
@@ -275,7 +275,7 @@ importScripts:
       name: staging.lookup
       file: lookup.csv
       format: csv
-      nullValue: "NULL"
+      nullValue: 'NULL'
       truncate: true
     output: |-
       truncate table staging.lookup;
@@ -294,7 +294,6 @@ importScripts:
       call staging.import_jsonb_to_table('_temp', 'staging.test');
       drop table if exists _temp;
     message: Should override truncate option when provided
-
 
 exportScripts:
   - input:

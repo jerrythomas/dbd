@@ -1,6 +1,6 @@
 let cache = {
 	internal: [],
-	ignore: []
+	extension: []
 }
 
 export const extensions = {
@@ -99,8 +99,8 @@ export const internals = {
 			'unnest',
 			'initcap',
 			'extract',
-			'conflict'
-			// 'cte'
+			'conflict',
+			'date_part'
 			// Add more specific functions as necessary
 		]
 	}
@@ -113,7 +113,7 @@ export const internals = {
  * @returns {boolean} - True if the input is a known ANSI SQL function
  */
 export function isAnsiiSQL(input) {
-	return internals.ansii.entities.includes(input)
+	return internals.ansii.entities.includes(input) ? 'internal' : null
 }
 
 /**
@@ -130,13 +130,14 @@ export function isPostgres(input) {
 			matched = regex.test(input)
 		}
 	}
-	return matched
+	return matched ? 'internal' : null
 }
 
 /**
  * Checks if the input is a known extension function
  *
  * @param {string} input - The input to check
+ * @param {string} schema - The schema in which extension is expected to be found
  * @param {string[]} installed - The list of installed extensions
  * @returns {boolean} - True if the input is a known extension function
  */
@@ -154,7 +155,8 @@ export function isExtension(input, installed = []) {
 			}
 		}
 	}
-	return matched
+
+	return matched ? 'extension' : null
 }
 
 /**
@@ -167,19 +169,18 @@ export function isExtension(input, installed = []) {
 export function isInternal(input, installed = []) {
 	const lowerInput = input.toLowerCase()
 
-	if (cache.ignore.includes(lowerInput)) return false
-	if (cache.internal.includes(lowerInput)) return true
+	if (cache.internal.includes(lowerInput)) return 'internal'
+	if (cache.extension.includes(lowerInput)) return 'extension'
 
 	let matched =
 		isAnsiiSQL(lowerInput) ||
 		isPostgres(lowerInput) ||
 		isExtension(lowerInput, installed)
 
-	if (matched) {
-		cache.internal.push(input)
-	} else if (installed.length > 0) {
-		// todo: ensure that metadata calls includes extensions so that we can cache the negative result
-		cache.ignore.push(input)
+	if (matched === 'internal') {
+		cache.internal.push(lowerInput)
+	} else if (matched === 'extension') {
+		cache.extension.push(lowerInput)
 	}
 
 	return matched
@@ -200,6 +201,6 @@ export function getCache() {
 export function resetCache() {
 	cache = {
 		internal: [],
-		ignore: []
+		extension: []
 	}
 }

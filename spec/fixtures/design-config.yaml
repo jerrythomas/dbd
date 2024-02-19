@@ -108,7 +108,7 @@ entities:
     refers: []
     references:
       - name: uuid_generate_v4
-        type: internal
+        type: extension
     searchPaths:
       - config
       - extensions
@@ -121,7 +121,7 @@ entities:
       - config.lookups
     references:
       - name: uuid_generate_v4
-        type: internal
+        type: extension
       - name: config.lookups
         type: table
         schema: config

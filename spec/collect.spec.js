@@ -198,19 +198,19 @@ describe('collect', async () => {
 			{
 				type: 'table',
 				name: 'core.lookups',
-				errors: ['File missing for entity']
+				errors: ['File missing for import entity']
 			},
 			{
 				type: 'table',
 				name: 'staging.lookup_values',
-				errors: ['File missing for entity']
+				errors: ['File missing for import entity']
 			},
 			{
 				type: 'table',
 				name: 'no_schema',
 				errors: [
 					'Use fully qualified name <schema>.<name>',
-					'File missing for entity'
+					'File missing for import entity'
 				]
 			},
 			{
@@ -233,7 +233,7 @@ describe('collect', async () => {
 			{
 				type: 'table',
 				name: 'core.lookup_values',
-				errors: ['File missing for entity']
+				errors: ['File missing for import entity']
 			}
 		])
 
@@ -299,7 +299,7 @@ describe('collect', async () => {
 				'Entities should match'
 			)
 		}
-		expect(dx.report()).toEqual([])
+		expect(dx.report()).toEqual({ entity: undefined, issues: [] })
 	})
 
 	it('Should import data using psql', async () => {
@@ -378,8 +378,6 @@ describe('collect', async () => {
 		using('design.yaml', context.databaseURL).importData(
 			'staging.lookup_values'
 		)
-		// context.logger.restore()
-		// console.log(context.logger.infos)
 		expect(context.logger.infos).toEqual([
 			'Importing staging.lookup_values',
 			'Processing import/loader.sql'
@@ -464,18 +462,30 @@ describe('collect', async () => {
 	})
 
 	it('Should report zero issues in example', () => {
-		let issues = using('design.yaml', context.databaseURL).validate().report()
-		expect(issues).toEqual([])
-		issues = using('design.yaml', context.databaseURL).report()
-		expect(issues).toEqual([])
+		let result = using('design.yaml', context.databaseURL).validate().report()
+		expect(result).toEqual({ entity: undefined, issues: [] })
+		result = using('design.yaml', context.databaseURL).report()
+		expect(result).toEqual({ entity: undefined, issues: [] })
+	})
+
+	it('should generate report for individual entity', () => {
+		process.chdir('../spec/fixtures/references')
+		const issues = JSON.parse(fs.readFileSync('issues.json'))
+		const other = JSON.parse(fs.readFileSync('references.json'))
+
+		const dx = using('design.yaml', context.databaseURL).validate()
+
+		let result = dx.report('staging.import_jsonb_to_table')
+		expect(result).toEqual({ entity: issues[0], issues: [issues[0]] })
+		result = dx.report('staging.import_lookups')
+		expect(result).toEqual({ entity: other[0], issues: [] })
 	})
 
 	it.only('Should list issues in report', () => {
-		// context.logger.restore()
 		process.chdir('../spec/fixtures/references')
 		const expected = JSON.parse(fs.readFileSync('issues.json'))
-		const issues = using('design.yaml', context.databaseURL).validate().report()
-		// fs.writeFileSync('issues.json', JSON.stringify(issues, null, 2))
-		expect(issues).toEqual(expected)
+		const result = using('design.yaml', context.databaseURL).validate().report()
+		expect(result.issues).toEqual(expected)
+		expect(result.entity).toBeUndefined()
 	})
 })
