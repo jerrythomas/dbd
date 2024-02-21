@@ -6,6 +6,7 @@ importTables:
     format: csv
     nullValue: ''
     truncate: true
+    listed: true
     errors:
       - Import is only allowed for staging schemas
 
@@ -15,6 +16,7 @@ importTables:
     format: csv
     nullValue: ''
     truncate: true
+    listed: true
     errors:
       - File missing for import entity
       - Import is only allowed for staging schemas
@@ -25,6 +27,7 @@ importTables:
     format: csv
     nullValue: null
     truncate: false
+    listed: true
     errors:
       - File missing for import entity
 

@@ -76,6 +76,7 @@
     "nullValue": "",
     "truncate": true,
     "schema": "core",
+    "listed": true,
     "errors": [
       "File missing for import entity",
       "Import is only allowed for staging schemas"
@@ -88,6 +89,7 @@
     "nullValue": "",
     "truncate": true,
     "schema": "core",
+    "listed": true,
     "errors": [
       "File missing for import entity",
       "Import is only allowed for staging schemas"
@@ -100,6 +102,7 @@
     "nullValue": null,
     "truncate": false,
     "schema": "staging",
+    "listed": true,
     "errors": ["File missing for import entity"]
   }
 ]

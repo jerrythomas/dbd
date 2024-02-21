@@ -76,6 +76,7 @@ export function entityFromImportConfig(item, opts = defaultImportOptions) {
 	return {
 		type: 'import',
 		...entity,
+		listed: true,
 		schema: entity.name.split('.')[0]
 	}
 }
@@ -198,7 +199,7 @@ export async function dataFromEntity(entity) {
  * @param {Entity} entity
  * @returns
  */
-export function validateEntityFile(entity, ddl = true) {
+export function validateEntityFile(entity, ddl = true, ignore = []) {
 	let errors = []
 	ddl = ddl && entity.type !== 'import'
 
@@ -218,9 +219,13 @@ export function validateEntityFile(entity, ddl = true) {
 		if (!entity.file) {
 			errors.push('File missing for import entity')
 		}
+		if (!ddl && !entity.listed) {
+			errors.push('Files is not listed and will be ignored during import')
+		}
 	}
 	if (entity.references && entity.references.length > 0) {
 		entity.references
+			.filter((ref) => !ignore.includes(ref.name))
 			.filter((ref) => ref.error)
 			.map((ref) => errors.push(ref.error))
 	}

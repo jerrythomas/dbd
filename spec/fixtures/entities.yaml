@@ -244,6 +244,7 @@ validations:
       file: import/other/invalid.ddl
       errors:
         - Use fully qualified name <schema>.<name>
+        - Files is not listed and will be ignored during import
         - Unsupported data format
     message: Unsupported data format
   - input:
@@ -256,6 +257,8 @@ validations:
       type: table
       name: staging.lookup
       file: import/staging/lookup.csv
+      errors:
+        - Files is not listed and will be ignored during import
     message: No errors in this entity
 
 importScripts:

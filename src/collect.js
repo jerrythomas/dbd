@@ -67,7 +67,9 @@ class Design {
 		const allowedSchemas = this.#config.project.staging
 
 		this.#roles = this.config.roles.map((role) => validateEntityFile(role))
-		this.#entities = this.entities.map((entity) => validateEntityFile(entity))
+		this.#entities = this.entities.map((entity) =>
+			validateEntityFile(entity, true, this.config.ignore)
+		)
 		this.#importTables = this.importTables
 			.map((entity) => validateEntityFile(entity, false))
 			.map((entity) => {
@@ -101,7 +103,9 @@ class Design {
 	async apply(name, dryRun = false) {
 		const TMP_SCRIPT = '_temp.ddl'
 		if (!this.isValidated) this.validate()
-
+		this.entities
+			.filter((entity) => entity.file === 'import/staging/config_journeys.ddl')
+			.map((entity) => console.log(entity))
 		if (dryRun) {
 			this.entities.map((entity) => {
 				const using =
@@ -209,7 +213,6 @@ class Design {
 
 		this.importTables
 			.filter((entity) => !entity.errors)
-			.filter((entity) => this.config.import.tables.includes(entity.name))
 			.filter((entity) => !name || entity.name === name || entity.file === name)
 			.map((table) => {
 				fs.writeFileSync('_import.sql', importScriptForEntity(table))
@@ -217,6 +220,7 @@ class Design {
 				execSync(`psql ${this.databaseURL} < _import.sql`)
 				fs.unlinkSync('_import.sql')
 			})
+
 		this.config.import.after.map((file) => {
 			console.info(`Processing ${file}`)
 			execSync(`psql ${this.databaseURL} < ${file}`)

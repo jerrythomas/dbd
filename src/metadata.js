@@ -147,16 +147,7 @@ export function organize(data) {
 			(obj, entity) => ((obj[entity] = { name: entity, refers: [] }), obj),
 			{}
 		)
-	// console.log(
-	// 	data.map((x) => {
-	// 		if (x.name === 'staging.migrate_accounts_and_teams')
-	// 			console.log('undefined references', x.references)
-	// 	})
-	// )
-	// console.log(
-	// 	'refs',
-	// 	data.flatMap((x) => x.refers)
-	// )
+
 	lookup = { ...lookup, ...missing }
 
 	return [].concat.apply([], regroup(lookup)).map((x) => lookup[x])

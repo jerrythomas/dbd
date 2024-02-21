@@ -84,15 +84,13 @@ export const internals = {
 			'^jsonb_', // JSON processing functions
 			'^xml_', // XML processing functions
 			'^regexp_', // Regular expression functions
-			'^lo_' // Large object functions
+			'^lo_', // Large object functions
+			'^current_' // current_setting, date, time, timestamp, user etc
 			// And others as specific to PostgreSQL's extensions and unique functionalities
 		],
 		entities: [
 			'varying',
 			'now',
-			'current_date',
-			'current_time',
-			'current_timestamp',
 			'localtime',
 			'localtimestamp',
 			'string_agg',

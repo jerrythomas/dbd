@@ -29,29 +29,6 @@ roles:
     refers:
       - basic
   - name: basic
-# tables:
-#   - name: config.lookups
-#   - name: config.lookup_values
-#     refers:
-#       - config.lookups
-#   - name: staging.lookup_values
-
-# views:
-#   - name: config.genders
-#     refers:
-#     - config.lookups
-#     - config.lookup_values
-#   - name: migrate.lookup_values
-#     refers:
-#     - config.lookups
-#     - config.lookup_values
-
-# procedures:
-#   - name: staging.import_lookups
-#     refers:
-#       - config.lookup_values
-#       - config.lookups
-#       - staging.lookup_values
 
 import:
   options:

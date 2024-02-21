@@ -85,6 +85,7 @@ describe('entity', () => {
 			schema: 'staging',
 			format: 'csv',
 			nullValue: '',
+			listed: true,
 			truncate: true
 		})
 	})
@@ -99,6 +100,7 @@ describe('entity', () => {
 			schema: 'staging',
 			format: 'json',
 			nullValue: '',
+			listed: true,
 			truncate: true
 		})
 	})
@@ -113,6 +115,7 @@ describe('entity', () => {
 			schema: 'staging',
 			format: 'csv',
 			nullValue: '',
+			listed: true,
 			truncate: false
 		})
 	})
@@ -127,6 +130,7 @@ describe('entity', () => {
 			schema: 'staging',
 			format: 'csv',
 			nullValue: 'NULL',
+			listed: true,
 			truncate: true
 		})
 	})
