@@ -66,7 +66,8 @@ export const internals = {
 			'and',
 			'or',
 			'nullif',
-			'if'
+			'if',
+			'array'
 
 			// And many more as needed...
 		]
