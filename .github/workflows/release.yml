@@ -1,44 +1,22 @@
 name: Release
+
 on:
   push:
-    branches:
-      - main
-      - next
-      - develop
+    tags:
+      - 'v*'
+
 jobs:
   release:
-    name: Release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v1
+      - uses: actions/setup-node@v3
         with:
-          node-version: 16
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - name: Install dependencies
-        run: pnpm i
+          node-version: 18.x
 
-      - name: Run tests
-        run: pnpm test
-      - name: Release
+      - run: npx changelogithub
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
-        run: |
-          git config --global user.email "me@jerrythomas.name"
-          git config --global user.name "Jerry Thomas"
-          npm config set //registry.npmjs.org/:_authToken $NPM_TOKEN
-          if [ "$BRANCH_NAME" = "main" ]; then
-             pnpm release
-          else
-             pnpm release --preRelease=next
-          fi
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
