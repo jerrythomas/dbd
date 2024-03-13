@@ -206,5 +206,5 @@ export function findEntityByName(
 				name,
 				type,
 				error: `Reference ${name} not found in [${searchPaths.join(', ')}]`
-			}
+		  }
 }

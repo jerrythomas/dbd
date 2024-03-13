@@ -2,35 +2,35 @@ project:
   name: Example
   database: PostgreSQL
   staging:
-  - staging
+    - staging
   dbdocs:
     exclude:
       schemas:
         - staging
       tables: []
 schemas:
-- core
-- staging
+  - core
+  - staging
 extensions:
-- uuid-ossp
+  - uuid-ossp
 
 tables:
   - name: core.lookups
   - name: core.lookup_values
     refers:
-    - core.lookups
+      - core.lookups
   - name: staging.lookup_values
   - name: no_schema
 
 import:
   tables:
-  - core.lookup_values
-  - core.lookups
-  - staging.lookup:
-      nullValue: NULL
-      truncate: false
+    - core.lookup_values
+    - core.lookups
+    - staging.lookup:
+        nullValue: NULL
+        truncate: false
   after:
-  - import/loader.sql
+    - import/loader.sql
 export:
   - core.lookups
   - core.lookup_values
