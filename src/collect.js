@@ -76,7 +76,7 @@ class Design {
 				if (!allowedSchemas.includes(entity.schema))
 					entity.errors = [
 						...(entity.errors || []),
-						`Import is only allowed for staging schemas`
+						"Import is only allowed for staging schemas"
 					]
 				return entity
 			})
