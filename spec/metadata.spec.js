@@ -21,12 +21,13 @@ describe('metadata', () => {
 	})
 
 	it('Should fetch all files in path', () => {
-		expect(scan('ddl')).toEqual([
-			'ddl/procedure/staging/import_lookups.ddl',
+		const files = scan('ddl').sort()
+		expect(files).toEqual([
 			'ddl/procedure/staging/import_jsonb_to_table.ddl',
-			'ddl/table/staging/lookup_values.ddl',
+			'ddl/procedure/staging/import_lookups.ddl',
 			'ddl/table/config/lookup_values.ddl',
 			'ddl/table/config/lookups.ddl',
+			'ddl/table/staging/lookup_values.ddl',
 			'ddl/view/config/genders.ddl',
 			'ddl/view/migrate/lookup_values.ddl'
 		])
@@ -179,7 +180,8 @@ describe('metadata', () => {
 
 	it('Should add missing roles, schemas and entities', () => {
 		let data = clean(context.clean.input)
-
+		data.entities.sort((a, b) => a.name.localeCompare(b.name))
+		context.clean.output.entities.sort((a, b) => a.name.localeCompare(b.name))
 		for (let i = 0; i < data.entities.length; i++)
 			expect(data.entities[i]).toEqual(context.clean.output.entities[i])
 	})

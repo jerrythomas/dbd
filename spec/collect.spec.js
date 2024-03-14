@@ -57,6 +57,8 @@ describe('collect', async () => {
 		expect(dx.config.import).toEqual(config.import, 'Import config should match')
 		expect(dx.config.roles).toEqual(context.collect.config.roles, 'Roles config should match')
 
+		context.collect.entities.sort((a, b) => a.name.localeCompare(b.name))
+		dx.entities.sort((a, b) => a.name.localeCompare(b.name))
 		for (let i = 0; i < dx.entities.length; i++) {
 			expect(dx.entities[i]).toEqual(context.collect.entities[i], 'Entities should match')
 		}
@@ -252,7 +254,8 @@ describe('collect', async () => {
 
 		expect(dx.isValidated).toBeTruthy()
 		expect(dx.roles).toEqual(context.collect.roles)
-		// expect(dx.entities).toEqual(context.collect.entities)
+		dx.entities.sort((a, b) => a.name.localeCompare(b.name))
+		context.collect.entities.sort((a, b) => a.name.localeCompare(b.name))
 		for (let i = 0; i < dx.entities.length; i++) {
 			expect(dx.entities[i]).toEqual(context.collect.entities[i], 'Entities should match')
 		}
