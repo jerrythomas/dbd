@@ -1,4 +1,4 @@
-name: Automated Test
+name: Coverage
 
 on:
   push:
@@ -10,11 +10,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: oven-sh/setup-bun@v1
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
+      - name: Install Dependencies
+        env:
+          BUN_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: bun install --frozen-lockfile
       - name: Run tests
-        run: bun run test:unit
+        run: bun coverage
       # - name: Test & publish code coverage
       #   uses: paambaati/codeclimate-action@v3.0.0
       #   env:
