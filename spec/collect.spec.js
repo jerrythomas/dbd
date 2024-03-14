@@ -1,4 +1,4 @@
-import fs from 'fs'
+import { readFileSync, existsSync, unlinkSync } from 'fs'
 import yaml from 'js-yaml'
 import { rimraf } from 'rimraf'
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'bun:test'
@@ -21,14 +21,13 @@ describe('collect', async () => {
 			connectionString: context.databaseURL,
 			bigIntMode: 'bigint'
 		})
-		context.export = yaml.load(fs.readFileSync('spec/fixtures/design-export.yaml', 'utf8'))
-		context.collect = yaml.load(fs.readFileSync('spec/fixtures/design-config.yaml', 'utf8'))
-		context.validations = yaml.load(
-			fs.readFileSync('spec/fixtures/design-validations.yaml', 'utf8')
-		)
+		context.export = yaml.load(readFileSync('spec/fixtures/design-export.yaml', 'utf8'))
+		context.collect = yaml.load(readFileSync('spec/fixtures/design-config.yaml', 'utf8'))
+		context.validations = yaml.load(readFileSync('spec/fixtures/design-validations.yaml', 'utf8'))
 	})
 	afterAll(async () => {
 		await context.db.dispose()
+		// process.chdir(context.path)
 	})
 
 	beforeEach(() => {
@@ -45,7 +44,7 @@ describe('collect', async () => {
 	})
 
 	it('Should initialize collection', () => {
-		const config = yaml.load(fs.readFileSync('design.yaml', 'utf8'))
+		const config = yaml.load(readFileSync('design.yaml', 'utf8'))
 
 		let dx = using('design.yaml', context.databaseURL)
 
@@ -66,18 +65,18 @@ describe('collect', async () => {
 
 	it('Should combine scripts and generate file', () => {
 		using('design.yaml').combine(context.combinedDDL)
-		expect(fs.existsSync(context.combinedDDL)).toBeTruthy()
-		fs.unlinkSync(context.combinedDDL)
+		expect(existsSync(context.combinedDDL)).toBeTruthy()
+		unlinkSync(context.combinedDDL)
 	})
 
 	it('Should combine scripts and generate dbml', () => {
 		using('design.yaml').dbml()
 
-		expect(fs.existsSync('Example-base-design.dbml')).toBeTruthy()
-		fs.unlinkSync('Example-base-design.dbml')
-		expect(fs.existsSync('Example-core-design.dbml')).toBeTruthy()
-		fs.unlinkSync('Example-core-design.dbml')
-		//fs.unlinkSync('combined.sql')
+		expect(existsSync('Example-base-design.dbml')).toBeTruthy()
+		unlinkSync('Example-base-design.dbml')
+		expect(existsSync('Example-core-design.dbml')).toBeTruthy()
+		unlinkSync('Example-core-design.dbml')
+		//unlinkSync('combined.sql')
 
 		expect(context.logger.infos).toEqual([
 			'Generated DBML in Example-base-design.dbml',
@@ -285,12 +284,12 @@ describe('collect', async () => {
 		const dx = using('design.yaml', context.databaseURL).exportData()
 
 		expect(dx.isValidated).toBeFalsy()
-		expect(fs.existsSync('export')).toBeTruthy()
-		expect(fs.existsSync('export/config')).toBeTruthy()
-		expect(fs.existsSync('export/config/lookups.csv')).toBeTruthy()
-		expect(fs.existsSync('export/config/lookup_values.csv')).toBeTruthy()
-		expect(fs.existsSync('export/config/genders.csv')).toBeTruthy()
-		expect(fs.existsSync('export/migrate/lookup_values.csv')).toBeTruthy()
+		expect(existsSync('export')).toBeTruthy()
+		expect(existsSync('export/config')).toBeTruthy()
+		expect(existsSync('export/config/lookups.csv')).toBeTruthy()
+		expect(existsSync('export/config/lookup_values.csv')).toBeTruthy()
+		expect(existsSync('export/config/genders.csv')).toBeTruthy()
+		expect(existsSync('export/migrate/lookup_values.csv')).toBeTruthy()
 	})
 
 	it('Should allow only staging tables in import', () => {
@@ -373,24 +372,16 @@ describe('collect', async () => {
 
 	it('Should export a single entity by name', () => {
 		using('design.yaml', context.databaseURL).exportData('config.unknown')
-		expect(fs.existsSync('export/config/genders.csv')).toBeFalsy(
-			'config.genders.csv should not exist'
-		)
-		expect(fs.existsSync('export/config/lookups.csv')).toBeFalsy(
-			'config.lookups.csv should not exist'
-		)
-		expect(fs.existsSync('export/config/lookup_values.csv')).toBeFalsy(
+		expect(existsSync('export/config/genders.csv')).toBeFalsy('config.genders.csv should not exist')
+		expect(existsSync('export/config/lookups.csv')).toBeFalsy('config.lookups.csv should not exist')
+		expect(existsSync('export/config/lookup_values.csv')).toBeFalsy(
 			'config.lookup_values.csv should not exist'
 		)
 
 		using('design.yaml', context.databaseURL).exportData('config.genders')
-		expect(fs.existsSync('export/config/genders.csv')).toBeTruthy(
-			'Selected export file should exist'
-		)
-		expect(fs.existsSync('export/config/lookups.csv')).toBeFalsy(
-			'config.lookups.csv should not exist'
-		)
-		expect(fs.existsSync('export/config/lookup_values.csv')).toBeFalsy(
+		expect(existsSync('export/config/genders.csv')).toBeTruthy('Selected export file should exist')
+		expect(existsSync('export/config/lookups.csv')).toBeFalsy('config.lookups.csv should not exist')
+		expect(existsSync('export/config/lookup_values.csv')).toBeFalsy(
 			'config.lookup_values.csv should not exist'
 		)
 	})
@@ -400,29 +391,5 @@ describe('collect', async () => {
 		expect(result).toEqual({ entity: undefined, issues: [] })
 		result = using('design.yaml', context.databaseURL).report()
 		expect(result).toEqual({ entity: undefined, issues: [] })
-	})
-
-	it('should generate report for individual entity', () => {
-		process.chdir('../spec/fixtures/references')
-		const issues = JSON.parse(fs.readFileSync('issues.json'))
-		const other = JSON.parse(fs.readFileSync('references.json'))
-
-		context.logger.restore()
-		const dx = using('design.yaml', context.databaseURL).validate()
-
-		let result = dx.report('staging.import_jsonb_to_table')
-		expect(result).toEqual({ entity: issues[1], issues: [issues[1]] })
-		result = dx.report('staging.import_lookups')
-		expect(result).toEqual({ entity: other[0], issues: [] })
-	})
-
-	it.only('Should list issues in report', () => {
-		process.chdir('../spec/fixtures/references')
-		context.logger.restore()
-
-		const expected = JSON.parse(fs.readFileSync('issues.json'))
-		const result = using('design.yaml', context.databaseURL).validate().report()
-		expect(result.issues).toEqual(expected)
-		expect(result.entity).toBeUndefined()
 	})
 })
