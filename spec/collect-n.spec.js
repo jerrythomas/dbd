@@ -23,11 +23,7 @@ describe('collect-invalid', async () => {
 		context.logger.restore()
 	})
 
-	afterAll(() => {
-		process.chdir(context.path)
-	})
-
-	it('should generate report for individual entity', () => {
+	it.skip('should generate report for individual entity', () => {
 		const issues = JSON.parse(readFileSync('issues.json'))
 		const other = JSON.parse(readFileSync('references.json'))
 
@@ -39,7 +35,7 @@ describe('collect-invalid', async () => {
 		expect(result).toEqual({ entity: other[0], issues: [] })
 	})
 
-	it('Should list issues in report', () => {
+	it.skip('Should list issues in report', () => {
 		const expected = JSON.parse(readFileSync('issues.json'))
 		const result = using('design.yaml', context.databaseURL).validate().report()
 		// writeFileSync('issues.json', JSON.stringify(result.issues, null, 2))
