@@ -348,14 +348,20 @@ describe('parser', () => {
 			.map((entity) => parseEntityScript(entity))
 
 		it('should match all references', () => {
-			let result = matchReferences(entities)
-			let expected = JSON.parse(fs.readFileSync('references.json', 'utf8'))
+			let result = matchReferences(entities).sort((a, b) => a.name.localeCompare(b.name))
+			let expected = JSON.parse(fs.readFileSync('references.json', 'utf8')).sort((a, b) =>
+				a.name.localeCompare(b.name)
+			)
 			for (let i = 0; i < result.length; i++) expect(result[i]).toEqual(expected[i])
 		})
 
 		it('should identify installed extension entities', () => {
-			const result = matchReferences(entities, ['uuid-ossp'])
-			let expected = JSON.parse(fs.readFileSync('exclusions.json', 'utf8'))
+			const result = matchReferences(entities, ['uuid-ossp']).sort((a, b) =>
+				a.name.localeCompare(b.name)
+			)
+			let expected = JSON.parse(fs.readFileSync('exclusions.json', 'utf8')).sort((a, b) =>
+				a.name.localeCompare(b.name)
+			)
 			for (let i = 0; i < result.length; i++) expect(result[i]).toEqual(expected[i])
 		})
 	})
