@@ -17,8 +17,8 @@
     "release:next": "release-it --preRelease=next",
     "release": "release-it",
     "test:unit": "bun pg-test && bun test && bun test:clean",
-    "coverage": "bun pg-test && bun test --coverage && bun test:clean",
-    "coverage:lcov": "bun pg-test && bun test --coverage --reporter=lcov && bun test:clean"
+    "coverage:all": "bun pg-test && bun test --coverage && bun test:clean",
+    "coverage": "bun test:nopg --coverage"
   },
   "author": "Jerry Thomas <me@jerrythomas.name>",
   "license": "MIT",
