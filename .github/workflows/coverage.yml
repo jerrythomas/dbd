@@ -18,18 +18,17 @@ jobs:
         env:
           BUN_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: bun install --frozen-lockfile
-      - name: Run tests
-        run: bun coverage
-      # - name: Test & publish code coverage
-      #   uses: paambaati/codeclimate-action@v3.0.0
-      #   env:
-      #     CC_TEST_REPORTER_ID: ef29724f55a8c015f7349da5c7a5807e00e1706c81922b2194514b93bed14397
-      #   with:
-      #     coverageCommand: bun coverage:lcov
-      #     debug: true
-      # - name: Report results to DeepSource
-      #   env:
-      #     DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
-      #   run: |
-      #     curl https://deepsource.io/cli | sh
-      #     ./bin/deepsource report --analyzer test-coverage --key javascript --value-file ./coverage/final.json
+
+      - name: Test & publish code coverage
+        uses: paambaati/codeclimate-action@v3.0.0
+        env:
+          CC_TEST_REPORTER_ID: ef29724f55a8c015f7349da5c7a5807e00e1706c81922b2194514b93bed14397
+        with:
+          coverageCommand: bun coverage
+          debug: true
+      - name: Report results to DeepSource
+        env:
+          DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+        run: |
+          curl https://deepsource.io/cli | sh
+          ./bin/deepsource report --analyzer test-coverage --key javascript --value-file ./coverage/lcov.info

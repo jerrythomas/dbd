@@ -1,7 +1,7 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
 import { readFileSync, existsSync, unlinkSync } from 'fs'
 import yaml from 'js-yaml'
 import { rimraf } from 'rimraf'
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'bun:test'
 import createConnectionPool, { sql } from '@databases/pg'
 import { MockConsole } from '@vanillaes/mock-console'
 import { using } from '../src/collect.js'

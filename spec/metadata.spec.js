@@ -1,6 +1,6 @@
+import { describe, expect, it, beforeAll, beforeEach, afterEach } from 'vitest'
 import fs from 'fs'
 import yaml from 'js-yaml'
-import { describe, expect, it, beforeAll, beforeEach, afterEach } from 'bun:test'
 import { scan, read, merge, clean, regroup, organize } from '../src/metadata.js'
 
 describe('metadata', () => {

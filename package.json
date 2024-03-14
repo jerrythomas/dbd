@@ -12,13 +12,12 @@
     "format": "prettier --write .",
     "pg-test": "docker run --name pg-test -p 5234:5432 -e POSTGRES_PASSWORD=pg-test -d postgres",
     "test:pg": "bun pg-test && bun test ./spec/collect.spec.js && bun test:clean",
-    "test:nopg": "find spec/*.spec.js | grep -v collect | xargs bun test",
+    "test:nopg": "find spec/*.spec.js | grep -v collect | xargs vitest",
     "test:clean": "docker stop pg-test && docker rm pg-test",
     "release:next": "release-it --preRelease=next",
     "release": "release-it",
-    "test:unit": "bun pg-test && bun test && bun test:clean",
-    "coverage:all": "bun test:nopg --coverage && bun pg-test && bun test ./spec/collect.spec.js ./spec/collect-n.spec.js --coverage && bun test:clean",
-    "coverage": "bun test:nopg --coverage"
+    "test:unit": "vitest",
+    "coverage": "bun pg-test && vitest run --coverage && bun test:clean"
   },
   "author": "Jerry Thomas <me@jerrythomas.name>",
   "license": "MIT",
@@ -36,8 +35,11 @@
   },
   "devDependencies": {
     "@vanillaes/mock-console": "^3.0.0",
+    "@vitest/coverage-v8": "^1.3.1",
     "release-it": "^17.0.5",
-    "rimraf": "^5.0.5"
+    "rimraf": "^5.0.5",
+    "vite": "^5.1.6",
+    "vitest": "^1.3.1"
   },
   "exports": {
     "./package.json": "./package.json",

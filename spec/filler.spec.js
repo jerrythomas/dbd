@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest'
 import { fillMissingInfoForEntities } from '../src/filler.js'
 
 describe('filler', () => {

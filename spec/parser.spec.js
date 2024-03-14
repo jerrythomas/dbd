@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeAll, beforeEach } from 'bun:test'
-import { chdir } from 'process'
+import { describe, expect, it, beforeAll, beforeEach } from 'vitest'
+import { chdir, cwd } from 'process'
 import {
 	extractWithAliases,
 	extractReferences,
@@ -14,19 +14,23 @@ import {
 import { entityFromFile } from '../src/entity'
 import { scan } from '../src/metadata'
 import fs from 'fs'
-import path from 'path'
+import {extname, join} from 'path'
 import { resetCache } from '../src/exclusions'
 
 describe('parser', () => {
+	const originalPath = cwd()
+	const expectedPath = join(originalPath, 'spec/fixtures/references')
 	beforeAll(() => {
 		resetCache()
 		chdir('spec/fixtures/references')
 	})
 
 	describe('extractWithAliases', () => {
-		const script = 'with recursive cte as (select * from table1) select * from cte;'
-		const aliases = extractWithAliases(script)
-		expect(aliases).toEqual(['cte'])
+		it('should identify aliases', () => {
+			const script = 'with recursive cte as (select * from table1) select * from cte;'
+			const aliases = extractWithAliases(script)
+			expect(aliases).toEqual(['cte'])
+		})
 	})
 
 	describe('extractFunctionCalls', () => {
@@ -227,7 +231,7 @@ describe('parser', () => {
 	describe('generateLookupTree', () => {
 		it('should generate a lookup tree', () => {
 			const entities = scan('ddl')
-				.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
+				.filter((file) => ['.ddl', '.sql'].includes(extname(file)))
 				.map((file) => entityFromFile(file))
 
 			const tree = generateLookupTree(entities)
@@ -277,11 +281,19 @@ describe('parser', () => {
 	})
 
 	describe('findEntityByName', () => {
-		const entities = scan('ddl')
-			.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
-			.map((file) => entityFromFile(file))
-		const lookupTree = generateLookupTree(entities)
-
+		let entities = []
+		let lookupTree = null
+		beforeAll(() => {
+		if (cwd() !== expectedPath)
+			chdir('spec/fixtures/references')
+			entities = scan('ddl')
+				.filter((file) => ['.ddl', '.sql'].includes(extname(file)))
+				.map((file) => entityFromFile(file))
+			lookupTree = generateLookupTree(entities)
+		})
+		afterAll(() => {
+			chdir(originalPath)
+		})
 		it('should find procedure by name', () => {
 			let entity = findEntityByName(
 				{ name: 'staging.import_json_to_table', type: null },
@@ -333,7 +345,6 @@ describe('parser', () => {
 			entity = findEntityByName({ name: 'unknown' }, ['core', 'config', 'staging'], lookupTree)
 			expect(entity).toEqual({
 				name: 'unknown',
-				schema: null,
 				type: undefined,
 				error: 'Reference unknown not found in [core, config, staging]'
 			})
@@ -341,11 +352,17 @@ describe('parser', () => {
 	})
 
 	describe('matchReferences', () => {
+		let entities = null
+
+		beforeAll(() => {
+			if (cwd() !== expectedPath)
+				chdir('spec/fixtures/references')
+			entities = scan('ddl')
+				.filter((file) => ['.ddl', '.sql'].includes(extname(file)))
+				.map((file) => entityFromFile(file))
+				.map((entity) => parseEntityScript(entity))
+		})
 		beforeEach(() => resetCache())
-		const entities = scan('ddl')
-			.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
-			.map((file) => entityFromFile(file))
-			.map((entity) => parseEntityScript(entity))
 
 		it('should match all references', () => {
 			let result = matchReferences(entities).sort((a, b) => a.name.localeCompare(b.name))

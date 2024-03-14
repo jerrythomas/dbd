@@ -1,9 +1,7 @@
-import { readFileSync, writeFileSync } from 'fs'
-import { rimraf } from 'rimraf'
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'bun:test'
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
+import { readFileSync } from 'fs'
 import { MockConsole } from '@vanillaes/mock-console'
 import { using } from '../src/collect.js'
-import { resetCache } from '../src/exclusions.js'
 
 describe('collect-invalid', async () => {
 	let context = {}
@@ -16,7 +14,6 @@ describe('collect-invalid', async () => {
 
 	beforeEach(() => {
 		context.logger.capture()
-		// resetCache()
 		process.chdir('spec/fixtures/references')
 	})
 
@@ -29,6 +26,7 @@ describe('collect-invalid', async () => {
 	afterAll(() => {
 		process.chdir(context.path)
 	})
+
 	it('should generate report for individual entity', () => {
 		const issues = JSON.parse(readFileSync('issues.json'))
 		const other = JSON.parse(readFileSync('references.json'))

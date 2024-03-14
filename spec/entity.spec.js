@@ -1,6 +1,6 @@
-import { describe, expect, it, beforeAll, beforeEach } from 'bun:test'
-import fs from 'fs'
-import yaml from 'js-yaml'
+import { describe, expect, it, beforeAll, beforeEach } from 'vitest'
+import { readFileSync } from 'fs'
+import { load } from 'js-yaml'
 
 import {
 	entityFromFile,
@@ -21,7 +21,7 @@ describe('entity', () => {
 
 	beforeAll(() => {
 		context.path = process.cwd()
-		const data = yaml.load(fs.readFileSync('spec/fixtures/entities.yaml', 'utf8'))
+		const data = load(readFileSync('spec/fixtures/entities.yaml', 'utf8'))
 		Object.keys(data).map((key) => (context[key] = data[key]))
 	})
 

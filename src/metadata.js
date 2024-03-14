@@ -15,7 +15,7 @@ import { parseEntityScript, matchReferences } from './parser.js'
  * @returns {Array<string>} Array of file paths
  */
 export function scan(root = '.') {
-	const files = readdirSync(root === '.' ? cwd() : root)
+	const files = readdirSync(root)
 	let result = []
 
 	files.map((file) => {
