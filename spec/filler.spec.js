@@ -40,10 +40,7 @@ describe('filler', () => {
 				type
 			}))
 
-			expect(fillMissingInfoForEntities(input)).toEqual(
-				output,
-				`fill missing info for ${type}`
-			)
+			expect(fillMissingInfoForEntities(input)).toEqual(output, `fill missing info for ${type}`)
 			output[type + 's'].map((item, index) =>
 				expect(item.type).toEqual(type, `type should be ${type} at ${index}`)
 			)

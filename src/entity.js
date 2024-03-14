@@ -157,9 +157,7 @@ export function ddlFromEntity(entity) {
  * @returns
  */
 function getRoleScript(entity) {
-	const grants = entity.refers
-		.map((name) => `grant ${name} to ${entity.name};`)
-		.join('\n')
+	const grants = entity.refers.map((name) => `grant ${name} to ${entity.name};`).join('\n')
 
 	const lines = [
 		'DO',
@@ -253,10 +251,7 @@ function validateFiles(entity, ddl) {
 	if (ddl && path.extname(entity.file) !== '.ddl') {
 		errors.push('Unsupported file type for ddl')
 	}
-	if (
-		!ddl &&
-		!['.csv', '.json', '.jsonl'].includes(path.extname(entity.file))
-	) {
+	if (!ddl && !['.csv', '.json', '.jsonl'].includes(path.extname(entity.file))) {
 		errors.push('Unsupported data format')
 	}
 
@@ -271,9 +266,7 @@ export function importScriptForEntity(entity) {
 	if (['json', 'jsonl'].includes(entity.format)) {
 		commands.push('create table if not exists _temp (data jsonb);')
 		commands.push(`\\copy _temp from '${entity.file}';`)
-		commands.push(
-			`call staging.import_jsonb_to_table('_temp', '${entity.name}');`
-		)
+		commands.push(`call staging.import_jsonb_to_table('_temp', '${entity.name}');`)
 		commands.push('drop table if exists _temp;')
 	} else
 		commands.push(
@@ -283,8 +276,7 @@ export function importScriptForEntity(entity) {
 }
 
 export function exportScriptForEntity(entity) {
-	const file =
-		`export/${entity.name.replace('.', path.sep)}.` + (entity.format || 'csv')
+	const file = `export/${entity.name.replace('.', path.sep)}.` + (entity.format || 'csv')
 	if (['json', 'jsonl'].includes(entity.format)) {
 		return `\\copy (select row_to_json(t) from ${entity.name} t) to '${file}';`
 	}
@@ -296,15 +288,9 @@ export function entitiesForDBML(entities, config) {
 
 	const result = entities
 		.filter((entity) => entity.type === 'table')
-		.filter(
-			(entity) => !include.schemas || include.schemas.includes(entity.schema)
-		)
+		.filter((entity) => !include.schemas || include.schemas.includes(entity.schema))
 		.filter((entity) => !include.tables || include.tables.includes(entity.name))
-		.filter(
-			(entity) => !exclude.schemas || !exclude.schemas.includes(entity.schema)
-		)
-		.filter(
-			(entity) => !exclude.tables || !exclude.tables.includes(entity.name)
-		)
+		.filter((entity) => !exclude.schemas || !exclude.schemas.includes(entity.schema))
+		.filter((entity) => !exclude.tables || !exclude.tables.includes(entity.name))
 	return result
 }

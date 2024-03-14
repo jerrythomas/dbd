@@ -17,53 +17,53 @@ items:
     type: table
     name: charlie
     refers:
-    - alpha
+      - alpha
   - &delta
     type: table
     name: delta
     refers:
-    - alpha
-    - beta
+      - alpha
+      - beta
   - &echo
     type: view
     name: echo
     refers:
-    - charlie
+      - charlie
   - &foxtrot
     type: view
     name: foxtrot
     refers:
-    - delta
+      - delta
 
 reorder:
   input:
-  - *foxtrot
-  - *echo
-  - *delta
-  - *alpha
-  - *beta
-  - *charlie
+    - *foxtrot
+    - *echo
+    - *delta
+    - *alpha
+    - *beta
+    - *charlie
   output:
-  - *alpha
-  - *beta
-  - *delta
-  - *charlie
-  - *foxtrot
-  - *echo
+    - *alpha
+    - *beta
+    - *delta
+    - *charlie
+    - *foxtrot
+    - *echo
 
 missing:
   input:
-  - *foxtrot
-  - *echo
-  - *delta
-  - *charlie
+    - *foxtrot
+    - *echo
+    - *delta
+    - *charlie
   output:
-  - *alpha-missing
-  - *beta-missing
-  - *delta
-  - *charlie
-  - *foxtrot
-  - *echo
+    - *alpha-missing
+    - *beta-missing
+    - *delta
+    - *charlie
+    - *foxtrot
+    - *echo
 
 simple:
   input:
@@ -73,12 +73,10 @@ simple:
     delta: *delta
 
   output:
-  -
-    - alpha
-    - beta
-  -
-    - charlie
-    - delta
+    - - alpha
+      - beta
+    - - charlie
+      - delta
 
 complex:
   input:
@@ -90,12 +88,9 @@ complex:
     delta: *delta
 
   output:
-  -
-    - alpha
-    - beta
-  -
-    - charlie
-    - delta
-  -
-    - echo
-    - foxtrot
+    - - alpha
+      - beta
+    - - charlie
+      - delta
+    - - echo
+      - foxtrot

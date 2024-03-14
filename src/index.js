@@ -6,20 +6,14 @@ import { execSync } from 'child_process'
 import { using } from './collect.js'
 
 const location = path.dirname(new URL(import.meta.url).pathname)
-const pkg = JSON.parse(
-	fs.readFileSync(path.join(location, '../package.json'), 'utf8')
-)
+const pkg = JSON.parse(fs.readFileSync(path.join(location, '../package.json'), 'utf8'))
 
 const prog = sade('dbd')
 
 prog
 	.version(pkg.version)
 	.option('-c, --config', 'Provide path to custom config', 'design.yaml')
-	.option(
-		'-d, --database',
-		'Database URL',
-		(process.env.DATABASE_URL || '').replace(/\$/, '\\$')
-	)
+	.option('-d, --database', 'Database URL', (process.env.DATABASE_URL || '').replace(/\$/, '\\$'))
 	.option('-e, --environment', 'Environment to load data', 'development')
 	.option('-p, --preview', 'Preview the action', false)
 
@@ -39,9 +33,7 @@ prog
 	.describe('Inspect the current folder.')
 	.example('dbd inspect')
 	.action((opts) => {
-		const { entity, issues } = using(opts.config, opts.database)
-			.validate()
-			.report(opts.name)
+		const { entity, issues } = using(opts.config, opts.database).validate().report(opts.name)
 
 		if (entity) console.log(JSON.stringify(entity, null, 2))
 

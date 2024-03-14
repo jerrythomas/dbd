@@ -13,7 +13,7 @@ begin
       into type_definition
       from information_schema.columns
      where table_schema = split_part(target, '.', 1)
-		   and table_name   = split_part(target, '.', 2);
+       and table_name   = split_part(target, '.', 2);
 
     -- Construct dynamic SQL for the INSERT operation
     dyn_sql := format(

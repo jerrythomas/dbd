@@ -1,6 +1,6 @@
 set search_path to staging;
 create table if not exists lookup_values(
-	name                     varchar
+  name                     varchar
 , value                    varchar
 , details                  jsonb
 , is_active                boolean

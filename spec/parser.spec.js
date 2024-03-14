@@ -24,8 +24,7 @@ describe('parser', () => {
 	})
 
 	describe('extractWithAliases', () => {
-		const script =
-			'with recursive cte as (select * from table1) select * from cte;'
+		const script = 'with recursive cte as (select * from table1) select * from cte;'
 		const aliases = extractWithAliases(script)
 		expect(aliases).toEqual(['cte'])
 	})
@@ -62,10 +61,7 @@ describe('parser', () => {
 		})
 
 		it('should extract references from create table', () => {
-			const content = fs.readFileSync(
-				'ddl/table/config/lookup_values.ddl',
-				'utf8'
-			)
+			const content = fs.readFileSync('ddl/table/config/lookup_values.ddl', 'utf8')
 			const references = extractReferences(content)
 			expect(references).toEqual([
 				{ name: 'lookup_values', type: 'table/view' },
@@ -75,10 +71,7 @@ describe('parser', () => {
 		})
 
 		it('should exclude built in functions', () => {
-			const content = fs.readFileSync(
-				'ddl/procedure/staging/import_json_to_table.ddl',
-				'utf8'
-			)
+			const content = fs.readFileSync('ddl/procedure/staging/import_json_to_table.ddl', 'utf8')
 			const references = extractReferences(content)
 			expect(references).toEqual([
 				{ name: 'import_jsonb_to_table', type: 'procedure' },
@@ -117,10 +110,7 @@ describe('parser', () => {
 		})
 
 		it('should extract table references from procedure', () => {
-			const content = fs.readFileSync(
-				'ddl/procedure/staging/import_lookups.ddl',
-				'utf8'
-			)
+			const content = fs.readFileSync('ddl/procedure/staging/import_lookups.ddl', 'utf8')
 			const references = extractTableReferences(content)
 			expect(references).toEqual([
 				{ name: 'staging.lookup_values', type: 'table/view' },
@@ -130,10 +120,7 @@ describe('parser', () => {
 		})
 
 		it('should exclude built in tables', () => {
-			const content = fs.readFileSync(
-				'ddl/procedure/staging/import_json_to_table.ddl',
-				'utf8'
-			)
+			const content = fs.readFileSync('ddl/procedure/staging/import_json_to_table.ddl', 'utf8')
 			const references = extractTableReferences(content)
 			expect(references).toEqual([])
 		})
@@ -141,10 +128,7 @@ describe('parser', () => {
 
 	describe('extractEntity', () => {
 		it('should extract entity info from script', () => {
-			const content = fs.readFileSync(
-				'ddl/procedure/staging/import_json_to_table.ddl',
-				'utf8'
-			)
+			const content = fs.readFileSync('ddl/procedure/staging/import_json_to_table.ddl', 'utf8')
 			const result = extractEntity(content)
 			expect(result).toEqual({
 				name: 'import_jsonb_to_table',
@@ -319,11 +303,7 @@ describe('parser', () => {
 				schema: 'staging',
 				type: 'procedure'
 			})
-			entity = findEntityByName(
-				{ name: 'unknown' },
-				['core', 'config', 'staging'],
-				lookupTree
-			)
+			entity = findEntityByName({ name: 'unknown' }, ['core', 'config', 'staging'], lookupTree)
 			expect(entity).toEqual({
 				name: 'unknown',
 				type: undefined,
@@ -343,22 +323,14 @@ describe('parser', () => {
 				type: 'table'
 			})
 
-			entity = findEntityByName(
-				{ name: 'lookup_values' },
-				['config', 'staging'],
-				lookupTree
-			)
+			entity = findEntityByName({ name: 'lookup_values' }, ['config', 'staging'], lookupTree)
 			expect(entity).toEqual({
 				name: 'config.lookup_values',
 				schema: 'config',
 				type: 'table'
 			})
 
-			entity = findEntityByName(
-				{ name: 'unknown' },
-				['core', 'config', 'staging'],
-				lookupTree
-			)
+			entity = findEntityByName({ name: 'unknown' }, ['core', 'config', 'staging'], lookupTree)
 			expect(entity).toEqual({
 				name: 'unknown',
 				schema: null,
@@ -378,15 +350,13 @@ describe('parser', () => {
 		it('should match all references', () => {
 			let result = matchReferences(entities)
 			let expected = JSON.parse(fs.readFileSync('references.json', 'utf8'))
-			for (let i = 0; i < result.length; i++)
-				expect(result[i]).toEqual(expected[i])
+			for (let i = 0; i < result.length; i++) expect(result[i]).toEqual(expected[i])
 		})
 
 		it('should identify installed extension entities', () => {
 			const result = matchReferences(entities, ['uuid-ossp'])
 			let expected = JSON.parse(fs.readFileSync('exclusions.json', 'utf8'))
-			for (let i = 0; i < result.length; i++)
-				expect(result[i]).toEqual(expected[i])
+			for (let i = 0; i < result.length; i++) expect(result[i]).toEqual(expected[i])
 		})
 	})
 })

@@ -1,4 +1,4 @@
-import fs from 'fs'
+import fs, { rmSync } from 'fs'
 import path from 'path'
 import { omit, pick } from 'ramda'
 import { execSync } from 'child_process'
@@ -35,9 +35,7 @@ class Design {
 
 		this.#entities = [
 			...this.#config.schemas.map((schema) => entityFromSchemaName(schema)),
-			...this.#config.extensions.map((item) =>
-				entityFromExtensionConfig(item, extensionSchema)
-			),
+			...this.#config.extensions.map((item) => entityFromExtensionConfig(item, extensionSchema)),
 			...this.#config.roles,
 			...this.#config.entities
 		]
@@ -74,10 +72,7 @@ class Design {
 			.map((entity) => validateEntityFile(entity, false))
 			.map((entity) => {
 				if (!allowedSchemas.includes(entity.schema))
-					entity.errors = [
-						...(entity.errors || []),
-						`Import is only allowed for staging schemas`
-					]
+					entity.errors = [...(entity.errors || []), `Import is only allowed for staging schemas`]
 				return entity
 			})
 
@@ -89,12 +84,8 @@ class Design {
 	report(name) {
 		if (!this.isValidated) this.validate()
 		const issues = [
-			...this.entities.filter(
-				(entity) => entity.errors && entity.errors.length > 0
-			),
-			...this.importTables.filter(
-				(table) => table.errors && table.errors.length > 0
-			)
+			...this.entities.filter((entity) => entity.errors && entity.errors.length > 0),
+			...this.importTables.filter((table) => table.errors && table.errors.length > 0)
 		].filter((entity) => !name || entity.name === name)
 		const entity = this.entities.filter((entity) => entity.name === name).pop()
 		return { entity, issues }
@@ -103,9 +94,7 @@ class Design {
 	async apply(name, dryRun = false) {
 		const TMP_SCRIPT = '_temp.ddl'
 		if (!this.isValidated) this.validate()
-		this.entities
-			.filter((entity) => entity.file === 'import/staging/config_journeys.ddl')
-			.map((entity) => console.log(entity))
+
 		if (dryRun) {
 			this.entities.map((entity) => {
 				const using =
@@ -141,8 +130,9 @@ class Design {
 	combine(file) {
 		if (!this.isValidated) this.validate()
 		const combined = this.entities
-			.filter((entity) => !entity.errors)
+			.filter((entity) => !entity.errors || entity.errors.length === 0)
 			.map((entity) => ddlFromEntity(entity))
+
 		fs.writeFileSync(file, combined.join('\n'))
 		return this
 	}
@@ -172,9 +162,7 @@ class Design {
 		docs.map((doc) => {
 			let combined = entitiesForDBML(this.entities, doc.config)
 				.map((entity) => ddlFromEntity(entity))
-				.map((ddl) =>
-					ddl ? ddl.replace(/create\s.*index\s.*on\s.*;/gi, '') : ddl
-				)
+				.map((ddl) => (ddl ? ddl.replace(/create\s.*index\s.*on\s.*;/gi, '') : ddl))
 
 			const replacer = entitiesForDBML(this.entities, doc.config)
 				.filter((entity) => entity.type === 'table')
@@ -188,7 +176,7 @@ class Design {
 				}))
 
 			fs.writeFileSync('combined.sql', combined.join('\n'))
-			console.log(combined.join('\n'))
+
 			try {
 				const project = `Project "${doc.project}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
 				let dbml = importer.import(combined.join('\n'), 'postgres')
@@ -199,6 +187,7 @@ class Design {
 					dbml = dbml.replace(new RegExp(original, 'g'), replacement)
 				})
 				fs.writeFileSync(fileName, project + dbml)
+				rmSync('combined.sql')
 				console.info(`Generated DBML in ${fileName}`)
 			} catch (err) {
 				console.error(err)
@@ -235,9 +224,7 @@ class Design {
 			.filter((entity) => !name || entity.name === name)
 
 		const folders = [
-			...new Set(
-				entities.map((entity) => path.join('export', entity.name.split('.')[0]))
-			)
+			...new Set(entities.map((entity) => path.join('export', entity.name.split('.')[0])))
 		]
 		let commands = entities.map((entity) => exportScriptForEntity(entity))
 

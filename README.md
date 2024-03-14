@@ -15,6 +15,10 @@ This is a simple CLI to apply DDL scripts for individual objects for developers 
 - [ ] Support for multiple databases (e.g. postgres, mysql, mssql)
 - [ ] Support for multiple schemas with the same names in multiple schemas.
 
+## [Pre-requisites](docs/pre-requisites.md)
+
+Refer to the pre-requisites document for setting up the dbd cli.
+
 ## Usage
 
 Install the CLI globally using npm (or pnpm/yarn)

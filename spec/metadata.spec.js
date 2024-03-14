@@ -1,13 +1,6 @@
 import fs from 'fs'
 import yaml from 'js-yaml'
-import {
-	describe,
-	expect,
-	it,
-	beforeAll,
-	beforeEach,
-	afterEach
-} from 'bun:test'
+import { describe, expect, it, beforeAll, beforeEach, afterEach } from 'bun:test'
 import { scan, read, merge, clean, regroup, organize } from '../src/metadata.js'
 
 describe('metadata', () => {
@@ -15,15 +8,9 @@ describe('metadata', () => {
 	beforeAll(() => {
 		context.path = process.cwd()
 
-		context.metadata = yaml.load(
-			fs.readFileSync('spec/fixtures/metadata.yaml', 'utf8')
-		)
-		context.clean = yaml.load(
-			fs.readFileSync('spec/fixtures/metadata-clean.yaml', 'utf8')
-		)
-		context.mdfix = yaml.load(
-			fs.readFileSync('spec/fixtures/metadata-fix.yaml', 'utf8')
-		)
+		context.metadata = yaml.load(fs.readFileSync('spec/fixtures/metadata.yaml', 'utf8'))
+		context.clean = yaml.load(fs.readFileSync('spec/fixtures/metadata-clean.yaml', 'utf8'))
+		context.mdfix = yaml.load(fs.readFileSync('spec/fixtures/metadata-fix.yaml', 'utf8'))
 	})
 
 	beforeEach(() => {
@@ -123,14 +110,8 @@ describe('metadata', () => {
 		expect(config.entities).toEqual([])
 
 		expect(config.project).toEqual(project, 'read project from configuration')
-		expect(config.import).toEqual(
-			importTables,
-			'read imports from configuration'
-		)
-		expect(config.export).toEqual(
-			exportTables,
-			'read exports from configuration'
-		)
+		expect(config.import).toEqual(importTables, 'read imports from configuration')
+		expect(config.export).toEqual(exportTables, 'read exports from configuration')
 	})
 
 	it('Should merge entities', () => {

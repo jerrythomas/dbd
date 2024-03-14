@@ -172,9 +172,7 @@ export function isInternal(input, installed = []) {
 	if (cache.extension.includes(lowerInput)) return 'extension'
 
 	let matched =
-		isAnsiiSQL(lowerInput) ||
-		isPostgres(lowerInput) ||
-		isExtension(lowerInput, installed)
+		isAnsiiSQL(lowerInput) || isPostgres(lowerInput) || isExtension(lowerInput, installed)
 
 	if (matched === 'internal') {
 		cache.internal.push(lowerInput)
