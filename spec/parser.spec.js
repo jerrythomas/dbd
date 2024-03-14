@@ -14,7 +14,7 @@ import {
 import { entityFromFile } from '../src/entity'
 import { scan } from '../src/metadata'
 import fs from 'fs'
-import {extname, join} from 'path'
+import { extname, join } from 'path'
 import { resetCache } from '../src/exclusions'
 
 describe('parser', () => {
@@ -284,8 +284,7 @@ describe('parser', () => {
 		let entities = []
 		let lookupTree = null
 		beforeAll(() => {
-		if (cwd() !== expectedPath)
-			chdir('spec/fixtures/references')
+			if (cwd() !== expectedPath) chdir('spec/fixtures/references')
 			entities = scan('ddl')
 				.filter((file) => ['.ddl', '.sql'].includes(extname(file)))
 				.map((file) => entityFromFile(file))
@@ -355,8 +354,7 @@ describe('parser', () => {
 		let entities = null
 
 		beforeAll(() => {
-			if (cwd() !== expectedPath)
-				chdir('spec/fixtures/references')
+			if (cwd() !== expectedPath) chdir('spec/fixtures/references')
 			entities = scan('ddl')
 				.filter((file) => ['.ddl', '.sql'].includes(extname(file)))
 				.map((file) => entityFromFile(file))
