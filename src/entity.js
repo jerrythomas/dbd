@@ -1,5 +1,5 @@
-import fs from 'fs'
-import path from 'path'
+import { readFileSync, existsSync } from 'fs'
+import { extname, sep } from 'path'
 import csv from 'csvtojson'
 import { omit } from 'ramda'
 
@@ -18,7 +18,7 @@ import {
  * @returns an object containing entity details
  */
 export function entityFromFile(file) {
-	let parts = file.replace(path.extname(file), '').split(path.sep)
+	let parts = file.replace(extname(file), '').split(sep)
 
 	const type = parts[0] === 'ddl' ? parts[1] : parts[0]
 	let name = typesWithoutSchema.includes(type)
@@ -135,7 +135,7 @@ export function entityFromRoleName(name) {
  */
 export function ddlFromEntity(entity) {
 	if (entity.file) {
-		return fs.readFileSync(entity.file, 'utf8')
+		return readFileSync(entity.file, 'utf8')
 	}
 	if (entity.type === 'schema') {
 		return `create schema if not exists ${entity.name};`
@@ -182,9 +182,9 @@ function getRoleScript(entity) {
 export async function dataFromEntity(entity) {
 	let data = []
 
-	if (path.extname(entity.file) === '.json') {
-		data = JSON.parse(fs.readFileSync(entity.file, 'utf8'))
-	} else if (path.extname(entity.file) === '.csv') {
+	if (extname(entity.file) === '.json') {
+		data = JSON.parse(readFileSync(entity.file, 'utf8'))
+	} else if (extname(entity.file) === '.csv') {
 		data = await csv().fromFile(entity.file)
 	}
 
@@ -245,13 +245,13 @@ export function validateEntityFile(entity, ddl = true, ignore = []) {
 function validateFiles(entity, ddl) {
 	let errors = []
 
-	if (!fs.existsSync(entity.file)) {
+	if (!existsSync(entity.file)) {
 		errors.push('File does not exist')
 	}
-	if (ddl && path.extname(entity.file) !== '.ddl') {
+	if (ddl && extname(entity.file) !== '.ddl') {
 		errors.push('Unsupported file type for ddl')
 	}
-	if (!ddl && !['.csv', '.json', '.jsonl'].includes(path.extname(entity.file))) {
+	if (!ddl && !['.csv', '.json', '.jsonl'].includes(extname(entity.file))) {
 		errors.push('Unsupported data format')
 	}
 
@@ -276,7 +276,7 @@ export function importScriptForEntity(entity) {
 }
 
 export function exportScriptForEntity(entity) {
-	const file = `export/${entity.name.replace('.', path.sep)}.` + (entity.format || 'csv')
+	const file = `export/${entity.name.replace('.', sep)}.` + (entity.format || 'csv')
 	if (['json', 'jsonl'].includes(entity.format)) {
 		return `\\copy (select row_to_json(t) from ${entity.name} t) to '${file}';`
 	}
