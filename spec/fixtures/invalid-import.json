@@ -1,0 +1,86 @@
+[
+  {
+    "type": "schema",
+    "name": "core"
+  },
+  {
+    "type": "schema",
+    "name": "staging"
+  },
+  {
+    "type": "schema",
+    "name": "no_schema"
+  },
+  {
+    "type": "schema",
+    "name": "public"
+  },
+  {
+    "type": "extension",
+    "name": "uuid-ossp",
+    "schema": "public"
+  },
+  {
+    "refers": [],
+    "name": "core.lookups",
+    "type": "table",
+    "errors": [
+      "File missing for import entity"
+    ]
+  },
+  {
+    "type": "core",
+    "name": "core.stuff",
+    "file": "ddl/core/stuff.ddl",
+    "schema": "core",
+    "references": [],
+    "errors": [
+      "Unknown or unsupported entity type.",
+      "Unknown or unsupported entity ddl script."
+    ],
+    "refers": []
+  },
+  {
+    "refers": [],
+    "name": "no_schema",
+    "type": "table",
+    "errors": [
+      "Use fully qualified name <schema>.<name>",
+      "File missing for import entity"
+    ]
+  },
+  {
+    "type": "table",
+    "name": "public.test",
+    "file": "ddl/test.ddl",
+    "schema": "public",
+    "searchPaths": [
+      "public"
+    ],
+    "references": [],
+    "errors": [
+      "Schema in script does not match file path",
+      "Entity type in script does not match file path",
+      "Entity name in script does not match file name"
+    ],
+    "refers": []
+  },
+  {
+    "refers": [],
+    "name": "staging.lookup_values",
+    "type": "table",
+    "errors": [
+      "File missing for import entity"
+    ]
+  },
+  {
+    "refers": [
+      "core.lookups"
+    ],
+    "name": "core.lookup_values",
+    "type": "table",
+    "errors": [
+      "File missing for import entity"
+    ]
+  }
+]

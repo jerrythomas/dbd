@@ -125,7 +125,7 @@ export function merge(x, y) {
 }
 
 export function organize(data) {
-	let lookup = data.reduce((obj, item) => ((obj[item.name] = item), obj), {})
+	let lookup = data.reduce((obj, item) => ({ ...obj, [item.name]: item }), {})
 
 	let missing = [].concat
 		.apply(
@@ -133,7 +133,7 @@ export function organize(data) {
 			data.map(({ refers }) => refers)
 		)
 		.filter((entity) => !(entity in lookup))
-		.reduce((obj, entity) => ((obj[entity] = { name: entity, refers: [] }), obj), {})
+		.reduce((obj, entity) => ({ ...obj, [entity]: { name: entity, refers: [] } }), {})
 
 	lookup = { ...lookup, ...missing }
 
@@ -152,5 +152,5 @@ export function regroup(lookup) {
 		if (nextGroup.length > 0) groups.push(nextGroup)
 	} while (nextGroup.length > 0)
 
-	return groups
+	return groups.map((items) => items.sort())
 }

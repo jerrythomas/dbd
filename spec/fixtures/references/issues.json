@@ -1,15 +1,5 @@
 [
   {
-    "type": "procedure",
-    "name": "staging.import_jsonb_to_table",
-    "file": "ddl/procedure/staging/import_json_to_table.ddl",
-    "schema": "staging",
-    "searchPaths": ["staging"],
-    "references": [],
-    "errors": ["Entity name in script does not match file name"],
-    "refers": []
-  },
-  {
     "type": "table",
     "name": "config.lookups",
     "file": "ddl/table/config/lookups.ddl",
@@ -25,6 +15,17 @@
     "errors": ["Reference uuid_generate_v4 not found in [config, extensions]"],
     "refers": []
   },
+  {
+    "type": "procedure",
+    "name": "staging.import_jsonb_to_table",
+    "file": "ddl/procedure/staging/import_json_to_table.ddl",
+    "schema": "staging",
+    "searchPaths": ["staging"],
+    "references": [],
+    "errors": ["Entity name in script does not match file name"],
+    "refers": []
+  },
+
   {
     "type": "table",
     "name": "config.lookup_values",

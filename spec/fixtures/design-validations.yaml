@@ -48,17 +48,6 @@ entities:
     type: table
     errors:
       - File missing for import entity
-  - refers: []
-    name: staging.lookup_values
-    type: table
-    errors:
-      - File missing for import entity
-  - refers: []
-    name: no_schema
-    type: table
-    errors:
-      - Use fully qualified name <schema>.<name>
-      - File missing for import entity
   - type: core
     name: core.stuff
     file: ddl/core/stuff.ddl
@@ -68,6 +57,12 @@ entities:
     errors:
       - Unknown or unsupported entity type.
       - Unknown or unsupported entity ddl script.
+  - refers: []
+    name: no_schema
+    type: table
+    errors:
+      - Use fully qualified name <schema>.<name>
+      - File missing for import entity
   - type: table
     name: public.test
     file: ddl/test.ddl
@@ -80,6 +75,13 @@ entities:
       - Schema in script does not match file path
       - Entity type in script does not match file path
       - Entity name in script does not match file name
+
+  - refers: []
+    name: staging.lookup_values
+    type: table
+    errors:
+      - File missing for import entity
+
   - type: table
     name: core.lookup_values
     refers:

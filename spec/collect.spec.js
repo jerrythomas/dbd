@@ -115,13 +115,13 @@ describe('collect', async () => {
 			'extension => uuid-ossp using "extensions"',
 			'role => basic',
 			'role => advanced',
+			'table => config.lookups using "ddl/table/config/lookups.ddl"',
 			'procedure => staging.import_jsonb_to_table using "ddl/procedure/staging/import_jsonb_to_table.ddl"',
 			'table => staging.lookup_values using "ddl/table/staging/lookup_values.ddl"',
-			'table => config.lookups using "ddl/table/config/lookups.ddl"',
 			'table => config.lookup_values using "ddl/table/config/lookup_values.ddl"',
-			'procedure => staging.import_lookups using "ddl/procedure/staging/import_lookups.ddl"',
 			'view => config.genders using "ddl/view/config/genders.ddl"',
-			'view => migrate.lookup_values using "ddl/view/migrate/lookup_values.ddl"'
+			'view => migrate.lookup_values using "ddl/view/migrate/lookup_values.ddl"',
+			'procedure => staging.import_lookups using "ddl/procedure/staging/import_lookups.ddl"'
 		])
 		expect(context.logger.errors).toEqual([])
 
@@ -134,15 +134,15 @@ describe('collect', async () => {
 	it('Should display execution sequence with errors in dry-run mode', async () => {
 		const { beforeApply } = context.collect
 		const schemas = sql`select schema_name
-	                      from information_schema.schemata
-	                        where schema_name in ('config', 'extensions', 'staging', 'migrate')`
+	                        from information_schema.schemata
+	                       where schema_name in ('config', 'extensions', 'staging', 'migrate')`
 		const tables = sql`select table_schema
 	                         	, table_name
-	                        , table_type
-	                        from information_schema.tables
-	                       where table_schema in ('config', 'staging', 'migrate')
-	                       order by table_schema
-	                              , table_name`
+	                          , table_type
+	                       from information_schema.tables
+	                      where table_schema in ('config', 'staging', 'migrate')
+	                      order by table_schema
+	                             , table_name`
 
 		let result = await context.db.query(schemas)
 		expect(result).toEqual(beforeApply.schemas)
@@ -169,19 +169,14 @@ describe('collect', async () => {
 				errors: ['File missing for import entity']
 			},
 			{
-				type: 'table',
-				name: 'staging.lookup_values',
-				errors: ['File missing for import entity']
+				name: 'core.stuff',
+				type: 'core',
+				errors: ['Unknown or unsupported entity type.', 'Unknown or unsupported entity ddl script.']
 			},
 			{
 				type: 'table',
 				name: 'no_schema',
 				errors: ['Use fully qualified name <schema>.<name>', 'File missing for import entity']
-			},
-			{
-				name: 'core.stuff',
-				type: 'core',
-				errors: ['Unknown or unsupported entity type.', 'Unknown or unsupported entity ddl script.']
 			},
 			{
 				type: 'table',
@@ -191,6 +186,11 @@ describe('collect', async () => {
 					'Entity type in script does not match file path',
 					'Entity name in script does not match file name'
 				]
+			},
+			{
+				type: 'table',
+				name: 'staging.lookup_values',
+				errors: ['File missing for import entity']
 			},
 			{
 				type: 'table',
@@ -234,13 +234,13 @@ describe('collect', async () => {
 			'Applying extension: uuid-ossp',
 			'Applying role: basic',
 			'Applying role: advanced',
+			'Applying table: config.lookups',
 			'Applying procedure: staging.import_jsonb_to_table',
 			'Applying table: staging.lookup_values',
-			'Applying table: config.lookups',
 			'Applying table: config.lookup_values',
-			'Applying procedure: staging.import_lookups',
 			'Applying view: config.genders',
-			'Applying view: migrate.lookup_values'
+			'Applying view: migrate.lookup_values',
+			'Applying procedure: staging.import_lookups'
 		])
 
 		result = await context.db.query(schemas)
@@ -299,7 +299,6 @@ describe('collect', async () => {
 		const dx = using('design-bad.yaml', context.databaseURL).validate()
 
 		expect(dx.importTables).toEqual(context.validations.importTables)
-
 		dx.entities.map((entity, index) => {
 			expect(entity).toEqual(context.validations.entities[index])
 		})
@@ -412,7 +411,7 @@ describe('collect', async () => {
 		const dx = using('design.yaml', context.databaseURL).validate()
 
 		let result = dx.report('staging.import_jsonb_to_table')
-		expect(result).toEqual({ entity: issues[0], issues: [issues[0]] })
+		expect(result).toEqual({ entity: issues[1], issues: [issues[1]] })
 		result = dx.report('staging.import_lookups')
 		expect(result).toEqual({ entity: other[0], issues: [] })
 	})

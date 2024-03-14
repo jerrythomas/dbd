@@ -46,10 +46,10 @@ reorder:
   output:
     - *alpha
     - *beta
-    - *delta
     - *charlie
-    - *foxtrot
+    - *delta
     - *echo
+    - *foxtrot
 
 missing:
   input:
@@ -60,10 +60,10 @@ missing:
   output:
     - *alpha-missing
     - *beta-missing
-    - *delta
     - *charlie
-    - *foxtrot
+    - *delta
     - *echo
+    - *foxtrot
 
 simple:
   input:
