@@ -1,17 +1,17 @@
 root: true
-extends: 
+extends:
   - 'eslint:recommended'
   - 'prettier'
-plugins: 
+plugins:
   - 'svelte3'
-overrides: 
-  - files: 
+overrides:
+  - files:
       - '*.svelte'
     processor: 'svelte3/svelte3'
-parserOptions: 
+parserOptions:
   sourceType: 'module'
   ecmaVersion: 2019
-env: 
+env:
   browser: true
   es2017: true
   node: true

@@ -21,9 +21,7 @@ describe('entity', () => {
 
 	beforeAll(() => {
 		context.path = process.cwd()
-		const data = yaml.load(
-			fs.readFileSync('spec/fixtures/entities.yaml', 'utf8')
-		)
+		const data = yaml.load(fs.readFileSync('spec/fixtures/entities.yaml', 'utf8'))
 		Object.keys(data).map((key) => (context[key] = data[key]))
 	})
 

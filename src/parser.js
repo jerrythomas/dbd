@@ -6,8 +6,7 @@ import { isInternal } from './exclusions.js'
 const TYPES_GROUP = '(?<type>procedure|function|view|table)'
 const SCHEMA_GROUP = '((?<schema>[a-zA-Z_][a-zA-Z0-9_]*)?\\.)?'
 const ENTITY_GROUP = '(?<name>[a-zA-Z_][a-zA-Z0-9_]*)'
-const TABLE_ALIAS_PATTERN =
-	'(\\s*;?|(\\s+((as\\s+)?(?<alias>[a-zA-Z_][a-zA-Z0-9_]*))?))$'
+const TABLE_ALIAS_PATTERN = '(\\s*;?|(\\s+((as\\s+)?(?<alias>[a-zA-Z_][a-zA-Z0-9_]*))?))$'
 
 const CREATE_ENTITY_PATTERN =
 	'create\\s+(or\\s+replace\\s+)?' +
@@ -15,8 +14,7 @@ const CREATE_ENTITY_PATTERN =
 	'\\s*(if\\s+not\\s+exists\\s+)?' +
 	SCHEMA_GROUP +
 	ENTITY_GROUP
-const FUNCTION_CALL_PATTERN =
-	'\\b(?<prefix>.*?)' + SCHEMA_GROUP + ENTITY_GROUP + '\\s*\\('
+const FUNCTION_CALL_PATTERN = '\\b(?<prefix>.*?)' + SCHEMA_GROUP + ENTITY_GROUP + '\\s*\\('
 const TABLE_REF_PATTERN =
 	'\\b(?<prefix>from|join|inner|cross|outer)\\s+' +
 	SCHEMA_GROUP +
@@ -56,9 +54,7 @@ export function extractEntityType(input) {
 }
 
 export function extractSearchPaths(content, defaultPath = 'public') {
-	const matches = content.match(
-		/SET\s+search_path\s*to\s*([a-z0-9_]+(,\s*)?)+;/gi
-	)
+	const matches = content.match(/SET\s+search_path\s*to\s*([a-z0-9_]+(,\s*)?)+;/gi)
 	if (matches) {
 		return matches[matches.length - 1]
 			.split('to ')[1]
@@ -70,10 +66,7 @@ export function extractSearchPaths(content, defaultPath = 'public') {
 }
 
 export function extractWithAliases(sqlScript) {
-	const pattern = new RegExp(
-		`with\\s*(recursive)\\s+${ENTITY_GROUP}\\s+as`,
-		'gim'
-	)
+	const pattern = new RegExp(`with\\s*(recursive)\\s+${ENTITY_GROUP}\\s+as`, 'gim')
 	let aliases = new Set([])
 	let match
 	while ((match = pattern.exec(sqlScript)) !== null) {
@@ -113,10 +106,7 @@ export function parseEntityScript(entity) {
 	const searchPaths = extractSearchPaths(content)
 	let info = extractEntity(content)
 
-	let references = uniq([
-		...extractReferences(content),
-		...extractTableReferences(content)
-	])
+	let references = uniq([...extractReferences(content), ...extractTableReferences(content)])
 
 	let errors = []
 	if (!info.name)
@@ -128,12 +118,9 @@ export function parseEntityScript(entity) {
 	if (!info.schema) info.schema = searchPaths[0]
 	let fullName = info.schema + '.' + info.name
 
-	if (info.schema !== entity.schema)
-		errors.push('Schema in script does not match file path')
-	if (info.type !== entity.type)
-		errors.push('Entity type in script does not match file path')
-	if (fullName !== entity.name)
-		errors.push('Entity name in script does not match file name')
+	if (info.schema !== entity.schema) errors.push('Schema in script does not match file path')
+	if (info.type !== entity.type) errors.push('Entity type in script does not match file path')
+	if (fullName !== entity.name) errors.push('Entity name in script does not match file name')
 
 	const excludeEntity = [info.name, fullName]
 	info.name = fullName
@@ -177,12 +164,7 @@ export function matchReferences(entities, extensions = []) {
 	})
 }
 
-export function findEntityByName(
-	{ name, type },
-	searchPaths,
-	lookup,
-	extensions = []
-) {
+export function findEntityByName({ name, type }, searchPaths, lookup, extensions = []) {
 	let matched
 	let internalType = isInternal(name, extensions)
 	if (internalType) return { name, type: internalType }
@@ -192,9 +174,7 @@ export function findEntityByName(
 		if (internalType) return { name, type: internalType }
 
 		matched = lookup[name]
-		return matched
-			? matched
-			: { name, type, error: `Reference ${name} not found` }
+		return matched ? matched : { name, type, error: `Reference ${name} not found` }
 	}
 
 	for (let i = 0; i < searchPaths.length && !matched; i++) {

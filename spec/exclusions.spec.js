@@ -38,9 +38,7 @@ describe('extensions', () => {
 		it('should return true for installed extension functions', () => {
 			expect(isExtension('md5', ['pgcrypto'])).toEqual('extension')
 			expect(isExtension('gen_salt', ['pgcrypto'])).toEqual('extension')
-			expect(isExtension('uuid_generate_v4', ['uuid-ossp'])).toEqual(
-				'extension'
-			)
+			expect(isExtension('uuid_generate_v4', ['uuid-ossp'])).toEqual('extension')
 		})
 		it('should return false for extensions not installed', () => {
 			expect(isExtension('md5', [])).toBeFalsy()

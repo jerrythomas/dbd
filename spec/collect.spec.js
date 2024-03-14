@@ -1,15 +1,7 @@
 import fs from 'fs'
 import yaml from 'js-yaml'
 import { rimraf } from 'rimraf'
-import {
-	describe,
-	it,
-	expect,
-	beforeAll,
-	afterAll,
-	beforeEach,
-	afterEach
-} from 'bun:test'
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'bun:test'
 import createConnectionPool, { sql } from '@databases/pg'
 import { MockConsole } from '@vanillaes/mock-console'
 import { using } from '../src/collect.js'
@@ -21,8 +13,7 @@ describe('collect', async () => {
 	beforeAll(() => {
 		context.logger = new MockConsole()
 
-		context.databaseURL =
-			'postgresql://postgres:pg-test@localhost:5234/postgres'
+		context.databaseURL = 'postgresql://postgres:pg-test@localhost:5234/postgres'
 		context.combinedDDL = '_combined.ddl'
 		context.path = process.cwd()
 
@@ -30,12 +21,8 @@ describe('collect', async () => {
 			connectionString: context.databaseURL,
 			bigIntMode: 'bigint'
 		})
-		context.export = yaml.load(
-			fs.readFileSync('spec/fixtures/design-export.yaml', 'utf8')
-		)
-		context.collect = yaml.load(
-			fs.readFileSync('spec/fixtures/design-config.yaml', 'utf8')
-		)
+		context.export = yaml.load(fs.readFileSync('spec/fixtures/design-export.yaml', 'utf8'))
+		context.collect = yaml.load(fs.readFileSync('spec/fixtures/design-config.yaml', 'utf8'))
 		context.validations = yaml.load(
 			fs.readFileSync('spec/fixtures/design-validations.yaml', 'utf8')
 		)
@@ -63,36 +50,15 @@ describe('collect', async () => {
 
 		let dx = using('design.yaml', context.databaseURL)
 
-		expect(dx.databaseURL).toEqual(
-			context.databaseURL,
-			'Database URL should match'
-		)
-		expect(dx.config.project).toEqual(
-			config.project,
-			'Project config should match'
-		)
-		expect(dx.config.schemas).toEqual(
-			config.schemas,
-			'Schemas config should match'
-		)
-		expect(dx.config.extensions).toEqual(
-			config.extensions,
-			'Extensions config should match'
-		)
-		expect(dx.config.import).toEqual(
-			config.import,
-			'Import config should match'
-		)
-		expect(dx.config.roles).toEqual(
-			context.collect.config.roles,
-			'Roles config should match'
-		)
+		expect(dx.databaseURL).toEqual(context.databaseURL, 'Database URL should match')
+		expect(dx.config.project).toEqual(config.project, 'Project config should match')
+		expect(dx.config.schemas).toEqual(config.schemas, 'Schemas config should match')
+		expect(dx.config.extensions).toEqual(config.extensions, 'Extensions config should match')
+		expect(dx.config.import).toEqual(config.import, 'Import config should match')
+		expect(dx.config.roles).toEqual(context.collect.config.roles, 'Roles config should match')
 
 		for (let i = 0; i < dx.entities.length; i++) {
-			expect(dx.entities[i]).toEqual(
-				context.collect.entities[i],
-				'Entities should match'
-			)
+			expect(dx.entities[i]).toEqual(context.collect.entities[i], 'Entities should match')
 		}
 		expect(dx.isValidated).toBeFalsy('Validated should be false initially')
 	})
@@ -110,7 +76,7 @@ describe('collect', async () => {
 		fs.unlinkSync('Example-base-design.dbml')
 		expect(fs.existsSync('Example-core-design.dbml')).toBeTruthy()
 		fs.unlinkSync('Example-core-design.dbml')
-		fs.unlinkSync('combined.sql')
+		//fs.unlinkSync('combined.sql')
 
 		expect(context.logger.infos).toEqual([
 			'Generated DBML in Example-base-design.dbml',
@@ -208,18 +174,12 @@ describe('collect', async () => {
 			{
 				type: 'table',
 				name: 'no_schema',
-				errors: [
-					'Use fully qualified name <schema>.<name>',
-					'File missing for import entity'
-				]
+				errors: ['Use fully qualified name <schema>.<name>', 'File missing for import entity']
 			},
 			{
 				name: 'core.stuff',
 				type: 'core',
-				errors: [
-					'Unknown or unsupported entity type.',
-					'Unknown or unsupported entity ddl script.'
-				]
+				errors: ['Unknown or unsupported entity type.', 'Unknown or unsupported entity ddl script.']
 			},
 			{
 				type: 'table',
@@ -294,10 +254,7 @@ describe('collect', async () => {
 		expect(dx.roles).toEqual(context.collect.roles)
 		// expect(dx.entities).toEqual(context.collect.entities)
 		for (let i = 0; i < dx.entities.length; i++) {
-			expect(dx.entities[i]).toEqual(
-				context.collect.entities[i],
-				'Entities should match'
-			)
+			expect(dx.entities[i]).toEqual(context.collect.entities[i], 'Entities should match')
 		}
 		expect(dx.report()).toEqual({ entity: undefined, issues: [] })
 	})
@@ -312,17 +269,13 @@ describe('collect', async () => {
 		])
 
 		expect(dx.isValidated).toBeTruthy()
-		let result = await context.db.query(
-			sql`select count(*) from staging.lookup_values`
-		)
+		let result = await context.db.query(sql`select count(*) from staging.lookup_values`)
 		expect(result).toEqual([{ count: 2n }])
 
 		result = await context.db.query(sql`select count(*) from config.lookups`)
 		expect(result).toEqual([{ count: 1n }])
 
-		result = await context.db.query(
-			sql`select count(*) from config.lookup_values`
-		)
+		result = await context.db.query(sql`select count(*) from config.lookup_values`)
 		expect(result).toEqual([{ count: 2n }])
 	})
 
@@ -356,9 +309,7 @@ describe('collect', async () => {
 		const dx = using('design.yaml', context.databaseURL)
 		await dx.apply('staging.lookup_values')
 
-		expect(context.logger.infos).toEqual([
-			'Applying table: staging.lookup_values'
-		])
+		expect(context.logger.infos).toEqual(['Applying table: staging.lookup_values'])
 
 		let result = await context.db.query(
 			sql`select count(*)
@@ -375,23 +326,17 @@ describe('collect', async () => {
 		await context.db.query(sql`delete from config.lookups;`)
 		await context.db.query(sql`delete from staging.lookup_values;`)
 
-		using('design.yaml', context.databaseURL).importData(
-			'staging.lookup_values'
-		)
+		using('design.yaml', context.databaseURL).importData('staging.lookup_values')
 		expect(context.logger.infos).toEqual([
 			'Importing staging.lookup_values',
 			'Processing import/loader.sql'
 		])
-		let result = await context.db.query(
-			sql`select count(*) from staging.lookup_values`
-		)
+		let result = await context.db.query(sql`select count(*) from staging.lookup_values`)
 
 		expect(result).toEqual([{ count: 2n }])
 		result = await context.db.query(sql`select count(*) from config.lookups`)
 		expect(result).toEqual([{ count: 1n }])
-		result = await context.db.query(
-			sql`select count(*) from config.lookup_values`
-		)
+		result = await context.db.query(sql`select count(*) from config.lookup_values`)
 		expect(result).toEqual([{ count: 2n }])
 	})
 
@@ -401,18 +346,12 @@ describe('collect', async () => {
 		await context.db.query(sql`delete from config.lookups;`)
 		await context.db.query(sql`delete from staging.lookup_values;`)
 
-		using('design.yaml', context.databaseURL).importData(
-			'import/staging/lookup_values'
-		)
-		let result = await context.db.query(
-			sql`select count(*) from staging.lookup_values`
-		)
+		using('design.yaml', context.databaseURL).importData('import/staging/lookup_values')
+		let result = await context.db.query(sql`select count(*) from staging.lookup_values`)
 		expect(result).toEqual([{ count: 0n }])
 		result = await context.db.query(sql`select count(*) from config.lookups`)
 		expect(result).toEqual([{ count: 0n }])
-		result = await context.db.query(
-			sql`select count(*) from config.lookup_values`
-		)
+		result = await context.db.query(sql`select count(*) from config.lookup_values`)
 		expect(result).toEqual([{ count: 0n }])
 	})
 
@@ -422,18 +361,12 @@ describe('collect', async () => {
 		await context.db.query(sql`delete from config.lookups;`)
 		await context.db.query(sql`delete from staging.lookup_values;`)
 
-		using('design.yaml', context.databaseURL).importData(
-			'import/staging/lookup_values.csv'
-		)
-		let result = await context.db.query(
-			sql`select count(*) from staging.lookup_values`
-		)
+		using('design.yaml', context.databaseURL).importData('import/staging/lookup_values.csv')
+		let result = await context.db.query(sql`select count(*) from staging.lookup_values`)
 		expect(result).toEqual([{ count: 2n }])
 		result = await context.db.query(sql`select count(*) from config.lookups`)
 		expect(result).toEqual([{ count: 1n }])
-		result = await context.db.query(
-			sql`select count(*) from config.lookup_values`
-		)
+		result = await context.db.query(sql`select count(*) from config.lookup_values`)
 		expect(result).toEqual([{ count: 2n }])
 	})
 

@@ -23,11 +23,7 @@
       }
     ],
     "errors": [],
-    "refers": [
-      "config.lookups",
-      "config.lookup_values",
-      "staging.lookup_values"
-    ]
+    "refers": ["config.lookups", "config.lookup_values", "staging.lookup_values"]
   },
   {
     "type": "procedure",

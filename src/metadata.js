@@ -42,12 +42,7 @@ export function read(file) {
 	data = fillMissingInfoForEntities(data)
 	data.schemas = data.schemas || []
 
-	data.entities = [
-		...data.tables,
-		...data.views,
-		...data.functions,
-		...data.procedures
-	]
+	data.entities = [...data.tables, ...data.views, ...data.functions, ...data.procedures]
 	data.project = { staging: [], ...data.project }
 
 	return data
@@ -62,10 +57,7 @@ export function clean(data) {
 	let importTables = cleanImportTables(data)
 	let entities = cleanDDLEntities(data)
 
-	let roles = [
-		...data.roles,
-		...entities.filter((entity) => entity.type === 'role')
-	]
+	let roles = [...data.roles, ...entities.filter((entity) => entity.type === 'role')]
 
 	entities = entities.filter((entity) => entity.type !== 'role')
 	let schemas = [
@@ -113,9 +105,7 @@ function cleanImportTables(data) {
 
 	importTables = merge(
 		importTables,
-		data.import.tables.map((table) =>
-			entityFromImportConfig(table, data.import.options)
-		)
+		data.import.tables.map((table) => entityFromImportConfig(table, data.import.options))
 	)
 	return importTables
 }
@@ -143,10 +133,7 @@ export function organize(data) {
 			data.map(({ refers }) => refers)
 		)
 		.filter((entity) => !(entity in lookup))
-		.reduce(
-			(obj, entity) => ((obj[entity] = { name: entity, refers: [] }), obj),
-			{}
-		)
+		.reduce((obj, entity) => ((obj[entity] = { name: entity, refers: [] }), obj), {})
 
 	lookup = { ...lookup, ...missing }
 
@@ -159,9 +146,7 @@ export function regroup(lookup) {
 
 	do {
 		let thisGroup = groups.pop()
-		nextGroup = thisGroup.filter((k) =>
-			lookup[k].refers.some((x) => thisGroup.includes(x))
-		)
+		nextGroup = thisGroup.filter((k) => lookup[k].refers.some((x) => thisGroup.includes(x)))
 		thisGroup = thisGroup.filter((k) => !nextGroup.includes(k))
 		groups.push(thisGroup)
 		if (nextGroup.length > 0) groups.push(nextGroup)

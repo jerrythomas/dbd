@@ -64,9 +64,7 @@
         "type": "table"
       }
     ],
-    "errors": [
-      "Reference uuid_generate_v4 not found in [core, config, extensions]"
-    ],
+    "errors": ["Reference uuid_generate_v4 not found in [core, config, extensions]"],
     "refers": ["config.lookup_values"]
   },
   {
@@ -77,10 +75,7 @@
     "truncate": true,
     "schema": "core",
     "listed": true,
-    "errors": [
-      "File missing for import entity",
-      "Import is only allowed for staging schemas"
-    ]
+    "errors": ["File missing for import entity", "Import is only allowed for staging schemas"]
   },
   {
     "type": "import",
@@ -90,10 +85,7 @@
     "truncate": true,
     "schema": "core",
     "listed": true,
-    "errors": [
-      "File missing for import entity",
-      "Import is only allowed for staging schemas"
-    ]
+    "errors": ["File missing for import entity", "Import is only allowed for staging schemas"]
   },
   {
     "type": "import",
