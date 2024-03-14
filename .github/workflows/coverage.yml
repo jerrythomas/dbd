@@ -14,13 +14,13 @@ jobs:
         with:
           bun-version: latest
       - name: Run tests
-        run: bun run coverage
+        run: bun coverage
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v3.0.0
         env:
           CC_TEST_REPORTER_ID: ef29724f55a8c015f7349da5c7a5807e00e1706c81922b2194514b93bed14397
         with:
-          coverageCommand: pnpm coverage:lcov
+          coverageCommand: bun coverage:lcov
           debug: true
       - name: Report results to DeepSource
         env:

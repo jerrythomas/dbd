@@ -15,7 +15,7 @@
     "release:next": "release-it --preRelease=next",
     "release": "release-it",
     "test:unit": "bun pg-test && bun test && bun test:clean",
-    "coverage": "bun pg-test && bun test --coverage && bun test:clean && mv coverage/tmp/*.json coverage/final.json",
+    "coverage": "bun pg-test && bun test --coverage && bun test:clean",
     "coverage:lcov": "bun pg-test && bun test --coverage --reporter=lcov && bun test:clean"
   },
   "author": "Jerry Thomas <me@jerrythomas.name>",
