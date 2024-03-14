@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, beforeEach } from 'bun:test'
-import { chdir, cwd } from 'process'
+import { chdir } from 'process'
 import {
 	extractWithAliases,
 	extractReferences,
