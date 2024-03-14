@@ -40,7 +40,6 @@ describe('collect', async () => {
 
 	afterEach(() => {
 		process.chdir(context.path)
-
 		context.logger.flush()
 		context.logger.restore()
 	})
@@ -405,27 +404,25 @@ describe('collect', async () => {
 
 	it('should generate report for individual entity', () => {
 		process.chdir('../spec/fixtures/references')
-		// const issues = JSON.parse(fs.readFileSync('issues.json'))
-		// const other = JSON.parse(fs.readFileSync('references.json'))
+		const issues = JSON.parse(fs.readFileSync('issues.json'))
+		const other = JSON.parse(fs.readFileSync('references.json'))
 
 		context.logger.restore()
-		console.log('cwd - report for individual', process.cwd())
-		// const dx = using('design.yaml', context.databaseURL).validate()
+		const dx = using('design.yaml', context.databaseURL).validate()
 
-		// let result = dx.report('staging.import_jsonb_to_table')
-		// expect(result).toEqual({ entity: issues[1], issues: [issues[1]] })
-		// result = dx.report('staging.import_lookups')
-		// expect(result).toEqual({ entity: other[0], issues: [] })
+		let result = dx.report('staging.import_jsonb_to_table')
+		expect(result).toEqual({ entity: issues[1], issues: [issues[1]] })
+		result = dx.report('staging.import_lookups')
+		expect(result).toEqual({ entity: other[0], issues: [] })
 	})
 
 	it.only('Should list issues in report', () => {
 		process.chdir('../spec/fixtures/references')
 		context.logger.restore()
-		console.log('cwd - list issues', process.cwd())
 
-		// const expected = JSON.parse(fs.readFileSync('issues.json'))
-		// const result = using('design.yaml', context.databaseURL).validate().report()
-		// expect(result.issues).toEqual(expected)
-		// expect(result.entity).toBeUndefined()
+		const expected = JSON.parse(fs.readFileSync('issues.json'))
+		const result = using('design.yaml', context.databaseURL).validate().report()
+		expect(result.issues).toEqual(expected)
+		expect(result.entity).toBeUndefined()
 	})
 })

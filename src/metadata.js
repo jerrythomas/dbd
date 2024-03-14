@@ -1,6 +1,7 @@
-import fs from 'fs'
-import path from 'path'
-import yaml from 'js-yaml'
+import { readdirSync, readFileSync, statSync } from 'fs'
+import { join, extname } from 'path'
+import { load } from 'js-yaml'
+import { cwd } from 'process'
 import { allowedTypes } from './constants.js'
 import { entityFromFile, entityFromImportConfig } from './entity.js'
 import { fillMissingInfoForEntities } from './filler.js'
@@ -14,13 +15,13 @@ import { parseEntityScript, matchReferences } from './parser.js'
  * @returns {Array<string>} Array of file paths
  */
 export function scan(root = '.') {
-	const files = fs.readdirSync(root)
+	const files = readdirSync(root === '.' ? cwd() : root)
 	let result = []
 
 	files.map((file) => {
-		const filepath = path.join(root, file)
+		const filepath = join(root, file)
 
-		if (fs.statSync(filepath).isDirectory()) {
+		if (statSync(filepath).isDirectory()) {
 			result = [...result, ...scan(filepath)]
 		} else {
 			result.push(filepath)
@@ -37,7 +38,7 @@ export function scan(root = '.') {
  * @returns
  */
 export function read(file) {
-	let data = yaml.load(fs.readFileSync(file, 'utf8'))
+	let data = load(readFileSync(file, 'utf8'))
 
 	data = fillMissingInfoForEntities(data)
 	data.schemas = data.schemas || []
@@ -83,7 +84,7 @@ export function clean(data) {
 export function cleanDDLEntities(data) {
 	// const ignore = data.ignore ?? []
 	let entities = scan('ddl')
-		.filter((file) => ['.ddl', '.sql'].includes(path.extname(file)))
+		.filter((file) => ['.ddl', '.sql'].includes(extname(file)))
 		.map((file) => entityFromFile(file))
 		.map(parseEntityScript)
 
@@ -100,7 +101,7 @@ export function cleanDDLEntities(data) {
  */
 function cleanImportTables(data) {
 	let importTables = scan('import')
-		.filter((file) => ['.jsonl', '.csv'].includes(path.extname(file)))
+		.filter((file) => ['.jsonl', '.csv'].includes(extname(file)))
 		.map((file) => ({ ...entityFromFile(file), ...defaultImportOptions }))
 
 	importTables = merge(
