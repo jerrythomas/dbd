@@ -213,7 +213,7 @@ export function validateEntityFile(entity, ddl = true, ignore = []) {
 	}
 
 	if (typesWithSchema.includes(entity.type)) {
-		if (entity.name.split('.').length != 2) {
+		if (entity.name.split('.').length !== 2) {
 			errors.push('Use fully qualified name <schema>.<name>')
 		}
 		if (!entity.file) {
