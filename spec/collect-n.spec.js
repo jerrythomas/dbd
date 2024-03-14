@@ -39,7 +39,7 @@ describe('collect-invalid', async () => {
 		expect(result).toEqual({ entity: other[0], issues: [] })
 	})
 
-	it.only('Should list issues in report', () => {
+	it('Should list issues in report', () => {
 		const expected = JSON.parse(readFileSync('issues.json'))
 		const result = using('design.yaml', context.databaseURL).validate().report()
 		// writeFileSync('issues.json', JSON.stringify(result.issues, null, 2))
