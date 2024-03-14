@@ -72,10 +72,7 @@ class Design {
 			.map((entity) => validateEntityFile(entity, false))
 			.map((entity) => {
 				if (!allowedSchemas.includes(entity.schema))
-					entity.errors = [
-						...(entity.errors || []),
-						'Import is only allowed for staging schemas'
-					]
+					entity.errors = [...(entity.errors || []), 'Import is only allowed for staging schemas']
 				return entity
 			})
 
