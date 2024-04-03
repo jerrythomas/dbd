@@ -39,7 +39,8 @@ class Design {
 			...this.#config.roles,
 			...this.#config.entities
 		]
-		this.#importTables = config.importTables
+
+		this.#importTables = this.organizeImports(config.importTables)
 	}
 
 	get config() {
@@ -60,7 +61,25 @@ class Design {
 	get importTables() {
 		return this.#importTables
 	}
+	// organize import tables in the sequence of their presence in the entities list
+	organizeImports(importTables) {
+		const tables = this.#config.entities.filter((entity) => entity.type === 'table')
 
+		return importTables
+			.map((x) => {
+				const index = tables.findIndex((table) => table.name === x.name)
+				const refers = index >= 0 ? tables[index].refers : []
+				const warnings = refers
+					.map((ref) => {
+						if (!importTables.find((table) => table.name === ref)) {
+							return `Warning: referenced table ${ref} is missing from imports`
+						}
+					})
+					.filter((x) => x)
+				return { ...x, order: index, refers, warnings }
+			})
+			.sort((a, b) => a.order - b.order)
+	}
 	validate() {
 		const allowedSchemas = this.#config.project.staging
 
@@ -72,7 +91,7 @@ class Design {
 			.map((entity) => validateEntityFile(entity, false))
 			.map((entity) => {
 				if (!allowedSchemas.includes(entity.schema))
-					entity.errors = [...(entity.errors || []), `Import is only allowed for staging schemas`]
+					entity.errors = [...(entity.errors || []), 'Import is only allowed for staging schemas']
 				return entity
 			})
 
@@ -124,7 +143,7 @@ class Design {
 				if (fs.existsSync(TMP_SCRIPT)) fs.unlinkSync(TMP_SCRIPT)
 			})
 
-		return this
+		// return this
 	}
 
 	combine(file) {
@@ -197,22 +216,26 @@ class Design {
 		return this
 	}
 
-	importData(name) {
+	importData(name, dryRun = false) {
 		if (!this.isValidated) this.validate()
 
 		this.importTables
 			.filter((entity) => !entity.errors)
 			.filter((entity) => !name || entity.name === name || entity.file === name)
 			.map((table) => {
-				fs.writeFileSync('_import.sql', importScriptForEntity(table))
 				console.info(`Importing ${table.name}`)
-				execSync(`psql ${this.databaseURL} < _import.sql`)
-				fs.unlinkSync('_import.sql')
+				table.warnings.map((message) => console.warn(message))
+
+				if (!dryRun) {
+					fs.writeFileSync('_import.sql', importScriptForEntity(table))
+					execSync(`psql ${this.databaseURL} < _import.sql`)
+					fs.unlinkSync('_import.sql')
+				}
 			})
 
 		this.config.import.after.map((file) => {
 			console.info(`Processing ${file}`)
-			execSync(`psql ${this.databaseURL} < ${file}`)
+			if (!dryRun) execSync(`psql ${this.databaseURL} < ${file}`)
 		})
 
 		return this

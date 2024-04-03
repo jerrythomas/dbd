@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'fs'
 import { MockConsole } from '@vanillaes/mock-console'
 import { using } from '../src/collect.js'

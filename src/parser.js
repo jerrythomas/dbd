@@ -24,14 +24,15 @@ const TABLE_REF_PATTERN =
 const PATTERNS = {
 	ALIAS_TYPE: /(\s+(as|recursive)\s+)$/i,
 	TABLE_TYPE: /\b(from|join|update|into|on|references)\s$/i,
-	ENTITY_TYPE: /\bcreate.*(procedure|function|view|table)\s/i
+	ENTITY_TYPE: /\bcreate.*(procedure|function|view|table)\s/i,
+	INDEX_TYPE: /\b(key|index)\s*$/i
 }
 
 export function extractReferences(sqlScript) {
 	// Matches function calls with optional schema prefixes
 	const pattern = new RegExp(FUNCTION_CALL_PATTERN, 'gim')
 	let functionCalls = {}
-	let match
+	let match = {}
 	while ((match = pattern.exec(sqlScript)) !== null) {
 		const { prefix, schema, name } = match.groups
 		const type = extractEntityType(prefix)
@@ -39,7 +40,9 @@ export function extractReferences(sqlScript) {
 		if (!isInternal(fullName)) functionCalls[fullName] = type
 	}
 
-	return Object.entries(functionCalls).map(([name, type]) => ({ name, type }))
+	return Object.entries(functionCalls)
+		.map(([name, type]) => ({ name, type }))
+		.filter((x) => x.type !== 'index')
 }
 
 export function extractEntityType(input) {
@@ -50,6 +53,10 @@ export function extractEntityType(input) {
 	if (match) return 'table/view'
 	match = PATTERNS.ALIAS_TYPE.exec(input)
 	if (match) return 'alias'
+	match = PATTERNS.INDEX_TYPE.exec(input)
+	if (match) return 'index'
+	// if (['index', 'primary'].includes(input.toLowerCase().trim())) return 'index'
+
 	return null
 }
 
@@ -68,7 +75,7 @@ export function extractSearchPaths(content, defaultPath = 'public') {
 export function extractWithAliases(sqlScript) {
 	const pattern = new RegExp(`with\\s*(recursive)\\s+${ENTITY_GROUP}\\s+as`, 'gim')
 	let aliases = new Set([])
-	let match
+	let match = {}
 	while ((match = pattern.exec(sqlScript)) !== null) {
 		const { name } = match.groups
 		aliases.add(name)
@@ -79,7 +86,7 @@ export function extractWithAliases(sqlScript) {
 export function extractTableReferences(sqlScript) {
 	const pattern = new RegExp(TABLE_REF_PATTERN, 'gim')
 	let tableReferences = new Set()
-	let match
+	let match = {}
 	let aliases = extractWithAliases(sqlScript)
 
 	while ((match = pattern.exec(sqlScript)) !== null) {
@@ -98,7 +105,8 @@ export function extractTableReferences(sqlScript) {
 export function extractEntity(script) {
 	const pattern = new RegExp(CREATE_ENTITY_PATTERN, 'gim')
 	const match = pattern.exec(script)
-	return pick(['type', 'schema', 'name'], match?.groups ?? {})
+	const { type, name, schema } = pick(['type', 'schema', 'name'], match?.groups ?? {})
+	return { type: type.toLowerCase(), name, schema }
 }
 
 export function parseEntityScript(entity) {
@@ -165,7 +173,7 @@ export function matchReferences(entities, extensions = []) {
 }
 
 export function findEntityByName({ name, type }, searchPaths, lookup, extensions = []) {
-	let matched
+	let matched = null
 	let internalType = isInternal(name, extensions)
 	if (internalType) return { name, type: internalType }
 

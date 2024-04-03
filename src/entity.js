@@ -148,6 +148,7 @@ export function ddlFromEntity(entity) {
 	if (entity.type === 'role') {
 		return getRoleScript(entity)
 	}
+	return null
 }
 
 /**
@@ -217,9 +218,9 @@ export function validateEntityFile(entity, ddl = true, ignore = []) {
 		if (!entity.file) {
 			errors.push('File missing for import entity')
 		}
-		if (!ddl && !entity.listed) {
-			errors.push('Files is not listed and will be ignored during import')
-		}
+		// if (!ddl && !entity.listed) {
+		// 	errors.push('Files is not listed and will be ignored during import')
+		// }
 	}
 	if (entity.references && entity.references.length > 0) {
 		entity.references

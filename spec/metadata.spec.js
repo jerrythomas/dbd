@@ -187,17 +187,14 @@ describe('metadata', () => {
 	})
 
 	it('Should regroup based on dependencies', () => {
-		let data
-
-		data = regroup(context.mdfix.simple.input)
+		let data = regroup(context.mdfix.simple.input)
 		expect(data).toEqual(context.mdfix.simple.output)
 		data = regroup(context.mdfix.complex.input)
 		expect(data).toEqual(context.mdfix.complex.output)
 	})
 
 	it('Should add missing values and reorder', () => {
-		let data
-		data = organize(context.mdfix.reorder.input)
+		let data = organize(context.mdfix.reorder.input)
 		expect(data).toEqual(context.mdfix.reorder.output)
 		data = organize(context.mdfix.missing.input)
 		expect(data).toEqual(context.mdfix.missing.output)

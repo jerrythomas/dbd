@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'fs'
 import { join, extname } from 'path'
 import { load } from 'js-yaml'
-import { cwd } from 'process'
+// import { cwd } from 'process'
 import { allowedTypes } from './constants.js'
 import { entityFromFile, entityFromImportConfig } from './entity.js'
 import { fillMissingInfoForEntities } from './filler.js'
@@ -142,7 +142,7 @@ export function organize(data) {
 }
 
 export function regroup(lookup) {
-	let nextGroup
+	let nextGroup = null
 	let groups = [Object.keys(lookup)]
 
 	do {

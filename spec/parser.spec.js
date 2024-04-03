@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, beforeEach } from 'vitest'
+import { describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest'
 import { chdir, cwd } from 'process'
 import {
 	extractWithAliases,
@@ -82,6 +82,21 @@ describe('parser', () => {
 				{ name: 'rec', type: 'alias' }
 			])
 		})
+
+		it('should exclude indexes', () => {
+			const content = `
+        , PRIMARY KEY (id)
+        , UNIQUE INDEX xyz_ukey (name ASC) VISIBLE
+        , INDEX fk_reason_type_id (reason_type_id ASC) VISIBLE
+        , CONSTRAINT fk_reason_type_id FOREIGN KEY (reason_type_id) REFERENCES dayamed.reason_type (id)`
+			const references = extractReferences(content)
+			expect(references).toEqual([
+				{
+					name: 'dayamed.reason_type',
+					type: 'table/view'
+				}
+			])
+		})
 	})
 
 	describe('extractSearchPaths', () => {
@@ -138,6 +153,17 @@ describe('parser', () => {
 				name: 'import_jsonb_to_table',
 				schema: undefined,
 				type: 'procedure'
+			})
+		})
+
+		it('should extract entity info from script with schema', () => {
+			const content =
+				'CREATE TABLE IF NOT EXISTS config.lookup_values \n(id uuid PRIMARY KEY\n, value text);'
+			const result = extractEntity(content)
+			expect(result).toEqual({
+				name: 'lookup_values',
+				schema: 'config',
+				type: 'table'
 			})
 		})
 	})

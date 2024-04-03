@@ -77,12 +77,13 @@ prog
 prog
 	.command('import')
 	.option('-n, --name', 'Optional name or file to be imported.')
+	.option('--dry-run', 'just print the entities', false)
 	.describe('Load csv files into database')
 	.example('dbd import')
 	.example('dbd import -n staging.lookups')
 	.example('dbd import -n import/staging/lookups.csv')
 	.action((opts) => {
-		using(opts.config, opts.database).importData(opts.name)
+		using(opts.config, opts.database).importData(opts.name, opts['dry-run'])
 		console.log('Import complete.')
 	})
 

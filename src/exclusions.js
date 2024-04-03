@@ -67,7 +67,12 @@ export const internals = {
 			'or',
 			'nullif',
 			'if',
-			'array'
+			'array',
+			'tinyint',
+			'bigint',
+			'double',
+			'bit',
+			'varbinary'
 
 			// And many more as needed...
 		]
