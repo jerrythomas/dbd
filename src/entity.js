@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'fs'
 import { extname, sep } from 'path'
 import csv from 'csvtojson'
-import { omit } from 'ramda'
+// import { omit } from 'ramda'
 
 import {
 	typesWithoutSchema,
@@ -26,8 +26,9 @@ export function entityFromFile(file) {
 		: parts.slice(parts.length - 2).join('.')
 
 	if (!typesWithoutSchema.includes(type)) {
-		return { type, name, file, schema: parts[parts.length - 2] }
+		return { type, name, file, schema: parts[parts.length - 2], format: file.split('.').pop() }
 	}
+
 	return { type, name, file }
 }
 
@@ -44,7 +45,7 @@ function getEntityWithConfig(item, defaultOptions) {
 
 	if (typeof item === 'object') {
 		name = Object.keys(item)[0]
-		opts = omit(['name'], { ...opts, ...item[name] })
+		opts = { ...opts, ...item[name] }
 	}
 
 	return { name, ...opts }
@@ -71,7 +72,7 @@ export function entityFromExportConfig(item) {
  * @returns
  */
 export function entityFromImportConfig(item, opts = defaultImportOptions) {
-	let entity = getEntityWithConfig(item, { ...defaultImportOptions, ...opts })
+	const entity = getEntityWithConfig(item, { ...defaultImportOptions, ...opts })
 
 	return {
 		type: 'import',
@@ -252,7 +253,7 @@ function validateFiles(entity, ddl) {
 	if (ddl && extname(entity.file) !== '.ddl') {
 		errors.push('Unsupported file type for ddl')
 	}
-	if (!ddl && !['.csv', '.json', '.jsonl'].includes(extname(entity.file))) {
+	if (!ddl && !['.tsv', '.csv', '.json', '.jsonl'].includes(extname(entity.file))) {
 		errors.push('Unsupported data format')
 	}
 
@@ -261,8 +262,21 @@ function validateFiles(entity, ddl) {
 
 export function importScriptForEntity(entity) {
 	let commands = []
+	const delimiter = entity.format === 'csv' ? ',' : '\\t'
+
 	if (entity.truncate) {
-		commands.push(`truncate table ${entity.name};`)
+		commands.push(
+			[
+				'do $$',
+				'begin',
+				`  truncate table ${entity.name};`,
+				'exception',
+				'  when others then',
+				`    delete from ${entity.name};`,
+				'    commit;',
+				'end $$;'
+			].join('\n')
+		)
 	}
 	if (['json', 'jsonl'].includes(entity.format)) {
 		commands.push('create table if not exists _temp (data jsonb);')
@@ -271,17 +285,18 @@ export function importScriptForEntity(entity) {
 		commands.push('drop table if exists _temp;')
 	} else
 		commands.push(
-			`\\copy ${entity.name} from '${entity.file}' with delimiter ',' NULL as '${entity.nullValue}' csv header;`
+			`\\copy ${entity.name} from '${entity.file}' with delimiter E'${delimiter}' NULL as '${entity.nullValue}' csv header;`
 		)
 	return commands.join('\n')
 }
 
 export function exportScriptForEntity(entity) {
 	const file = `export/${entity.name.replace('.', sep)}.` + (entity.format || 'csv')
+	const delimiter = entity.format === 'csv' ? ',' : '\\t'
 	if (['json', 'jsonl'].includes(entity.format)) {
 		return `\\copy (select row_to_json(t) from ${entity.name} t) to '${file}';`
 	}
-	return `\\copy (select * from ${entity.name}) to '${file}' with delimiter ',' csv header;`
+	return `\\copy (select * from ${entity.name}) to '${file}' with delimiter E'${delimiter}' csv header;`
 }
 
 export function entitiesForDBML(entities, config) {

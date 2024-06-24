@@ -230,6 +230,8 @@ class Design {
 					fs.writeFileSync('_import.sql', importScriptForEntity(table))
 					execSync(`psql ${this.databaseURL} < _import.sql`)
 					fs.unlinkSync('_import.sql')
+				} else {
+					console.info(table)
 				}
 			})
 

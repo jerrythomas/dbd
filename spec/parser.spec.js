@@ -16,6 +16,8 @@ import { scan } from '../src/metadata'
 import fs from 'fs'
 import { extname, join } from 'path'
 import { resetCache } from '../src/exclusions'
+import references from './fixtures/references/references.json'
+import exclusions from './fixtures/references/exclusions.json'
 
 describe('parser', () => {
 	const originalPath = cwd()
@@ -390,9 +392,8 @@ describe('parser', () => {
 
 		it('should match all references', () => {
 			let result = matchReferences(entities).sort((a, b) => a.name.localeCompare(b.name))
-			let expected = JSON.parse(fs.readFileSync('references.json', 'utf8')).sort((a, b) =>
-				a.name.localeCompare(b.name)
-			)
+			let expected = references.sort((a, b) => a.name.localeCompare(b.name))
+
 			for (let i = 0; i < result.length; i++) expect(result[i]).toEqual(expected[i])
 		})
 
@@ -400,9 +401,7 @@ describe('parser', () => {
 			const result = matchReferences(entities, ['uuid-ossp']).sort((a, b) =>
 				a.name.localeCompare(b.name)
 			)
-			let expected = JSON.parse(fs.readFileSync('exclusions.json', 'utf8')).sort((a, b) =>
-				a.name.localeCompare(b.name)
-			)
+			let expected = exclusions.sort((a, b) => a.name.localeCompare(b.name))
 			for (let i = 0; i < result.length; i++) expect(result[i]).toEqual(expected[i])
 		})
 	})

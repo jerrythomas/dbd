@@ -1,16 +1,11 @@
 import { describe, expect, it, beforeAll, beforeEach, afterEach } from 'vitest'
-import fs from 'fs'
-import yaml from 'js-yaml'
 import { scan, read, merge, clean, regroup, organize } from '../src/metadata.js'
+import { fixtures } from './fixtures/metadata'
 
 describe('metadata', () => {
-	let context = {}
+	let context = { ...fixtures }
 	beforeAll(() => {
 		context.path = process.cwd()
-
-		context.metadata = yaml.load(fs.readFileSync('spec/fixtures/metadata.yaml', 'utf8'))
-		context.clean = yaml.load(fs.readFileSync('spec/fixtures/metadata-clean.yaml', 'utf8'))
-		context.mdfix = yaml.load(fs.readFileSync('spec/fixtures/metadata-fix.yaml', 'utf8'))
 	})
 
 	beforeEach(() => {
@@ -24,10 +19,12 @@ describe('metadata', () => {
 		const files = scan('ddl').sort()
 		expect(files).toEqual([
 			'ddl/procedure/staging/import_jsonb_to_table.ddl',
+			'ddl/procedure/staging/import_lookup_values.ddl',
 			'ddl/procedure/staging/import_lookups.ddl',
 			'ddl/table/config/lookup_values.ddl',
 			'ddl/table/config/lookups.ddl',
 			'ddl/table/staging/lookup_values.ddl',
+			'ddl/table/staging/lookups.ddl',
 			'ddl/view/config/genders.ddl',
 			'ddl/view/migrate/lookup_values.ddl'
 		])
@@ -182,8 +179,9 @@ describe('metadata', () => {
 		let data = clean(context.clean.input)
 		data.entities.sort((a, b) => a.name.localeCompare(b.name))
 		context.clean.output.entities.sort((a, b) => a.name.localeCompare(b.name))
-		for (let i = 0; i < data.entities.length; i++)
+		for (let i = 0; i < data.entities.length; i++) {
 			expect(data.entities[i]).toEqual(context.clean.output.entities[i])
+		}
 	})
 
 	it('Should regroup based on dependencies', () => {
@@ -198,5 +196,30 @@ describe('metadata', () => {
 		expect(data).toEqual(context.mdfix.reorder.output)
 		data = organize(context.mdfix.missing.input)
 		expect(data).toEqual(context.mdfix.missing.output)
+	})
+
+	it('Should identify cyclic dependencies', () => {
+		const result = organize(context.mdfix.cycle.input)
+		expect(result).toEqual([
+			{ type: 'table', name: 'delta', refers: [], errors: [] },
+			{
+				type: 'table',
+				name: 'alpha',
+				refers: ['beta'],
+				errors: ['Cyclic dependency found']
+			},
+			{
+				type: 'table',
+				name: 'beta',
+				refers: ['charlie'],
+				errors: ['Cyclic dependency found']
+			},
+			{
+				type: 'table',
+				name: 'charlie',
+				refers: ['alpha'],
+				errors: ['Cyclic dependency found']
+			}
+		])
 	})
 })

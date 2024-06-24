@@ -72,7 +72,12 @@ export const internals = {
 			'bigint',
 			'double',
 			'bit',
-			'varbinary'
+			'varbinary',
+			'btree',
+			'int',
+			'numeric',
+			'bytea',
+			'table'
 
 			// And many more as needed...
 		]

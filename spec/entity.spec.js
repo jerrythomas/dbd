@@ -1,6 +1,5 @@
 import { describe, expect, it, beforeAll, beforeEach } from 'vitest'
-import { readFileSync } from 'fs'
-import { load } from 'js-yaml'
+import * as fixtures from './fixtures/entities'
 
 import {
 	entityFromFile,
@@ -17,12 +16,10 @@ import {
 } from '../src/entity.js'
 
 describe('entity', () => {
-	let context = {}
+	let context = { ...fixtures }
 
 	beforeAll(() => {
 		context.path = process.cwd()
-		const data = load(readFileSync('spec/fixtures/entities.yaml', 'utf8'))
-		Object.keys(data).map((key) => (context[key] = data[key]))
 	})
 
 	beforeEach(() => {
@@ -42,6 +39,7 @@ describe('entity', () => {
 			type: 'table',
 			name: 'core.lookup',
 			file: 'ddl/table/core/lookup.ddl',
+			format: 'ddl',
 			schema: 'core'
 		})
 	})
@@ -51,6 +49,7 @@ describe('entity', () => {
 			type: 'import',
 			name: 'staging.lookup',
 			file: 'import/staging/lookup.csv',
+			format: 'csv',
 			schema: 'staging'
 		})
 	})

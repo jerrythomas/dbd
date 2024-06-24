@@ -55,7 +55,6 @@ export function extractEntityType(input) {
 	if (match) return 'alias'
 	match = PATTERNS.INDEX_TYPE.exec(input)
 	if (match) return 'index'
-	// if (['index', 'primary'].includes(input.toLowerCase().trim())) return 'index'
 
 	return null
 }
@@ -106,7 +105,7 @@ export function extractEntity(script) {
 	const pattern = new RegExp(CREATE_ENTITY_PATTERN, 'gim')
 	const match = pattern.exec(script)
 	const { type, name, schema } = pick(['type', 'schema', 'name'], match?.groups ?? {})
-	return { type: type.toLowerCase(), name, schema }
+	return { type: type?.toLowerCase(), name, schema }
 }
 
 export function parseEntityScript(entity) {

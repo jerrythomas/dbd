@@ -3,6 +3,7 @@
     "type": "procedure",
     "name": "staging.import_lookups",
     "file": "ddl/procedure/staging/import_lookups.ddl",
+    "format": "ddl",
     "schema": "staging",
     "searchPaths": ["staging"],
     "references": [
@@ -29,6 +30,7 @@
     "type": "procedure",
     "name": "staging.import_jsonb_to_table",
     "file": "ddl/procedure/staging/import_json_to_table.ddl",
+    "format": "ddl",
     "schema": "staging",
     "searchPaths": ["staging"],
     "references": [],
@@ -39,6 +41,7 @@
     "type": "table",
     "name": "staging.lookup_values",
     "file": "ddl/table/staging/lookup_values.ddl",
+    "format": "ddl",
     "schema": "staging",
     "searchPaths": ["staging"],
     "references": [],
@@ -49,8 +52,9 @@
     "type": "table",
     "name": "core.users",
     "file": "ddl/table/core/users.ddl",
+    "format": "ddl",
     "schema": "core",
-    "searchPaths": ["core", "config", "extensions"],
+    "searchPaths": ["core", "config"],
     "references": [
       {
         "name": "uuid_generate_v4",
@@ -69,6 +73,7 @@
     "type": "table",
     "name": "config.lookup_values",
     "file": "ddl/table/config/lookup_values.ddl",
+    "format": "ddl",
     "schema": "config",
     "searchPaths": ["config", "extensions"],
     "references": [
@@ -89,6 +94,7 @@
     "type": "table",
     "name": "config.lookups",
     "file": "ddl/table/config/lookups.ddl",
+    "format": "ddl",
     "schema": "config",
     "searchPaths": ["config", "extensions"],
     "references": [
@@ -104,6 +110,7 @@
     "type": "view",
     "name": "config.genders",
     "file": "ddl/view/config/genders.ddl",
+    "format": "ddl",
     "schema": "config",
     "searchPaths": ["config"],
     "references": [
@@ -125,6 +132,7 @@
     "type": "view",
     "name": "migrate.lookup_values",
     "file": "ddl/view/migrate/lookup_values.ddl",
+    "format": "ddl",
     "schema": "migrate",
     "searchPaths": ["migrate"],
     "references": [

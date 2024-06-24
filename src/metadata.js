@@ -1,7 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'fs'
 import { join, extname } from 'path'
 import { load } from 'js-yaml'
-// import { cwd } from 'process'
 import { allowedTypes } from './constants.js'
 import { entityFromFile, entityFromImportConfig } from './entity.js'
 import { fillMissingInfoForEntities } from './filler.js'
@@ -101,8 +100,8 @@ export function cleanDDLEntities(data) {
  */
 function cleanImportTables(data) {
 	let importTables = scan('import')
-		.filter((file) => ['.jsonl', '.csv'].includes(extname(file)))
-		.map((file) => ({ ...entityFromFile(file), ...defaultImportOptions }))
+		.filter((file) => ['.jsonl', '.csv', '.tsv'].includes(extname(file)))
+		.map((file) => ({ ...defaultImportOptions, ...data.import.options, ...entityFromFile(file) }))
 
 	importTables = merge(
 		importTables,
@@ -111,6 +110,13 @@ function cleanImportTables(data) {
 	return importTables
 }
 
+/**
+ * Merge two arrays of objects
+ *
+ * @param {Array} x
+ * @param {Array} y
+ * @returns {Array}
+ */
 export function merge(x, y) {
 	let xAsObj = x.reduce((obj, item) => ((obj[item.name] = item), obj), {})
 	let yAsObj = y.reduce((obj, item) => ((obj[item.name] = item), obj), {})
@@ -125,6 +131,12 @@ export function merge(x, y) {
 	return Object.keys(yAsObj).map((key) => yAsObj[key])
 }
 
+/**
+ * Organize entities into groups
+ *
+ * @param {Array} data
+ * @returns {Array}
+ */
 export function organize(data) {
 	let lookup = data.reduce((obj, item) => ({ ...obj, [item.name]: item }), {})
 
@@ -138,20 +150,35 @@ export function organize(data) {
 
 	lookup = { ...lookup, ...missing }
 
-	return [].concat.apply([], regroup(lookup)).map((x) => lookup[x])
+	const result = regroup(lookup)
+	const organized = result.groups
+		.flatMap((items) => items.map((name) => lookup[name]))
+		.map((entity) => ({
+			...entity,
+			errors: result.errors.includes(entity.name) ? ['Cyclic dependency found'] : []
+		}))
+	return organized
 }
 
+/**
+ * Regroup entities based on references
+ */
 export function regroup(lookup) {
-	let nextGroup = null
 	let groups = [Object.keys(lookup)]
+	let errors = []
+	let length = groups.length
 
 	do {
+		length = groups.length
 		let thisGroup = groups.pop()
-		nextGroup = thisGroup.filter((k) => lookup[k].refers.some((x) => thisGroup.includes(x)))
-		thisGroup = thisGroup.filter((k) => !nextGroup.includes(k))
-		groups.push(thisGroup)
-		if (nextGroup.length > 0) groups.push(nextGroup)
-	} while (nextGroup.length > 0)
 
-	return groups.map((items) => items.sort())
+		const nextGroup = thisGroup.filter((k) => lookup[k].refers.some((x) => thisGroup.includes(x)))
+		thisGroup = thisGroup.filter((k) => !nextGroup.includes(k))
+
+		if (thisGroup.length > 0) groups.push(thisGroup)
+		if (nextGroup.length > 0) groups.push(nextGroup)
+		if (groups.length === length) errors = [...nextGroup]
+	} while (groups.length > length)
+
+	return { groups: groups.map((items) => items.sort()), errors }
 }

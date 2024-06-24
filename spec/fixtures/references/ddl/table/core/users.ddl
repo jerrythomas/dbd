@@ -1,4 +1,4 @@
-set search_path to core, config, extensions;
+set search_path to core, config;
 
 create table if not exists users (
   id                       uuid primary key default uuid_generate_v4()
