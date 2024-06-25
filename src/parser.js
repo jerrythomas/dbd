@@ -28,6 +28,11 @@ const PATTERNS = {
 	INDEX_TYPE: /\b(key|index)\s*$/i
 }
 
+/**
+ * Extracts function call references from an SQL script.
+ * @param {string} sqlScript - The SQL script.
+ * @returns {Array} An array of references with their types.
+ */
 export function extractReferences(sqlScript) {
 	// Matches function calls with optional schema prefixes
 	const pattern = new RegExp(FUNCTION_CALL_PATTERN, 'gim')
@@ -45,6 +50,11 @@ export function extractReferences(sqlScript) {
 		.filter((x) => x.type !== 'index')
 }
 
+/**
+ * Extracts the entity type from an input string.
+ * @param {string} input - The input string.
+ * @returns {string|null} The entity type or null if not found.
+ */
 export function extractEntityType(input) {
 	let match = PATTERNS.ENTITY_TYPE.exec(input)
 	if (match) return match[1]
@@ -59,6 +69,12 @@ export function extractEntityType(input) {
 	return null
 }
 
+/**
+ * Extracts the search paths from content.
+ * @param {string} content - The content.
+ * @param {string} [defaultPath='public'] - The default path.
+ * @returns {Array<string>} An array of search paths.
+ */
 export function extractSearchPaths(content, defaultPath = 'public') {
 	const matches = content.match(/SET\s+search_path\s*to\s*([a-z0-9_]+(,\s*)?)+;/gi)
 	if (matches) {
@@ -71,6 +87,11 @@ export function extractSearchPaths(content, defaultPath = 'public') {
 	return [defaultPath]
 }
 
+/**
+ * Extracts WITH aliases from an SQL script.
+ * @param {string} sqlScript - The SQL script.
+ * @returns {Array<string>} An array of aliases.
+ */
 export function extractWithAliases(sqlScript) {
 	const pattern = new RegExp(`with\\s*(recursive)\\s+${ENTITY_GROUP}\\s+as`, 'gim')
 	let aliases = new Set([])
@@ -82,6 +103,11 @@ export function extractWithAliases(sqlScript) {
 	return Array.from(aliases)
 }
 
+/**
+ * Extracts table references from an SQL script.
+ * @param {string} sqlScript - The SQL script.
+ * @returns {Array} An array of table references with their types.
+ */
 export function extractTableReferences(sqlScript) {
 	const pattern = new RegExp(TABLE_REF_PATTERN, 'gim')
 	let tableReferences = new Set()
@@ -101,6 +127,11 @@ export function extractTableReferences(sqlScript) {
 		.map((name) => ({ name, type: 'table/view' }))
 }
 
+/**
+ * Extracts the entity information from a script.
+ * @param {string} script - The script content.
+ * @returns {Object} The extracted entity information.
+ */
 export function extractEntity(script) {
 	const pattern = new RegExp(CREATE_ENTITY_PATTERN, 'gim')
 	const match = pattern.exec(script)
@@ -108,6 +139,11 @@ export function extractEntity(script) {
 	return { type: type?.toLowerCase(), name, schema }
 }
 
+/**
+ * Parses an entity script and extracts relevant information.
+ * @param {Object} entity - The entity object.
+ * @returns {Object} The parsed entity information.
+ */
 export function parseEntityScript(entity) {
 	const content = fs.readFileSync(entity.file, 'utf-8')
 	const searchPaths = extractSearchPaths(content)
@@ -152,6 +188,12 @@ export function generateLookupTree(entities) {
 	)
 }
 
+/**
+ * Match and resolve references for given entities.
+ * @param {Array} entities - An array of entities.
+ * @param {Array} [extensions=[]] - An array of extensions.
+ * @returns {Array} The entities with matched references.
+ */
 export function matchReferences(entities, extensions = []) {
 	const lookup = generateLookupTree(entities)
 
@@ -171,6 +213,14 @@ export function matchReferences(entities, extensions = []) {
 	})
 }
 
+/**
+ * Find an entity by name within search paths and lookup.
+ * @param {Object} ref - The reference object containing name and type.
+ * @param {Array} searchPaths - An array of search paths.
+ * @param {Object} lookup - The lookup object.
+ * @param {Array} [extensions=[]] - An array of extensions.
+ * @returns {Object} The matched entity or an error object if not found.
+ */
 export function findEntityByName({ name, type }, searchPaths, lookup, extensions = []) {
 	let matched = null
 	let internalType = isInternal(name, extensions)

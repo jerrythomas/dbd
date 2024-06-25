@@ -26,6 +26,26 @@ describe('entity', () => {
 		process.chdir(context.path)
 	})
 
+	it('should handle errors', () => {
+		const entity = entityFromFile('ddl/test.ddl')
+		expect(entity).toEqual({
+			file: 'ddl/test.ddl',
+			name: null,
+			type: null
+		})
+		expect(validateEntityFile(entity)).toEqual({
+			errors: [
+				'Location of the file is incorrect',
+				'Unknown or unsupported entity type.',
+				'Unknown or unsupported entity ddl script.',
+				'File does not exist'
+			],
+			file: 'ddl/test.ddl',
+			name: null,
+			type: null
+		})
+	})
+
 	it('Should convert filepath for schemaless entity', () => {
 		expect(entityFromFile('ddl/role/admin.ddl')).toEqual({
 			type: 'role',

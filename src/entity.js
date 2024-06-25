@@ -19,14 +19,24 @@ import {
  */
 export function entityFromFile(file) {
 	let parts = file.replace(extname(file), '').split(sep)
+	if (parts[0] === 'ddl') {
+		parts = parts.slice(1)
+	}
+	const type = parts[0]
+	const noSchema = typesWithoutSchema.includes(type)
 
-	const type = parts[0] === 'ddl' ? parts[1] : parts[0]
-	let name = typesWithoutSchema.includes(type)
-		? parts[parts.length - 1]
-		: parts.slice(parts.length - 2).join('.')
+	if ((noSchema && parts.length !== 2) || (!noSchema && parts.length !== 3))
+		return { type: null, name: null, file }
+	const name = noSchema ? parts[parts.length - 1] : parts.slice(parts.length - 2).join('.')
 
-	if (!typesWithoutSchema.includes(type)) {
-		return { type, name, file, schema: parts[parts.length - 2], format: file.split('.').pop() }
+	if (!noSchema) {
+		return {
+			type,
+			name,
+			file,
+			schema: parts[parts.length - 2],
+			format: extname(file).split('.').pop()
+		}
 	}
 
 	return { type, name, file }
@@ -203,6 +213,9 @@ export function validateEntityFile(entity, ddl = true, ignore = []) {
 	let errors = []
 	ddl = ddl && entity.type !== 'import'
 
+	if (entity.name === null) {
+		errors.push('Location of the file is incorrect')
+	}
 	if (!allowedTypes.includes(entity.type)) {
 		errors.push('Unknown or unsupported entity type.')
 		if (entity.file) errors.push('Unknown or unsupported entity ddl script.')
