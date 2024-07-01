@@ -14,6 +14,7 @@ import {
 	exportScriptForEntity,
 	entitiesForDBML
 } from './entity.js'
+import { cleanupDDLForDBML } from './parser.js'
 
 class Design {
 	#config = {}
@@ -181,7 +182,7 @@ class Design {
 		docs.map((doc) => {
 			let combined = entitiesForDBML(this.entities, doc.config)
 				.map((entity) => ddlFromEntity(entity))
-				.map((ddl) => (ddl ? ddl.replace(/create\s.*index\s.*on\s.*;/gi, '') : ddl))
+				.map((ddl) => cleanupDDLForDBML(ddl))
 
 			const replacer = entitiesForDBML(this.entities, doc.config)
 				.filter((entity) => entity.type === 'table')
@@ -201,7 +202,7 @@ class Design {
 				let dbml = importer.import(combined.join('\n'), 'postgres')
 				const fileName = [doc.project, file].join('-')
 
-				// replace table names with schem.table
+				// replace table names with schema.table
 				replacer.map(({ original, replacement }) => {
 					dbml = dbml.replace(new RegExp(original, 'g'), replacement)
 				})

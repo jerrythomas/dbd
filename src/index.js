@@ -30,6 +30,7 @@ prog
 prog
 	.command('inspect')
 	.option('-n, --name', 'Name of specific entity to inspect.')
+	.option('-vv, --verbose', 'Verbose output', false)
 	.describe('Inspect the current folder.')
 	.example('dbd inspect')
 	.action((opts) => {
@@ -37,15 +38,13 @@ prog
 
 		if (entity) console.log(JSON.stringify(entity, null, 2))
 
+		const showDetails = (item, verbose) => {
+			let details = `\n${item.file ? item.file : item.name} =>\n  ${item.errors.join('\n  ')}`
+			if (verbose) details += `\n${JSON.stringify(item, null, 2)}`
+			return details
+		}
 		if (issues.length > 0) {
-			issues.map((entity) =>
-				console.log(
-					'\n',
-					entity.file ? entity.file : entity.name,
-					'=>\n ',
-					entity.errors.join('\n  ')
-				)
-			)
+			issues.map((entity) => console.log(showDetails(entity, opts.verbose)))
 		} else {
 			console.log('Everything looks ok')
 		}

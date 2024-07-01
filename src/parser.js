@@ -245,3 +245,42 @@ export function findEntityByName({ name, type }, searchPaths, lookup, extensions
 				error: `Reference ${name} not found in [${searchPaths.join(', ')}]`
 			}
 }
+
+/**
+ * Removes index creation statements from a DDL script.
+ * @param {string} ddlText - The DDL script.
+ * @returns {string} The DDL script without index creation statements.
+ */
+export function removeIndexCreationStatements(ddlText) {
+	const indexCreationRegex = /create\s+.*index\s+[^\n]*\s*on\s+[^\n]*\(.*\);\n?/gim
+	// const indexCreationRegex = /create\s+(unique\s+)?index\s+.*\S+\s+on\s+\S+\s*\([^)]*\);\n?/gim
+	const result = ddlText.replace(indexCreationRegex, '')
+
+	return result
+}
+
+/**
+ * Normalize the comment string.
+ * @param {string} inputString - The input string.
+ * @returns {string} The normalized comment string.
+ */
+export function normalizeComment(inputString) {
+	const regex = /comment on table\s+(\w+)\s+IS\s*'([^']*)';/i
+	return inputString.replace(regex, (match, tableName, commentContent) => {
+		// Replace newline characters with spaces
+		const singleLineComment = commentContent.replace(/\n/g, '\\n').replace(/[\r]+/g, '')
+		return `comment on table ${tableName} IS '${singleLineComment.trim()}';`
+	})
+}
+
+/**
+ * Cleanup DDL for DBML conversion.
+ * @param {string} ddlText - The DDL script.
+ * @returns {string} The cleaned up DDL script.
+ */
+export function cleanupDDLForDBML(ddlText) {
+	if (!ddlText) return ddlText
+	let cleaned = removeIndexCreationStatements(ddlText)
+	// cleaned = normalizeComment(cleaned)
+	return cleaned
+}

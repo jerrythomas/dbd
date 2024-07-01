@@ -9,7 +9,9 @@ import {
 	parseEntityScript,
 	generateLookupTree,
 	findEntityByName,
-	matchReferences
+	matchReferences,
+	removeIndexCreationStatements,
+	normalizeComment
 } from '../src/parser'
 import { entityFromFile } from '../src/entity'
 import { scan } from '../src/metadata'
@@ -403,6 +405,58 @@ describe('parser', () => {
 			)
 			let expected = exclusions.sort((a, b) => a.name.localeCompare(b.name))
 			for (let i = 0; i < result.length; i++) expect(result[i]).toEqual(expected[i])
+		})
+	})
+
+	describe('removeIndexCreationStatements', () => {
+		it('should remove index creation statements', () => {
+			const ddl = [
+				`create table a( id serial);`,
+				`create unique index if not exists a_ukey`,
+				`on a (id );`,
+				'',
+				`comment on table a is 'a table';`
+			]
+			const expected = [ddl[0], ddl[3], ddl[4]]
+			expect(removeIndexCreationStatements(ddl.join('\n'))).toEqual(expected.join('\n'))
+		})
+
+		it('should remove function based indexes', () => {
+			const ddl = [
+				'some statments before index',
+				'create unique index if not exists organizations_ukey',
+				'on organizations (lower(name));',
+				'some statments after index'
+			]
+			const expected = [ddl[0], ddl[3]]
+			expect(removeIndexCreationStatements(ddl.join('\n'))).toEqual(expected.join('\n'))
+		})
+	})
+
+	describe('normalizeComments', () => {
+		it('should normalize a multi line comment', () => {
+			const inputArray = [
+				'Some initial text that should remain intact.',
+				'',
+				'comment on table xyz IS',
+				"'User roles for application access.\n",
+				'- Each role has a name and description.',
+				'- Roles are associated with privileges and users.',
+				'- Users can have multiple roles.',
+				'- Roles can have multiple privileges.',
+				"- Roles are not tenant specific.';",
+				'',
+				'Some additional text that should remain intact.'
+			]
+
+			const inputString = inputArray.join('\n')
+			const expectedOutput = [
+				'Some initial text that should remain intact.\n',
+				"comment on table xyz IS 'User roles for application access.\\n\\n- Each role has a name and description.\\n- Roles are associated with privileges and users.\\n- Users can have multiple roles.\\n- Roles can have multiple privileges.\\n- Roles are not tenant specific.';",
+				'\nSome additional text that should remain intact.'
+			].join('\n')
+			const outputString = normalizeComment(inputString)
+			expect(outputString).toEqual(expectedOutput)
 		})
 	})
 })
