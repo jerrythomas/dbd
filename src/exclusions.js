@@ -37,6 +37,7 @@ export const internals = {
 			'over',
 			'partition',
 			'by',
+			'list',
 			'values',
 			'count',
 			'string_agg',

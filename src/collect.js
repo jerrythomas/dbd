@@ -122,6 +122,7 @@ class Design {
 						? ` using "${entity.file || entity.schema}"`
 						: ''
 				const detail = `${entity.type} => ${entity.name}${using}`
+
 				if (entity.errors && entity.errors.length > 0) {
 					console.error(pick(['type', 'name', 'file', 'errors'], entity))
 				} else {

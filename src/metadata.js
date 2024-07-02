@@ -99,13 +99,19 @@ export function cleanDDLEntities(data) {
  * @returns
  */
 function cleanImportTables(data) {
+	const options = { ...defaultImportOptions, ...data.import.options }
+	const tables = data.import.tables ?? []
+	const schemaOptions = data.import.schemas ?? {}
 	let importTables = scan('import')
 		.filter((file) => ['.jsonl', '.csv', '.tsv'].includes(extname(file)))
-		.map((file) => ({ ...defaultImportOptions, ...data.import.options, ...entityFromFile(file) }))
+		.map((file) => ({ ...options, ...entityFromFile(file) }))
+		.map((table) => ({ ...table, ...schemaOptions[table.schema] }))
+
+	if (tables.length === 0) return importTables
 
 	importTables = merge(
 		importTables,
-		data.import.tables.map((table) => entityFromImportConfig(table, data.import.options))
+		tables.map((table) => entityFromImportConfig(table, options))
 	)
 	return importTables
 }
