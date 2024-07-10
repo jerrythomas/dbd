@@ -24,6 +24,7 @@ export const internals = {
 			'upper',
 			'lower',
 			'substring',
+			'substr',
 			'trim',
 			'getdate',
 			'datepart',
