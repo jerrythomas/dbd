@@ -5,6 +5,7 @@ import {
 	extractReferences,
 	extractSearchPaths,
 	extractTableReferences,
+	extractTriggerReferences,
 	extractEntity,
 	parseEntityScript,
 	generateLookupTree,
@@ -146,6 +147,25 @@ describe('parser', () => {
 			const content = fs.readFileSync('ddl/procedure/staging/import_json_to_table.ddl', 'utf8')
 			const references = extractTableReferences(content)
 			expect(references).toEqual([])
+		})
+	})
+
+	describe('extractTriggerReferences', () => {
+		it('should extract trigger references', () => {
+			const content = `
+        create trigger add_tenant_partitions_trigger
+         after insert on core.tenants
+           for each row execute function add_tenant_partitions();`
+			const references = extractTriggerReferences(content)
+			expect(references).toEqual([{ name: 'core.tenants', type: 'table' }])
+		})
+		it('should extract trigger references', () => {
+			const content = `drop trigger if exists add_tenant_partitions_trigger on core.tenants;
+        create trigger add_tenant_partitions_trigger
+         after insert on core.tenants
+           for each row execute function add_tenant_partitions();`
+			const references = extractTriggerReferences(content)
+			expect(references).toEqual([{ name: 'core.tenants', type: 'table' }])
 		})
 	})
 

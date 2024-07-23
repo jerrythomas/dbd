@@ -7,7 +7,7 @@ const TYPES_GROUP = '(?<type>procedure|function|view|table)'
 const SCHEMA_GROUP = '((?<schema>[a-zA-Z_][a-zA-Z0-9_]*)?\\.)?'
 const ENTITY_GROUP = '(?<name>[a-zA-Z_][a-zA-Z0-9_]*)'
 const TABLE_ALIAS_PATTERN = '(\\s*;?|(\\s+((as\\s+)?(?<alias>[a-zA-Z_][a-zA-Z0-9_]*))?))$'
-
+const TRIGGER_PATTERN = '\\s+trigger\\s+.*\\s+on\\s+(?<name>[a-zA-Z_][a-zA-Z0-9_.]*)\\s+'
 const CREATE_ENTITY_PATTERN =
 	'create\\s+(or\\s+replace\\s+)?' +
 	TYPES_GROUP +
@@ -38,6 +38,7 @@ export function extractReferences(sqlScript) {
 	const pattern = new RegExp(FUNCTION_CALL_PATTERN, 'gim')
 	let functionCalls = {}
 	let match = {}
+
 	while ((match = pattern.exec(sqlScript)) !== null) {
 		const { prefix, schema, name } = match.groups
 		const type = extractEntityType(prefix)
@@ -50,6 +51,25 @@ export function extractReferences(sqlScript) {
 		.filter((x) => x.type !== 'index')
 }
 
+/**
+ * Extracts table names on which a trigger is applied
+ *
+ * @param {*} sqlScript
+ * @returns
+ */
+export function extractTriggerReferences(sqlScript) {
+	const pattern = new RegExp(TRIGGER_PATTERN, 'gim')
+	const content = sqlScript.replaceAll('\n', ' ').replaceAll('\r', ' ')
+	let triggers = new Set()
+	let match = {}
+
+	while ((match = pattern.exec(content)) !== null) {
+		const { name } = match.groups
+		triggers.add(name)
+	}
+
+	return Array.from(triggers).map((name) => ({ name, type: 'table' }))
+}
 /**
  * Extracts the entity type from an input string.
  * @param {string} input - The input string.
@@ -149,7 +169,11 @@ export function parseEntityScript(entity) {
 	const searchPaths = extractSearchPaths(content)
 	let info = extractEntity(content)
 
-	let references = uniq([...extractReferences(content), ...extractTableReferences(content)])
+	let references = uniq([
+		...extractReferences(content),
+		...extractTableReferences(content),
+		...extractTriggerReferences(content)
+	])
 
 	let errors = []
 	if (!info.name)

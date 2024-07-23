@@ -19,6 +19,7 @@ export const internals = {
 			'max',
 			'sum',
 			'floor',
+			'where',
 			'ceil',
 			'random',
 			'upper',
