@@ -276,8 +276,7 @@ export function findEntityByName({ name, type }, searchPaths, lookup, extensions
  * @returns {string} The DDL script without index creation statements.
  */
 export function removeIndexCreationStatements(ddlText) {
-	const indexCreationRegex = /create\s+.*index\s+[^\n]*\s*on\s+[^\n]*\(.*\);\n?/gim
-	// const indexCreationRegex = /create\s+(unique\s+)?index\s+.*\S+\s+on\s+\S+\s*\([^)]*\);\n?/gim
+	const indexCreationRegex = /create\s+(.+)?index[\s\S]*?;\n?/gim
 	const result = ddlText.replace(indexCreationRegex, '')
 
 	return result
@@ -305,6 +304,5 @@ export function normalizeComment(inputString) {
 export function cleanupDDLForDBML(ddlText) {
 	if (!ddlText) return ddlText
 	let cleaned = removeIndexCreationStatements(ddlText)
-	// cleaned = normalizeComment(cleaned)
 	return cleaned
 }

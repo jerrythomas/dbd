@@ -83,8 +83,10 @@ export const internals = {
 			'int',
 			'numeric',
 			'bytea',
-			'table'
-
+			'table',
+			'column',
+			'trunc',
+			'geometry'
 			// And many more as needed...
 		]
 	},
@@ -160,6 +162,7 @@ export function isExtension(input, installed = []) {
 	let matched = false
 	for (let i = 0; i < installed.length && !matched; i++) {
 		const extension = extensions[installed[i]]
+		if (!extension) continue
 		if (Array.isArray(extension.entities)) {
 			matched = extension.entities.includes(input)
 		}

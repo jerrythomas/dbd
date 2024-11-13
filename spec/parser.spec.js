@@ -441,6 +441,15 @@ describe('parser', () => {
 			expect(removeIndexCreationStatements(ddl.join('\n'))).toEqual(expected.join('\n'))
 		})
 
+		it('should remove index creation statements with schema', () => {
+			const ddl = [
+				'create unique index if not exists subscriptions_ukey ',
+				'   on subscriptions(tenant_id, subscriber_id, region_id, subscribed_on , expires_on)  ;',
+				''
+			]
+			expect(removeIndexCreationStatements(ddl.join('\n'))).toEqual('')
+		})
+
 		it('should remove function based indexes', () => {
 			const ddl = [
 				'some statments before index',
