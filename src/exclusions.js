@@ -7,7 +7,9 @@ export const extensions = {
 	'uuid-ossp': { patterns: ['^uuid_'] },
 	cube: { patterns: ['^cube(_.*)?'] },
 	timescaledb: { entities: ['create_hypertable', 'time_bucket'] },
-	pgcrypto: { entities: ['gen_salt', 'crypt', 'md5'] }
+	pgcrypto: { entities: ['gen_salt', 'crypt', 'md5'] },
+	postgis: { patterns: ['^st_', '^geom_', '^geog'] },
+	pg_trgm: { entities: ['similarity'] }
 }
 export const internals = {
 	ansii: {
@@ -87,6 +89,7 @@ export const internals = {
 			'column',
 			'trunc',
 			'geometry'
+
 			// And many more as needed...
 		]
 	},
@@ -117,7 +120,8 @@ export const internals = {
 			'initcap',
 			'extract',
 			'conflict',
-			'date_part'
+			'date_part',
+			'return'
 			// Add more specific functions as necessary
 		]
 	}

@@ -9,3 +9,4 @@ coverage.lcov
 *workspace
 *.log
 _*.sql
+init.sql
