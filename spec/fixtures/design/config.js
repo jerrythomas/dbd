@@ -48,6 +48,14 @@ const viewConfigGenders = {
 	schema: 'config',
 	refers: ['config.lookups', 'config.lookup_values']
 }
+const viewConfigRangeValues = {
+	type: 'view',
+	name: 'config.range_values',
+	file: 'ddl/view/config/range_values.ddl',
+	format: 'ddl',
+	schema: 'config',
+	refers: ['config.lookups', 'config.lookup_values']
+}
 
 const viewMigrateLookupValues = {
 	type: 'view',
@@ -84,6 +92,7 @@ export const config = {
 		},
 		tblConfigLookupValues,
 		viewConfigGenders,
+		viewConfigRangeValues,
 		viewMigrateLookupValues,
 		procStagingImportLookups
 	]
@@ -205,6 +214,23 @@ export const entities = [
 		errors: []
 	},
 	{
+		...viewConfigRangeValues,
+		references: [
+			{
+				name: 'config.lookups',
+				type: 'table',
+				schema: 'config'
+			},
+			{
+				name: 'config.lookup_values',
+				type: 'table',
+				schema: 'config'
+			}
+		],
+		searchPaths: ['config'],
+		errors: []
+	},
+	{
 		...viewMigrateLookupValues,
 		references: [
 			{
@@ -221,6 +247,7 @@ export const entities = [
 		searchPaths: ['migrate'],
 		errors: []
 	},
+
 	{
 		errors: [],
 		file: 'ddl/procedure/staging/import_lookup_values.ddl',
@@ -266,6 +293,11 @@ export const afterApply = {
 		{
 			table_schema: 'config',
 			table_name: 'genders',
+			table_type: 'VIEW'
+		},
+		{
+			table_schema: 'config',
+			table_name: 'range_values',
 			table_type: 'VIEW'
 		},
 		{

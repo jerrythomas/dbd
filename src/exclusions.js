@@ -124,7 +124,8 @@ export const internals = {
 			'extract',
 			'conflict',
 			'date_part',
-			'return'
+			'return',
+			'enum'
 			// Add more specific functions as necessary
 		]
 	}

@@ -151,6 +151,18 @@ export const output = {
 			errors: []
 		},
 		{
+			type: 'view',
+			name: 'migrate.lookup_values',
+			file: 'ddl/view/migrate/lookup_values.ddl',
+			format: 'ddl',
+			references: [referenceConfigLookups, referenceConfigLookupValues],
+			refers: ['config.lookups', 'config.lookup_values'],
+			schema: 'migrate',
+			searchPaths: ['migrate'],
+			errors: []
+		},
+		,
+		{
 			type: 'procedure',
 			name: 'staging.import_jsonb_to_table',
 			file: 'ddl/procedure/staging/import_jsonb_to_table.ddl',
@@ -163,13 +175,13 @@ export const output = {
 		},
 		{
 			type: 'view',
-			name: 'migrate.lookup_values',
-			file: 'ddl/view/migrate/lookup_values.ddl',
+			name: 'config.range_values',
+			file: 'ddl/view/config/range_values.ddl',
 			format: 'ddl',
 			references: [referenceConfigLookups, referenceConfigLookupValues],
 			refers: ['config.lookups', 'config.lookup_values'],
-			schema: 'migrate',
-			searchPaths: ['migrate'],
+			schema: 'config',
+			searchPaths: ['config'],
 			errors: []
 		},
 		{

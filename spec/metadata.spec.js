@@ -26,6 +26,7 @@ describe('metadata', () => {
 			'ddl/table/staging/lookup_values.ddl',
 			'ddl/table/staging/lookups.ddl',
 			'ddl/view/config/genders.ddl',
+			'ddl/view/config/range_values.ddl',
 			'ddl/view/migrate/lookup_values.ddl'
 		])
 	})

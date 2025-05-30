@@ -122,6 +122,7 @@ describe('collect', async () => {
 			'table => config.lookup_values using "ddl/table/config/lookup_values.ddl"',
 			'procedure => staging.import_lookups using "ddl/procedure/staging/import_lookups.ddl"',
 			'view => config.genders using "ddl/view/config/genders.ddl"',
+			'view => config.range_values using "ddl/view/config/range_values.ddl"',
 			'view => migrate.lookup_values using "ddl/view/migrate/lookup_values.ddl"',
 			'procedure => staging.import_lookup_values using "ddl/procedure/staging/import_lookup_values.ddl"'
 		])
@@ -240,6 +241,7 @@ describe('collect', async () => {
 			'Applying table: config.lookup_values',
 			'Applying procedure: staging.import_lookups',
 			'Applying view: config.genders',
+			'Applying view: config.range_values',
 			'Applying view: migrate.lookup_values',
 			'Applying procedure: staging.import_lookup_values'
 		])
@@ -275,13 +277,13 @@ describe('collect', async () => {
 
 		expect(dx.isValidated).toBeTruthy()
 		let result = await context.db.query(sql`select count(*) from staging.lookup_values`)
-		expect(result).toEqual([{ count: 2n }])
+		expect(result).toEqual([{ count: 8n }])
 
 		result = await context.db.query(sql`select count(*) from config.lookups`)
-		expect(result).toEqual([{ count: 1n }])
+		expect(result).toEqual([{ count: 2n }])
 
 		result = await context.db.query(sql`select count(*) from config.lookup_values`)
-		expect(result).toEqual([{ count: 2n }])
+		expect(result).toEqual([{ count: 8n }])
 	})
 
 	it('Should export data using psql', () => {
@@ -337,11 +339,11 @@ describe('collect', async () => {
 		])
 		let result = await context.db.query(sql`select count(*) from staging.lookup_values`)
 
-		expect(result).toEqual([{ count: 2n }])
+		expect(result).toEqual([{ count: 8n }])
 		result = await context.db.query(sql`select count(*) from config.lookups`)
-		expect(result).toEqual([{ count: 1n }])
-		result = await context.db.query(sql`select count(*) from config.lookup_values`)
 		expect(result).toEqual([{ count: 2n }])
+		result = await context.db.query(sql`select count(*) from config.lookup_values`)
+		expect(result).toEqual([{ count: 8n }])
 	})
 
 	it('Should skip import when invalid name or file is provided', async () => {
@@ -372,7 +374,7 @@ describe('collect', async () => {
 		let result = await context.db.query(sql`select count(*) from staging.lookup_values`)
 		expect(result).toEqual([{ count: 0n }])
 		result = await context.db.query(sql`select count(*) from config.lookups`)
-		expect(result).toEqual([{ count: 1n }])
+		expect(result).toEqual([{ count: 2n }])
 		result = await context.db.query(sql`select count(*) from config.lookup_values`)
 		expect(result).toEqual([{ count: 0n }])
 	})

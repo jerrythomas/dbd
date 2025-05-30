@@ -293,6 +293,7 @@ export function importScriptForEntity(entity) {
 	}
 	if (['json', 'jsonl'].includes(entity.format)) {
 		commands.push('create table if not exists _temp (data jsonb);')
+		commands.push("set client_encoding to 'UTF8';")
 		commands.push(`\\copy _temp from '${entity.file}';`)
 		commands.push(`call staging.import_jsonb_to_table('_temp', '${entity.name}');`)
 		commands.push('drop table if exists _temp;')
