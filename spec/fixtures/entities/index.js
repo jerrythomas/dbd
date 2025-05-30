@@ -336,7 +336,7 @@ export const importScripts = [
 		},
 		output: [
 			'create table if not exists _temp (data jsonb);',
-			"set client_encoding to 'UTF8';",
+			// "set client_encoding to 'UTF8';",
 			"\\copy _temp from 'lookup.jsonl';",
 			"call staging.import_jsonb_to_table('_temp', 'staging.test');",
 			'drop table if exists _temp;'
