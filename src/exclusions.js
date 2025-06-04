@@ -9,7 +9,8 @@ export const extensions = {
 	timescaledb: { entities: ['create_hypertable', 'time_bucket'] },
 	pgcrypto: { entities: ['gen_salt', 'crypt', 'md5'] },
 	postgis: { patterns: ['^st_', '^geom_', '^geog'] },
-	pg_trgm: { entities: ['similarity'] }
+	pg_trgm: { entities: ['similarity'] },
+	vector: { entities: ['vector', 'gin'] }
 }
 export const internals = {
 	ansii: {
@@ -91,7 +92,11 @@ export const internals = {
 			'table',
 			'column',
 			'trunc',
-			'geometry'
+			'geometry',
+			'vector',
+			'gin',
+			'for',
+			'threshold'
 
 			// And many more as needed...
 		]
