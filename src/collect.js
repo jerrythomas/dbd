@@ -211,7 +211,7 @@ class Design {
 					dbml = dbml.replace(new RegExp(original, 'g'), replacement)
 				})
 				fs.writeFileSync(fileName, project + dbml)
-				// rmSync('combined.sql')
+				rmSync('combined.sql')
 				console.info(`Generated DBML in ${fileName}`)
 			} catch (err) {
 				console.error(err)
