@@ -193,7 +193,10 @@ class Design {
 				}))
 				.map(({ name, schema }) => ({
 					original: `Table "${name}"`,
-					replacement: `Table "${schema}"."${name}" as "${name}"`
+					replacement:
+						schema === 'public'
+							? `Table "${schema}"."${name}"`
+							: `Table "${schema}"."${name}" as "${name}"`
 				}))
 
 			fs.writeFileSync('combined.sql', combined.join('\n'))
@@ -208,7 +211,7 @@ class Design {
 					dbml = dbml.replace(new RegExp(original, 'g'), replacement)
 				})
 				fs.writeFileSync(fileName, project + dbml)
-				rmSync('combined.sql')
+				// rmSync('combined.sql')
 				console.info(`Generated DBML in ${fileName}`)
 			} catch (err) {
 				console.error(err)
