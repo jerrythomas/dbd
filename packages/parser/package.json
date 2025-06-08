@@ -1,5 +1,5 @@
 {
-  "name": "@jerrythomas/sql-parser",
+  "name": "@jerrythomas/dbd-parser",
   "version": "1.1.8",
   "description": "Parse and derive metadata from sql files",
   "private": false,
@@ -10,6 +10,7 @@
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write .",
     "test": "vitest",
+    "test:ci": "vitest run",
     "coverage": "vitest run --coverage"
   },
   "author": "Jerry Thomas <me@jerrythomas.name>",
@@ -19,6 +20,7 @@
     "access": "public"
   },
   "dependencies": {
+    "node-sql-parser": "^5.3.9",
     "ramda": "^0.29.1"
   },
   "devDependencies": {
