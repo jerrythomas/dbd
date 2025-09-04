@@ -7,6 +7,7 @@ DBD (Database Designer) is a tool for parsing, analyzing, and working with SQL d
 ## Current Achievements
 
 ### ✅ Parser Package (Completed)
+
 - **New SQL Parser**: Replaced brittle regex-based approach with `node-sql-parser`
 - **Functional Architecture**: Clean, maintainable functional programming approach
 - **Structured Error Handling**: Replaced console warnings with proper error objects
@@ -15,6 +16,7 @@ DBD (Database Designer) is a tool for parsing, analyzing, and working with SQL d
 - **Full Test Coverage**: Comprehensive test suite with unit and integration tests
 
 ### ✅ Fixed Components
+
 1. **db-indexes.js** - Improved index extraction with fallback mechanisms
 2. **procedures.js** - Added extraction from original SQL statements
 3. **sql.js** - Enhanced AST parsing with original SQL references
@@ -24,6 +26,7 @@ DBD (Database Designer) is a tool for parsing, analyzing, and working with SQL d
 ## Current Capabilities
 
 The SQL parser successfully extracts:
+
 - **Tables** - Columns, constraints, comments, schema qualification
 - **Views** - Dependencies and definitions
 - **Procedures** - Parameters and body analysis
@@ -40,6 +43,7 @@ The SQL parser successfully extracts:
 ## Example SQL Support
 
 Successfully handles complex SQL like:
+
 - Schema-qualified objects (`config.lookup_values`)
 - Complex constraints and references
 - UUID generation and defaults

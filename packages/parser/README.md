@@ -41,10 +41,10 @@ bun run parse-ddl.js ../../ddl/table/config/lookups.ddl --detect-errors
 ### Using the SQLParser Class
 
 ```javascript
-import { SQLParser } from './parser-utils.spec.js';
+import { SQLParser } from './parser-utils.spec.js'
 
 // Create a parser instance
-const parser = new SQLParser('PostgreSQL');
+const parser = new SQLParser('PostgreSQL')
 
 // Parse a DDL string
 const ddlContent = `
@@ -56,15 +56,15 @@ CREATE TABLE users (
 
 COMMENT ON TABLE users IS 'User accounts';
 COMMENT ON COLUMN users.id IS 'Unique identifier';
-`;
+`
 
 // Extract the schema
-const schema = parser.extractSchema(ddlContent);
+const schema = parser.extractSchema(ddlContent)
 
 // Access the extracted metadata
-console.log(schema.tables[0].name);                  // "users"
-console.log(schema.tables[0].columns[0].dataType);   // "uuid"
-console.log(schema.tables[0].comments.table);        // "User accounts"
+console.log(schema.tables[0].name) // "users"
+console.log(schema.tables[0].columns[0].dataType) // "uuid"
+console.log(schema.tables[0].comments.table) // "User accounts"
 ```
 
 ## The SQLParser Class
