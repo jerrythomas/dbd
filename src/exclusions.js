@@ -96,7 +96,14 @@ export const internals = {
 			'vector',
 			'gin',
 			'for',
-			'threshold'
+			'threshold',
+			'length',
+			'decimal',
+			'position',
+			'not',
+			'date',
+			'round',
+			'when'
 
 			// And many more as needed...
 		]

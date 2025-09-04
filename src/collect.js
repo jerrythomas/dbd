@@ -207,9 +207,9 @@ class Design {
 				const fileName = [doc.project, file].join('-')
 
 				// replace table names with schema.table
-				// replacer.map(({ original, replacement }) => {
-				// 	dbml = dbml.replace(new RegExp(original, 'g'), replacement)
-				// })
+				replacer.map(({ original, replacement }) => {
+					dbml = dbml.replace(new RegExp(original, 'g'), replacement)
+				})
 				fs.writeFileSync(fileName, project + dbml)
 				rmSync('combined.sql')
 				console.info(`Generated DBML in ${fileName}`)
