@@ -1,6 +1,6 @@
 {
   "name": "@jerrythomas/dbd",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "Deploy databases using DDL scripts.",
   "private": false,
   "type": "module",
