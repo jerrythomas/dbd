@@ -686,6 +686,41 @@ describe('parser', () => {
 	})
 
 	describe('isSqlExpression', () => {
+		it('should not mark built-in SQL functions as function calls regardless of prefix', () => {
+			const cases = [
+				{
+					sql: `SELECT (coalesce(value, 0) + 1) ;`,
+					builtin: 'coalesce'
+				},
+				{
+					sql: `SELECT sum(amount) FROM payments;`,
+					builtin: 'sum'
+				},
+				{
+					sql: `SELECT max(score) FROM results;`,
+					builtin: 'max'
+				},
+				{
+					sql: `SELECT (SELECT value FROM table1) FROM users;`,
+					builtin: 'select'
+				},
+				{
+					sql: `SELECT extract(month from date) FROM calendar;`,
+					builtin: 'extract'
+				}
+			]
+
+			for (const { sql, builtin } of cases) {
+				const references = extractReferences(sql)
+				expect(references.some((ref) => ref.name === builtin)).toBe(false)
+			}
+			// Confirm that the table references are still found
+			expect(extractReferences(cases[0].sql)).toEqual([])
+			expect(extractReferences(cases[1].sql).some((ref) => ref.name === 'payments')).toBe(true)
+			expect(extractReferences(cases[2].sql).some((ref) => ref.name === 'results')).toBe(true)
+			expect(extractReferences(cases[3].sql).some((ref) => ref.name === 'users')).toBe(true)
+			expect(extractReferences(cases[4].sql).some((ref) => ref.name === 'calendar')).toBe(true)
+		})
 		it('should identify SQL expressions with parentheses', () => {
 			expect(isSqlExpression('select', 'coalesce')).toBe(true)
 			expect(isSqlExpression('(value::', 'decimal')).toBe(true)

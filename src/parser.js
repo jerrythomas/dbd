@@ -82,7 +82,12 @@ export function isSqlExpression(prefix, name) {
 		'min'
 	]
 	const lowerPrefix = prefix.toLowerCase().trim()
+	const lowerName = name.toLowerCase().trim()
 
+	// If the function name itself is a built-in SQL function, treat as expression
+	if (expressionKeywords.includes(lowerName)) {
+		return true
+	}
 	// Special cases for function call contexts, not expressions
 	if (
 		lowerPrefix === 'values (' ||
@@ -98,6 +103,10 @@ export function isSqlExpression(prefix, name) {
 		return false
 	}
 
+	// Special case for SQL keywords that shouldn't be treated as expressions
+	if (/^(then|when|case|from)\b/i.test(name)) {
+		return false
+	}
 	// Special case for CASE...WHEN...THEN...SELECT
 	if (
 		lowerPrefix.includes('when') &&
