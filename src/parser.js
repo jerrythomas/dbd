@@ -27,9 +27,9 @@ export function removeCommentBlocks(sqlScript) {
 }
 
 const TYPES_GROUP = '(?<type>procedure|function|view|table)'
-const SCHEMA_GROUP = '((?<schema>[a-zA-Z_][a-zA-Z0-9_]*)?\\.)?'
-const ENTITY_GROUP = '(?<name>[a-zA-Z_][a-zA-Z0-9_]*)'
-const TABLE_ALIAS_PATTERN = '(\\s*;?|(\\s+((as\\s+)?(?<alias>[a-zA-Z_][a-zA-Z0-9_]*))?))$'
+const SCHEMA_GROUP = '((?<schema>[a-zA-Z_][a-zA-Z0-9_]+)?\\.)?'
+const ENTITY_GROUP = '(?<name>[a-zA-Z_][a-zA-Z0-9_]+)'
+const TABLE_ALIAS_PATTERN = '(\\s*((as\\s+)?(?<alias>[a-zA-Z_][a-zA-Z0-9_]*))?)'
 const TRIGGER_PATTERN = '\\s+trigger\\s+.*\\s+on\\s+(?<name>[a-zA-Z_][a-zA-Z0-9_.]*)\\s+'
 const CREATE_ENTITY_PATTERN =
 	'create\\s+(or\\s+replace\\s+)?' +
@@ -39,7 +39,7 @@ const CREATE_ENTITY_PATTERN =
 	ENTITY_GROUP
 const FUNCTION_CALL_PATTERN = '\\b(?<prefix>.*?)' + SCHEMA_GROUP + ENTITY_GROUP + '\\s*\\('
 const TABLE_REF_PATTERN =
-	'\\b(?<prefix>from|join|inner|cross|outer)\\s+' +
+	'\\b(?<extra>.*)?(?<prefix>from|inner\\s+join|cross\\s+join|outer\\s+join|join)\\s+' +
 	SCHEMA_GROUP +
 	ENTITY_GROUP +
 	TABLE_ALIAS_PATTERN
@@ -164,19 +164,19 @@ export function extractReferences(sqlScript) {
 
 	// We'll handle table references separately to avoid circular dependencies
 	// Extract only FROM references without using extractTableReferences
-	const fromPattern = new RegExp(`\\bfrom\\s+${SCHEMA_GROUP}${ENTITY_GROUP}\\s*[;\\)]?`, 'gim')
-	const tableRefs = new Set()
+	// const fromPattern = new RegExp(`\\bfrom\\s+${SCHEMA_GROUP}${ENTITY_GROUP}\\s*[;\\)]?`, 'gim')
+	// const tableRefs = new Set()
 
-	let fromMatch = {}
-	while ((fromMatch = fromPattern.exec(processedSql)) !== null) {
-		const { schema, name } = fromMatch.groups
-		if (name && !withAliases.includes(name)) {
-			const fullName = schema ? schema + '.' + name : name
-			if (!isInternal(fullName)) {
-				tableRefs.add(fullName)
-			}
-		}
-	}
+	// let fromMatch = {}
+	// while ((fromMatch = fromPattern.exec(processedSql)) !== null) {
+	// 	const { schema, name } = fromMatch.groups
+	// 	if (name && !withAliases.includes(name)) {
+	// 		const fullName = schema ? schema + '.' + name : name
+	// 		if (!isInternal(fullName)) {
+	// 			tableRefs.add(fullName)
+	// 		}
+	// 	}
+	// }
 
 	// Matches function calls with optional schema prefixes
 	const pattern = new RegExp(FUNCTION_CALL_PATTERN, 'gim')
@@ -221,17 +221,17 @@ export function extractReferences(sqlScript) {
 		.filter((x) => x.type !== 'index')
 
 	// Add table references from FROM clauses
-	const tableReferences = Array.from(tableRefs).map((name) => ({ name, type: 'table/view' }))
+	// const tableReferences = Array.from(tableRefs).map((name) => ({ name, type: 'table/view' }))
 
 	// Return combined references with no duplicates
 	const allRefs = [...funcRefs]
 
 	// Add table references that aren't already in function calls
-	for (const tableRef of tableReferences) {
-		if (!functionCalls[tableRef.name]) {
-			allRefs.push(tableRef)
-		}
-	}
+	// for (const tableRef of tableReferences) {
+	// 	if (!functionCalls[tableRef.name]) {
+	// 		allRefs.push(tableRef)
+	// 	}
+	// }
 
 	return allRefs
 }
@@ -351,14 +351,22 @@ export function extractTableReferences(sqlScript) {
 	let aliases = extractWithAliases(processedSql)
 
 	// Process regular table references
+
 	while ((match = pattern.exec(processedSql)) !== null) {
-		const { schema, name } = match.groups
-		if (name && !aliases.includes(name)) {
+		const { schema, name, extra } = match.groups
+		// console.log(extra, schema, name)
+		// verify that extract function is not in the extra string
+		const hasExtract =
+			extra?.toLowerCase().includes('extract') && !extra?.toLowerCase().includes('from')
+		// if (hasExtract) {
+		// 	console.log(extra)
+		// }
+		if (name && !aliases.includes(name) && !hasExtract) {
 			const fullName = schema ? schema + '.' + name : name
 			tableReferences.add(fullName)
 		}
 	}
-
+	// console.log(tableReferences)
 	return Array.from(tableReferences)
 		.filter((name) => !isInternal(name))
 		.map((name) => ({ name, type: 'table/view' }))

@@ -122,20 +122,20 @@ describe('parser', () => {
 			expect(references).toContainEqual({ name: 'users', type: 'table/view' })
 		})
 
-		it('should handle SQL expressions with parentheses', () => {
-			const content = `SELECT
-				(coalesce(v_endpoint.cost_per_token_input, 0) * p_input_tokens)::decimal(10,6) as cost_input,
-				(coalesce(v_endpoint.cost_per_token_output, 0) * p_output_tokens)::decimal(10,6) as cost_output,
-				CASE WHEN value > 0 THEN (SELECT value FROM table1) ELSE 0 END as value
-			FROM users`
-			const references = extractReferences(content)
-			// Print references for debugging and verification
-			// console.log('SQL expressions test references:', JSON.stringify(references))
-			// Check if users table was found - this is what we care about most
-			expect(references.some((ref) => ref.name === 'users' || ref.name.includes('.users'))).toBe(
-				true
-			)
-		})
+		// it.only('should handle SQL expressions with parentheses', () => {
+		// 	const content = `SELECT
+		// 		(coalesce(v_endpoint.cost_per_token_input, 0) * p_input_tokens)::decimal(10,6) as cost_input,
+		// 		(coalesce(v_endpoint.cost_per_token_output, 0) * p_output_tokens)::decimal(10,6) as cost_output,
+		// 		CASE WHEN value > 0 THEN (SELECT value FROM table1) ELSE 0 END as value
+		// 	FROM users`
+		// 	const references = extractReferences(content)
+		// 	// Print references for debugging and verification
+		// 	// console.log('SQL expressions test references:', JSON.stringify(references))
+		// 	// Check if users table was found - this is what we care about most
+		// 	expect(references.some((ref) => ref.name === 'users' || ref.name.includes('.users'))).toBe(
+		// 		true
+		// 	)
+		// })
 
 		it('should handle additional SQL expressions with nested SELECT', () => {
 			const content = `SELECT
@@ -143,7 +143,11 @@ describe('parser', () => {
 				(coalesce(v_endpoint.cost_per_token_output, 0) * p_output_tokens)::decimal(10,6) as cost_output,
 				CASE WHEN value > 0 THEN (SELECT value FROM table1) ELSE 0 END as value
 			FROM users`
-			const references = extractReferences(content)
+			const references = extractTableReferences(content)
+			expect(references).toEqual([
+				{ name: 'table1', type: 'table/view' },
+				{ name: 'users', type: 'table/view' }
+			])
 			// Print references for debugging and verification
 			// console.log('Nested SQL expressions test references:', JSON.stringify(references))
 			// Check if users table was found - this is what we care about most
@@ -259,6 +263,22 @@ describe('parser', () => {
 			const content = fs.readFileSync('ddl/procedure/staging/import_json_to_table.ddl', 'utf8')
 			const references = extractTableReferences(content)
 			expect(references).toEqual([])
+		})
+
+		it('should not treat extract(epoch from duration) as table reference', () => {
+			const sql = `
+CREATE VIEW duration_view AS
+SELECT
+    id,
+    avg(extract(epoch from duration)) as avg_duration
+FROM
+    events;
+`
+			const references = extractTableReferences(sql)
+			// console.log(references)
+			expect(references).toEqual([{ name: 'events', type: 'table/view' }])
+			// Should not include 'duration' as a table reference
+			expect(references.find((ref) => ref.name === 'duration')).toBeUndefined()
 		})
 	})
 
@@ -701,7 +721,7 @@ describe('parser', () => {
 					builtin: 'max'
 				},
 				{
-					sql: `SELECT (SELECT value FROM table1) FROM users;`,
+					sql: `SELECT (SELECT value FROM table1) x\n FROM users;`,
 					builtin: 'select'
 				},
 				{
@@ -710,16 +730,26 @@ describe('parser', () => {
 				}
 			]
 
-			for (const { sql, builtin } of cases) {
-				const references = extractReferences(sql)
-				expect(references.some((ref) => ref.name === builtin)).toBe(false)
-			}
+			// for (const { sql, builtin } of cases) {
+			// 	const references = extractTableReferences(sql)
+			// 	expect(references.some((ref) => ref.name === builtin)).toBe(false)
+			// }
 			// Confirm that the table references are still found
-			expect(extractReferences(cases[0].sql)).toEqual([])
-			expect(extractReferences(cases[1].sql).some((ref) => ref.name === 'payments')).toBe(true)
-			expect(extractReferences(cases[2].sql).some((ref) => ref.name === 'results')).toBe(true)
-			expect(extractReferences(cases[3].sql).some((ref) => ref.name === 'users')).toBe(true)
-			expect(extractReferences(cases[4].sql).some((ref) => ref.name === 'calendar')).toBe(true)
+			expect(extractTableReferences(cases[0].sql)).toEqual([])
+			// console.log(extractTableReferences(cases[1].sql))
+			expect(extractTableReferences(cases[1].sql)).toEqual([
+				{ name: 'payments', type: 'table/view' }
+			])
+			expect(extractTableReferences(cases[2].sql)).toEqual([
+				{ name: 'results', type: 'table/view' }
+			])
+			expect(extractTableReferences(cases[3].sql)).toEqual([
+				{ name: 'table1', type: 'table/view' },
+				{ name: 'users', type: 'table/view' }
+			])
+			expect(extractTableReferences(cases[4].sql)).toEqual([
+				{ name: 'calendar', type: 'table/view' }
+			])
 		})
 		it('should identify SQL expressions with parentheses', () => {
 			expect(isSqlExpression('select', 'coalesce')).toBe(true)

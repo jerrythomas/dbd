@@ -103,7 +103,8 @@ export const internals = {
 			'not',
 			'date',
 			'round',
-			'when'
+			'when',
+			'record'
 
 			// And many more as needed...
 		]
