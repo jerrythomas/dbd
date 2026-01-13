@@ -3,6 +3,7 @@
 Need to modify the parser to identify references when there are schemas.
 
 Support the following ddl
+
 ```sql
 create table if not exists config.features (
         id                       uuid primary key default uuid_generate_v4()

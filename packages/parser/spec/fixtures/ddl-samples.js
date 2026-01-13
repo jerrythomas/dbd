@@ -39,7 +39,7 @@ comment on column lookups.modified_on IS
 
 comment on column lookups.modified_by IS
 'User that last modified the lookup entry. Tracks who made the changes for auditing purposes.';
-`;
+`
 
 export const lookupValueTableDDL = `
 set search_path to config, extensions;
@@ -93,7 +93,7 @@ comment on column lookup_values.modified_on IS
 
 comment on column lookup_values.modified_by IS
 'The user who last modified the lookup value. Tracks who made the changes for auditing purposes.';
-`;
+`
 
 export const stagingLookupValueTableDDL = `
 set search_path to staging;
@@ -111,7 +111,7 @@ create table if not exists lookup_values(
 
 create unique index if not exists lookup_values_ukey
     on lookup_values(name,value);
-`;
+`
 
 // View definitions
 export const gendersViewDDL = `
@@ -126,7 +126,7 @@ select lv.id
  inner join lookup_values lv
     on lv.lookup_id = lkp.id
  where lkp.name = 'Gender';
-`;
+`
 
 export const rangeValuesViewDDL = `
 set search_path to config;
@@ -144,7 +144,7 @@ select lv.id
  inner join lookup_values lv
     on lv.lookup_id = lkp.id
  where lkp.name = 'Range';
-`;
+`
 
 // Procedure definitions
 export const importJsonbProcedureDDL = `
@@ -175,7 +175,7 @@ begin
     execute dyn_sql;
 end;
 $$;
-`;
+`
 
 export const importLookupsProcedureDDL = `
 set search_path to staging;
@@ -209,7 +209,7 @@ begin
               , modified_on  = excluded.modified_on;
 end;
 $$
-`;
+`
 
 // Complex procedural code
 export const complexProcedureDDL = `
@@ -270,27 +270,29 @@ begin
 
 end;
 $$
-`;
+`
 
 // Helper function to extract metadata from parsed SQL objects
 export function extractTableInfo(createTableAst) {
-  if (!createTableAst) return null;
-  
-  return {
-    tableName: createTableAst.table[0].table,
-    schemaName: createTableAst.table[0].schema,
-    ifNotExists: createTableAst.if_not_exists || false,
-    columns: createTableAst.create_definitions.map(colDef => ({
-      name: colDef.column.column,
-      dataType: colDef.definition.dataType,
-      nullable: !colDef.nullable?.not,
-      defaultValue: colDef.default_val?.value?.value,
-      isPrimaryKey: colDef.primary_key,
-      references: colDef.reference_definition ? {
-        table: colDef.reference_definition.table[0].table,
-        schema: colDef.reference_definition.table[0].schema,
-        column: colDef.reference_definition.reference_columns?.[0]?.column
-      } : null
-    }))
-  };
+	if (!createTableAst) return null
+
+	return {
+		tableName: createTableAst.table[0].table,
+		schemaName: createTableAst.table[0].schema,
+		ifNotExists: createTableAst.if_not_exists || false,
+		columns: createTableAst.create_definitions.map((colDef) => ({
+			name: colDef.column.column,
+			dataType: colDef.definition.dataType,
+			nullable: !colDef.nullable?.not,
+			defaultValue: colDef.default_val?.value?.value,
+			isPrimaryKey: colDef.primary_key,
+			references: colDef.reference_definition
+				? {
+						table: colDef.reference_definition.table[0].table,
+						schema: colDef.reference_definition.table[0].schema,
+						column: colDef.reference_definition.reference_columns?.[0]?.column
+					}
+				: null
+		}))
+	}
 }

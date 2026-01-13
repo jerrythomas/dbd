@@ -3,12 +3,14 @@
 ## Core Principles
 
 ### Functional Programming Approach
+
 - **Pure Functions**: Functions should not have side effects
 - **Immutable Data**: Prefer immutable data structures
 - **Function Composition**: Build complex operations from simple functions
 - **Predictable Behavior**: Same input always produces same output
 
 ### Separation of Concerns
+
 - **Parser Layer**: SQL text → AST transformation
 - **Extractor Layer**: AST → Schema objects
 - **Business Layer**: Schema operations and workflows
@@ -26,7 +28,7 @@
 
 2. **AST Extraction** (`extractors/`)
    - Table extractor - table definitions
-   - View extractor - view definitions  
+   - View extractor - view definitions
    - Procedure extractor - stored procedures
    - Index extractor - database indexes
    - Each implements fallback regex-based extraction
@@ -46,6 +48,7 @@
 ## Package Architecture
 
 ### Workspace Structure
+
 ```
 packages/
 ├── parser/           # SQL parsing and schema extraction
@@ -58,6 +61,7 @@ adapters/
 ```
 
 ### Dependency Flow
+
 ```
 cli → db → adapters/postgres
     → dbml → parser
@@ -75,16 +79,19 @@ cli → db → adapters/postgres
 ## Design Patterns
 
 ### Adapter Pattern
+
 - Database-specific operations isolated in adapters
 - Common interface through db package
 - Easy to add new database support
 
 ### Strategy Pattern
+
 - Multiple extraction strategies (AST vs regex)
 - Configurable parsing approaches
 - Fallback mechanisms for unsupported SQL
 
 ### Composition Pattern
+
 - Build complex operations from simple functions
 - Reusable extraction components
 - Flexible schema processing pipelines
@@ -92,16 +99,19 @@ cli → db → adapters/postgres
 ## Data Flow
 
 ### SQL Processing Pipeline
+
 ```
 SQL Text → Parse → AST → Extract → Schema Objects → Transform → Output
 ```
 
 ### Error Recovery Pipeline
+
 ```
 Parse Failure → Original SQL → Regex Extract → Partial Schema → Continue
 ```
 
 ### Schema Extraction Flow
+
 ```
 1. Parse SQL statements
 2. Attempt AST extraction
@@ -114,11 +124,13 @@ Parse Failure → Original SQL → Regex Extract → Partial Schema → Continue
 ## Testing Strategy
 
 ### Test Structure
+
 - **Unit Tests**: Individual component testing
 - **Integration Tests**: Component interaction testing
 - **Functional Tests**: End-to-end scenario testing
 
 ### Test Organization
+
 ```
 spec/
 ├── basic/           # Unit tests for individual components
@@ -127,6 +139,7 @@ spec/
 ```
 
 ### Testing Principles
+
 - Test both success and failure cases
 - Include complex real-world SQL examples
 - Verify error handling and fallback mechanisms
