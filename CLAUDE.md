@@ -5,6 +5,7 @@ This file is the entry point for any AI agent working on this repo.
 ## MANDATORY: Load Workflow First
 
 Before doing any work, read these files in order:
+
 1. **`agents/workflow.md`** — methodology, session lifecycle, question protocol
 2. **`agents/memory.md`** — shared project knowledge and decisions
 3. **`agents/journal.md`** (last ~50 lines) — recent progress
@@ -78,27 +79,32 @@ bun run format                    # Auto-format with prettier
 ## Conventions
 
 ### Design before implementation
+
 For non-trivial work: ask questions, agree on approach with examples, then implement.
 See `agents/workflow.md` for the full process.
 
 ### When a feature design is agreed upon
+
 1. Update the relevant `docs/design/*.md` module file
 2. Log in `agents/journal.md`
 3. Create plan in `agents/plan.md`
 
 ### When completing work
+
 1. Run tests and lint — both must pass
 2. Update `agents/plan.md` — mark steps complete
 3. Update `agents/journal.md` — log what was done with commit hashes
 4. On plan completion: archive to `agents/sessions/YYYY-MM-DD-<name>.md`
 
 ### Code style
+
 - ES6+ modules, `const` over `let`, no `var`
 - kebab-case filenames, camelCase functions, UPPER_SNAKE_CASE constants
 - `.spec.js` for tests, Arrange-Act-Assert pattern
 - Conventional commits: `feat(parser):`, `fix(cli):`, `docs:`, `test:`, `chore:`
 
 ### Lint Rules
+
 - Warnings are pre-existing and acceptable
 - **Errors must be zero**
 
@@ -107,6 +113,7 @@ See `agents/workflow.md` for the full process.
 This is an existing codebase. Requirements and design documents should be **derived from the code**, not invented from scratch.
 
 ### Deriving `docs/requirements/`
+
 Requirements capture the "what" — extract them from existing behavior:
 
 1. **Read the code** — understand what each module actually does today
@@ -118,6 +125,7 @@ Requirements capture the "what" — extract them from existing behavior:
 7. **Mark gaps** — where behavior exists in code but has no test, note it as "untested"
 
 ### Deriving `docs/design/`
+
 Design documents capture the "how" — extract them from implementation:
 
 1. **Read the source** — trace data flow through each module
@@ -129,21 +137,22 @@ Design documents capture the "how" — extract them from implementation:
 7. **Flag technical debt** — where implementation diverges from ideal design
 
 ### Documentation is not a prerequisite for work
+
 - You don't need to derive all docs before starting a task
 - Derive docs incrementally: document a module when you need to understand or change it
 - Keep docs honest — if the code disagrees with the doc, the code wins
 
 ## Key Files Quick Reference
 
-| File | Purpose |
-|------|---------|
-| `agents/workflow.md` | Methodology and session lifecycle |
-| `agents/memory.md` | Shared project knowledge |
-| `agents/plan.md` | Active plan/checklist |
-| `agents/journal.md` | Chronological progress log |
-| `agents/backlog.md` | Deferred items for future phases |
-| `agents/design-patterns.md` | Established patterns cookbook |
-| `packages/parser/src/` | SQL parsing — the most mature package |
-| `src/collect.js` | Legacy: design class orchestration |
-| `src/entity.js` | Legacy: DDL execution (to be split into cli + adapter) |
-| `.rules/` | Legacy guidelines (retained for reference, superseded by agents/) |
+| File                        | Purpose                                                           |
+| --------------------------- | ----------------------------------------------------------------- |
+| `agents/workflow.md`        | Methodology and session lifecycle                                 |
+| `agents/memory.md`          | Shared project knowledge                                          |
+| `agents/plan.md`            | Active plan/checklist                                             |
+| `agents/journal.md`         | Chronological progress log                                        |
+| `agents/backlog.md`         | Deferred items for future phases                                  |
+| `agents/design-patterns.md` | Established patterns cookbook                                     |
+| `packages/parser/src/`      | SQL parsing — the most mature package                             |
+| `src/collect.js`            | Legacy: design class orchestration                                |
+| `src/entity.js`             | Legacy: DDL execution (to be split into cli + adapter)            |
+| `.rules/`                   | Legacy guidelines (retained for reference, superseded by agents/) |

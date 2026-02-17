@@ -61,6 +61,7 @@ packages/parser/src/
 ### Statement Splitting
 
 `splitStatements(sql)` handles:
+
 - Semicolon delimiters
 - Dollar-quoted strings (`$$...$$`, `$tag$...$tag$`)
 - Single/double-quoted strings with escape awareness
@@ -69,6 +70,7 @@ packages/parser/src/
 ### AST Generation
 
 `parse(sql, options)` orchestrates:
+
 1. Split into individual statements
 2. Parse each via `node-sql-parser` (PostgreSQL dialect)
 3. Attach `_original_sql` to each AST node for fallback reference
@@ -78,6 +80,7 @@ packages/parser/src/
 ## Layer 2: Transformation (`transformers/ast.js`)
 
 `normalizeAst()` dispatches per statement type:
+
 - `normalizeCreateTable()` — column defs, constraints
 - `normalizeCreateView()` — select columns, FROM/JOIN sources
 - `normalizeCreateIndex()` — table, columns, unique flag
@@ -98,6 +101,7 @@ Each extractor follows the same pattern:
 ### Output Shapes
 
 **Table:**
+
 ```javascript
 {
   name: string, schema: string|null, ifNotExists: boolean,
@@ -108,6 +112,7 @@ Each extractor follows the same pattern:
 ```
 
 **View:**
+
 ```javascript
 {
   name: string, schema: string|null, replace: boolean,
@@ -118,6 +123,7 @@ Each extractor follows the same pattern:
 ```
 
 **Procedure:**
+
 ```javascript
 {
   name: string, schema: string|null, replace: boolean, language: string,
@@ -127,6 +133,7 @@ Each extractor follows the same pattern:
 ```
 
 **Index:**
+
 ```javascript
 {
   name: string, schema: string|null, table: string, tableSchema: string|null,
@@ -138,6 +145,7 @@ Each extractor follows the same pattern:
 ## Error Handling (`utils/error-handler.js`)
 
 Configurable behavior:
+
 - `collectErrors: true` (default) — accumulate errors in memory
 - `logToConsole: false` (default) — silent for library/test use
 - `throwOnError: false` (default) — never crash the caller
@@ -149,6 +157,7 @@ Helper: `withErrorHandling(fn, context)` wraps any function with try/catch + col
 ## Fallback Extraction
 
 Each extractor has a regex-based fallback:
+
 - `extractViewsFromSql(sql, defaultSchema)` — matches `CREATE [OR REPLACE] VIEW ... AS SELECT ...`
 - `extractProceduresFromSql(sql, defaultSchema)` — matches `CREATE [OR REPLACE] PROCEDURE ... AS $...$`
 - `extractIndexesFromSql(sql, defaultSchema)` — matches `CREATE [UNIQUE] INDEX ... ON ... (...)`
@@ -158,23 +167,29 @@ Fallbacks return the same output shapes as AST extractors, with less detail (e.g
 ## Dual API
 
 **Class-based** (`index.js`):
+
 ```javascript
 import { SQLParser, parseSchema, extractTables, validate } from '@jerrythomas/dbd-parser'
 ```
 
 **Functional** (`index-functional.js`):
+
 ```javascript
-import { extractSchema, extractTableDefinitions, validateDDL } from '@jerrythomas/dbd-parser/src/index-functional.js'
+import {
+  extractSchema,
+  extractTableDefinitions,
+  validateDDL
+} from '@jerrythomas/dbd-parser/src/index-functional.js'
 ```
 
 The functional API uses Ramda `pipe`, `filter`, `map` for composition.
 
 ## Dependencies
 
-| Package | Purpose |
-|---|---|
-| `node-sql-parser` | SQL string → AST |
-| `ramda` | Function composition, data transformation |
+| Package           | Purpose                                   |
+| ----------------- | ----------------------------------------- |
+| `node-sql-parser` | SQL string → AST                          |
+| `ramda`           | Function composition, data transformation |
 
 ## Technical Debt
 

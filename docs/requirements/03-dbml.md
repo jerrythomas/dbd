@@ -11,6 +11,7 @@ Generate DBML (Database Markup Language) files from DDL for publishing to [dbdoc
 ### FR-1: SQL-to-DBML Conversion
 
 Given a set of DDL entities, generate valid DBML output:
+
 - Convert `CREATE TABLE` statements to DBML table definitions
 - Preserve column types, constraints, and comments
 - Generate relationship references from foreign keys
@@ -21,10 +22,10 @@ The `project.dbdocs` configuration supports multiple named DBML documents, each 
 
 ```yaml
 dbdocs:
-  base:                    # -> design-base.dbml
+  base: # -> design-base.dbml
     exclude:
       schemas: [staging]
-  core:                    # -> design-core.dbml
+  core: # -> design-core.dbml
     include:
       schemas: [config]
 ```
@@ -34,6 +35,7 @@ Each document produces a separate `.dbml` file named `{file}-{key}.dbml`.
 ### FR-3: Schema/Table Filtering
 
 Each DBML document can specify:
+
 - `include.schemas` — only include tables from these schemas
 - `include.tables` — only include these specific tables
 - `exclude.schemas` — exclude tables from these schemas

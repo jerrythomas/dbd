@@ -9,12 +9,14 @@ These are living documents that evolve with the implementation. Each document co
 This is an existing project. Design documents should be **extracted** from the implementation, not invented.
 
 ### Sources
+
 1. **Source code** (`packages/*/src/`, `src/`) — trace actual data flow
 2. **`agents/design-patterns.md`** — established patterns already documented
 3. **`.rules/architecture.md`** — legacy architecture reference
 4. **Test fixtures** — reveal expected data shapes and edge cases
 
 ### Process
+
 1. Pick a module/package to document
 2. Read the source, trace the data flow from entry point to output
 3. Identify: module boundaries, key functions, data structures, error handling
@@ -23,6 +25,7 @@ This is an existing project. Design documents should be **extracted** from the i
 6. Include text-based diagrams where helpful (mermaid or ascii)
 
 ### What to include
+
 - Module purpose and boundaries
 - Data flow (input -> processing -> output)
 - Key functions and their responsibilities
@@ -31,17 +34,18 @@ This is an existing project. Design documents should be **extracted** from the i
 - Known limitations and technical debt
 
 ### Naming
+
 Use numbered files: `01-parser.md`, `02-cli.md`, `03-dbml.md`, etc.
 
 ## Documents
 
-| # | Document | Description | Status |
-|---|----------|-------------|--------|
-| 01 | [01-parser.md](01-parser.md) | Parser — three-layer pipeline, extractors, error handling | Complete |
-| 02 | [02-cli.md](02-cli.md) | CLI & orchestration — Design class, metadata, entity, execution | Active (legacy) |
-| 03 | [03-configuration.md](03-configuration.md) | Configuration — design.yaml schema, project layout, entity lifecycle | Active |
-| 04 | [04-v2-architecture.md](04-v2-architecture.md) | v2.0.0 target architecture — packages, adapters, interfaces, patterns | Proposed |
-| 05 | [05-v2-migration-stages.md](05-v2-migration-stages.md) | v2.0.0 migration stages — 7 stages with detailed steps | Proposed |
+| #   | Document                                               | Description                                                           | Status          |
+| --- | ------------------------------------------------------ | --------------------------------------------------------------------- | --------------- |
+| 01  | [01-parser.md](01-parser.md)                           | Parser — three-layer pipeline, extractors, error handling             | Complete        |
+| 02  | [02-cli.md](02-cli.md)                                 | CLI & orchestration — Design class, metadata, entity, execution       | Active (legacy) |
+| 03  | [03-configuration.md](03-configuration.md)             | Configuration — design.yaml schema, project layout, entity lifecycle  | Active          |
+| 04  | [04-v2-architecture.md](04-v2-architecture.md)         | v2.0.0 target architecture — packages, adapters, interfaces, patterns | Proposed        |
+| 05  | [05-v2-migration-stages.md](05-v2-migration-stages.md) | v2.0.0 migration stages — 7 stages with detailed steps                | Proposed        |
 
 ## Architecture
 

@@ -114,6 +114,7 @@ New `spec/compat/` directory with ~50 tests that lock in current behavior. These
 1. **Root `package.json`** — add/verify `"workspaces": ["packages/*", "adapters/*"]`
 
 2. **`packages/db/package.json`**
+
    ```json
    {
      "name": "@dbd/db",
@@ -124,9 +125,11 @@ New `spec/compat/` directory with ~50 tests that lock in current behavior. These
      "devDependencies": { "vitest": "..." }
    }
    ```
+
    No external dependencies — this is pure abstractions.
 
 3. **`packages/dbml/package.json`**
+
    ```json
    {
      "name": "@dbd/dbml",
@@ -141,6 +144,7 @@ New `spec/compat/` directory with ~50 tests that lock in current behavior. These
    ```
 
 4. **`packages/cli/package.json`**
+
    ```json
    {
      "name": "@dbd/cli",
@@ -158,9 +162,11 @@ New `spec/compat/` directory with ~50 tests that lock in current behavior. These
      }
    }
    ```
+
    Note: binary is `dbd-cli` during migration. Renamed to `dbd` at Stage 5 switchover.
 
 5. **`adapters/postgres/package.json`**
+
    ```json
    {
      "name": "@dbd/db-postgres",
@@ -177,6 +183,7 @@ New `spec/compat/` directory with ~50 tests that lock in current behavior. These
 6. **Update `packages/parser/package.json`** — ensure `"name": "@dbd/parser"` and workspace-compatible versioning.
 
 7. **Workspace test scripts** in root `package.json`:
+
    ```json
    {
      "scripts": {
@@ -209,6 +216,7 @@ Package.json files for all packages. `bun install` succeeds. No new source code.
 Create `BaseDatabaseAdapter` class (see 04-v2-architecture.md for full interface).
 
 **Design decisions:**
+
 - Constructor takes `(connectionString, options)` — options includes `{ verbose, dryRun }`
 - Abstract methods throw `Error('not implemented')` — subclasses must override
 - `applyEntity()` has default implementation: `generateEntityScript()` → `executeScript()`
@@ -220,6 +228,7 @@ Create `BaseDatabaseAdapter` class (see 04-v2-architecture.md for full interface
 Extract entity script generation logic. These are **pure functions** copied from `src/entity.js` (not moved — `src/` stays intact).
 
 Functions to implement:
+
 - `ddlFromEntity(entity)` — same logic as `src/entity.js:ddlFromEntity`
 - `generateRoleScript(entity)` — same as `src/entity.js:getRoleScript`
 - `importScriptForEntity(entity)` — same as `src/entity.js:importScriptForEntity`
@@ -236,6 +245,7 @@ Functions to implement:
 Extract dependency resolution logic. Pure functions copied from `src/metadata.js:organize/regroup`.
 
 Functions to implement:
+
 - `buildDependencyGraph(entities)` — adjacency list from `refers[]`
 - `topologicalSort(graph)` — DFS-based ordering
 - `findCycles(graph)` — cycle detection
@@ -266,11 +276,13 @@ Adapter factory with dynamic imports.
 ### Prerequisite: DB Library Decision
 
 Evaluate and choose between:
+
 1. `pg` + `pg-copy-streams` — proven, battle-tested COPY streaming
 2. `postgres.js` — modern, fastest, built-in COPY
 3. `@databases/pg` — safe SQL, used in feature branch
 
 **Evaluation criteria:**
+
 - Can stream CSV file → `COPY FROM STDIN` without temp files?
 - Transaction API quality?
 - Connection pooling built-in?
@@ -282,6 +294,7 @@ Evaluate and choose between:
 ### Module: `connection.js`
 
 Wraps the chosen library:
+
 - `connect()` / `close()` — connection lifecycle with pooling
 - `query(sql, params)` — parameterized queries
 - `transaction(fn)` — auto commit/rollback
@@ -301,12 +314,14 @@ Wraps the chosen library:
 ### Module: `scripts.js`
 
 PostgreSQL-specific script generators (copied from `src/entity.js`, adapted):
+
 - Same functions as `packages/db/entity-processor.js` but PG-specific where needed
 - Shared logic stays in `packages/db`, PG-specific goes here
 
 ### E2E Test Infrastructure
 
 Borrow from feature branch:
+
 - Docker-based PostgreSQL setup/teardown
 - `e2e/setup.js` — create test database, schemas
 - `e2e/schema.e2e.spec.js` — create/drop schemas, extensions
@@ -362,6 +377,7 @@ exclusions.isInternal()        →  references.isInternal()
 Source: `src/collect.js`
 
 The `Design` class is refactored to use:
+
 - `config.readConfig()` instead of `metadata.read()`
 - `@dbd/db` entity-processor for DDL generation
 - `@dbd/db` dependency-resolver for ordering
@@ -410,7 +426,7 @@ import { filterEntitiesForDBML, cleanupDDLForDBML, ddlFromEntity } from '@dbd/db
 
 export function generateDBML(entities, config) {
   const filtered = filterEntitiesForDBML(entities, config)
-  const ddl = filtered.map(e => ddlFromEntity(e)).join('\n')
+  const ddl = filtered.map((e) => ddlFromEntity(e)).join('\n')
   const cleaned = cleanupDDLForDBML(ddl)
   const dbml = importer.import(cleaned, 'postgres')
   return replaceTableNames(dbml, filtered)
@@ -479,9 +495,11 @@ Once `dbd-cli` passes all compatibility tests and side-by-side comparison with `
 
 ```markdown
 ## For CLI users
+
 No changes. `dbd` commands work exactly the same.
 
 ## For library users (importing from src/)
+
 - `import { using } from '@jerrythomas/dbd/src/collect.js'`
   → `import { using } from '@dbd/cli'`
 - `import { entityFromFile } from '@jerrythomas/dbd/src/entity.js'`
@@ -495,15 +513,15 @@ No changes. `dbd` commands work exactly the same.
 
 Code from the feature branch that can be adapted (not copied verbatim — the interfaces evolved):
 
-| Feature Branch File | Target | What to Reuse |
-|---|---|---|
-| `packages/db/src/base-adapter.js` | `packages/db/src/base-adapter.js` | Interface design, method signatures |
-| `packages/db/src/entity-processor.js` | `packages/db/src/entity-processor.js` | `filterEntitiesForDBML`, `combineEntityScripts`, validation helpers |
-| `packages/db/src/dependency-processor.js` | `packages/db/src/dependency-resolver.js` | `buildDependencyGraph`, `topologicalSort`, `findCycles` |
-| `adapters/postgres/src/adapter.js` | `adapters/postgres/src/adapter.js` | Class structure, method organization |
-| `adapters/postgres/src/scripts.js` | `adapters/postgres/src/scripts.js` | Script generators (same logic as current src/entity.js) |
-| `adapters/postgres/e2e/` | `adapters/postgres/e2e/` | Docker setup, test structure |
-| `packages/parser/src/entity-analyzer.js` | Evaluate for Stage 4 | Could replace/enhance `src/parser.js` reference extraction |
+| Feature Branch File                       | Target                                   | What to Reuse                                                       |
+| ----------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------- |
+| `packages/db/src/base-adapter.js`         | `packages/db/src/base-adapter.js`        | Interface design, method signatures                                 |
+| `packages/db/src/entity-processor.js`     | `packages/db/src/entity-processor.js`    | `filterEntitiesForDBML`, `combineEntityScripts`, validation helpers |
+| `packages/db/src/dependency-processor.js` | `packages/db/src/dependency-resolver.js` | `buildDependencyGraph`, `topologicalSort`, `findCycles`             |
+| `adapters/postgres/src/adapter.js`        | `adapters/postgres/src/adapter.js`       | Class structure, method organization                                |
+| `adapters/postgres/src/scripts.js`        | `adapters/postgres/src/scripts.js`       | Script generators (same logic as current src/entity.js)             |
+| `adapters/postgres/e2e/`                  | `adapters/postgres/e2e/`                 | Docker setup, test structure                                        |
+| `packages/parser/src/entity-analyzer.js`  | Evaluate for Stage 4                     | Could replace/enhance `src/parser.js` reference extraction          |
 
 ### What NOT to reuse
 

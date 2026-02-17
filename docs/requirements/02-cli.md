@@ -9,59 +9,67 @@ Provide a command-line interface for managing database schemas — applying DDL,
 ## Commands
 
 ### `dbd init`
+
 Initialize a starter project by cloning the example template.
 
-| Option | Default | Description |
-|---|---|---|
+| Option          | Default    | Description            |
+| --------------- | ---------- | ---------------------- |
 | `-p, --project` | `database` | Project directory name |
 
 **Behavior:** Uses `degit` to clone `jerrythomas/dbd/example` into the target directory.
 
 ### `dbd inspect`
+
 Validate and report on database structure.
 
-| Option | Default | Description |
-|---|---|---|
-| `-n, --name` | all | Inspect specific entity |
-| `-vv, --verbose` | false | Detailed error output |
+| Option           | Default | Description             |
+| ---------------- | ------- | ----------------------- |
+| `-n, --name`     | all     | Inspect specific entity |
+| `-vv, --verbose` | false   | Detailed error output   |
 
 **Behavior:**
+
 - Loads configuration, discovers files, resolves references
 - Validates entity files, naming, and dependencies
 - Reports valid entities as JSON, errors as structured messages
 
 ### `dbd apply`
+
 Execute DDL scripts against the database.
 
-| Option | Default | Description |
-|---|---|---|
-| `-n, --name` | all | Apply specific entity only |
-| `--dry-run` | false | Print execution sequence without applying |
+| Option       | Default | Description                               |
+| ------------ | ------- | ----------------------------------------- |
+| `-n, --name` | all     | Apply specific entity only                |
+| `--dry-run`  | false   | Print execution sequence without applying |
 
 **Behavior:**
+
 - Validates all entities first
 - Filters out entities with errors
 - Executes in dependency order (schemas -> extensions -> roles -> tables -> views -> functions -> procedures)
 - Uses `psql` for execution
 
 ### `dbd combine`
+
 Merge all DDL into a single deployment file.
 
-| Option | Default | Description |
-|---|---|---|
+| Option       | Default    | Description     |
+| ------------ | ---------- | --------------- |
 | `-f, --file` | `init.sql` | Output filename |
 
 **Behavior:** Concatenates DDL from all valid entities in dependency order.
 
 ### `dbd import`
+
 Load CSV/JSON data files into database tables.
 
-| Option | Default | Description |
-|---|---|---|
-| `-n, --name` | all | Import specific table |
-| `--dry-run` | false | Preview without executing |
+| Option       | Default | Description               |
+| ------------ | ------- | ------------------------- |
+| `-n, --name` | all     | Import specific table     |
+| `--dry-run`  | false   | Preview without executing |
 
 **Behavior:**
+
 - Only imports into staging schemas (configurable restriction)
 - Supports CSV, TSV, JSON, JSONL formats
 - Optionally truncates target table before import
@@ -69,25 +77,29 @@ Load CSV/JSON data files into database tables.
 - Uses `\copy` for CSV/TSV, temp table + procedure for JSON
 
 ### `dbd export`
+
 Extract data from tables/views as files.
 
-| Option | Default | Description |
-|---|---|---|
-| `-n, --name` | all | Export specific table |
+| Option       | Default | Description           |
+| ------------ | ------- | --------------------- |
+| `-n, --name` | all     | Export specific table |
 
 **Behavior:**
+
 - Creates export directory structure matching schema layout
 - Supports CSV, TSV, JSON, JSONL formats
 - Uses `\copy` via `psql`
 
 ### `dbd dbml`
+
 Generate DBML documentation files.
 
-| Option | Default | Description |
-|---|---|---|
+| Option       | Default       | Description     |
+| ------------ | ------------- | --------------- |
 | `-f, --file` | `design.dbml` | Output filename |
 
 **Behavior:**
+
 - Generates one DBML file per `project.dbdocs` entry
 - Filters entities by include/exclude schemas and tables
 - Strips index creation statements (DBML incompatible)
@@ -96,25 +108,25 @@ Generate DBML documentation files.
 
 ## Global Options
 
-| Option | Default | Description |
-|---|---|---|
-| `-c, --config` | `design.yaml` | Path to config file |
-| `-d, --database` | `$DATABASE_URL` | Database connection URL |
-| `-e, --environment` | `development` | Environment to load |
-| `-p, --preview` | false | Preview action without execution |
+| Option              | Default         | Description                      |
+| ------------------- | --------------- | -------------------------------- |
+| `-c, --config`      | `design.yaml`   | Path to config file              |
+| `-d, --database`    | `$DATABASE_URL` | Database connection URL          |
+| `-e, --environment` | `development`   | Environment to load              |
+| `-p, --preview`     | false           | Preview action without execution |
 
 ## Configuration File (`design.yaml`)
 
 The CLI reads a YAML configuration file that defines:
 
-| Section | Purpose |
-|---|---|
-| `project` | Name, database type, extension schema, staging schemas, dbdocs config |
-| `schemas` | Schemas to create |
-| `extensions` | PostgreSQL extensions to install |
-| `roles` | Database roles with inheritance |
-| `import` | Import options, table list, schema-specific overrides, post-import scripts |
-| `export` | Tables/views to export with format options |
+| Section      | Purpose                                                                    |
+| ------------ | -------------------------------------------------------------------------- |
+| `project`    | Name, database type, extension schema, staging schemas, dbdocs config      |
+| `schemas`    | Schemas to create                                                          |
+| `extensions` | PostgreSQL extensions to install                                           |
+| `roles`      | Database roles with inheritance                                            |
+| `import`     | Import options, table list, schema-specific overrides, post-import scripts |
+| `export`     | Tables/views to export with format options                                 |
 
 Entity definitions (tables, views, functions, procedures) are **discovered from the file system** and merged with config. Config entries can override discovered properties.
 
@@ -149,6 +161,7 @@ project/
 ## Dependency Resolution
 
 Entities declare dependencies via `refers` arrays. The CLI:
+
 1. Discovers references by parsing SQL scripts (function calls, table references, trigger targets)
 2. Filters out built-in functions (ANSI SQL, PostgreSQL internals, installed extensions)
 3. Resolves references across search paths

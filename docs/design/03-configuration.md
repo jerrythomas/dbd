@@ -8,13 +8,13 @@
 
 ```yaml
 project:
-  name: string                    # Project display name
-  database: string                # Database type (e.g., 'PostgreSQL')
-  note: string                    # Project description
-  extensionSchema: string         # Schema for extensions (default: 'public')
-  staging: [string]               # Staging schemas (restrict import targets)
-  dbdocs:                         # DBML document definitions
-    {name}:                       # Each key → separate .dbml file
+  name: string # Project display name
+  database: string # Database type (e.g., 'PostgreSQL')
+  note: string # Project description
+  extensionSchema: string # Schema for extensions (default: 'public')
+  staging: [string] # Staging schemas (restrict import targets)
+  dbdocs: # DBML document definitions
+    { name }: # Each key → separate .dbml file
       include:
         schemas: [string]
         tables: [string]
@@ -22,37 +22,37 @@ project:
         schemas: [string]
         tables: [string]
 
-schemas: [string]                 # Schemas to CREATE
+schemas: [string] # Schemas to CREATE
 
-extensions:                       # Extensions to install
-  - string                        # Simple: name only (uses extensionSchema)
-  - name: string                  # Object: name + explicit schema
+extensions: # Extensions to install
+  - string # Simple: name only (uses extensionSchema)
+  - name: string # Object: name + explicit schema
     schema: string
 
-roles:                            # Database roles
+roles: # Database roles
   - name: string
-    refers: [string]              # Roles to GRANT to this role
+    refers: [string] # Roles to GRANT to this role
 
 import:
-  options:                        # Default import options
-    truncate: boolean             # Truncate before import (default: true)
-    nullValue: string             # NULL representation (default: '')
-  tables:                         # Tables to import
-    - string                      # Simple: schema.table
-    - name: string                # Object: with overrides
-      format: string              # csv|tsv|json|jsonl
+  options: # Default import options
+    truncate: boolean # Truncate before import (default: true)
+    nullValue: string # NULL representation (default: '')
+  tables: # Tables to import
+    - string # Simple: schema.table
+    - name: string # Object: with overrides
+      format: string # csv|tsv|json|jsonl
       truncate: boolean
       nullValue: string
-  schemas:                        # Per-schema option overrides
-    {schema}:
+  schemas: # Per-schema option overrides
+    { schema }:
       truncate: boolean
       format: string
-  after: [string]                 # Post-import SQL scripts to execute
+  after: [string] # Post-import SQL scripts to execute
 
-export:                           # Tables/views to export
-  - string                        # Simple: schema.table (default: csv)
-  - name: string                  # Object: with format override
-    format: string                # csv|tsv|json|jsonl
+export: # Tables/views to export
+  - string # Simple: schema.table (default: csv)
+  - name: string # Object: with format override
+    format: string # csv|tsv|json|jsonl
 ```
 
 ### Entity Discovery (Implicit)
@@ -92,9 +92,9 @@ project/
 
 ### File Extensions
 
-| Context | Accepted |
-|---|---|
-| DDL scripts | `.ddl`, `.sql` |
+| Context     | Accepted                          |
+| ----------- | --------------------------------- |
+| DDL scripts | `.ddl`, `.sql`                    |
 | Import data | `.csv`, `.tsv`, `.json`, `.jsonl` |
 | Export data | `.csv`, `.tsv`, `.json`, `.jsonl` |
 
@@ -103,9 +103,9 @@ project/
 ### Constants (`constants.js`)
 
 ```javascript
-typesWithSchema    = ['table', 'view', 'function', 'procedure', 'import']
+typesWithSchema = ['table', 'view', 'function', 'procedure', 'import']
 typesWithoutSchema = ['role', 'schema', 'extension']
-allowedTypes       = [...typesWithSchema, ...typesWithoutSchema]
+allowedTypes = [...typesWithSchema, ...typesWithoutSchema]
 
 defaultImportOptions = { format: 'csv', nullValue: '', truncate: true }
 defaultExportOptions = { format: 'csv' }
@@ -126,6 +126,7 @@ File discovery (scan ddl/)
 ## Configuration Normalization (`filler.js`)
 
 `fillMissingInfoForEntities(data)` ensures:
+
 - Each entity type array exists: `roles`, `tables`, `views`, `functions`, `procedures`
 - Each entity has `refers: []` default
 - Each entity has `type` property matching its category
@@ -161,15 +162,16 @@ Each `project.dbdocs.{name}` entry produces a separate `.dbml` file:
 
 ```yaml
 dbdocs:
-  base:                           # → design-base.dbml
+  base: # → design-base.dbml
     exclude:
       schemas: [staging, migrate]
-  core:                           # → design-core.dbml
+  core: # → design-core.dbml
     include:
       schemas: [config]
 ```
 
 Filtering via `entitiesForDBML(entities, config)`:
+
 1. Start with all table entities
 2. If `include.schemas` set: keep only matching schemas
 3. If `include.tables` set: keep only matching table names

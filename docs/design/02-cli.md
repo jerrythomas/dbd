@@ -106,6 +106,7 @@ Final config with organized entities + import tables
 ### Dependency Resolution (`metadata.organize()`)
 
 Uses topological grouping:
+
 1. Build adjacency list from `refers` arrays
 2. Group entities into layers (no deps → depends on layer 0 → depends on layer 1 → ...)
 3. Entities in cycles get `errors: ['cyclic dependency']`
@@ -175,6 +176,7 @@ Cache stores results to avoid redundant regex matching.
 ### DDL Generation
 
 `ddlFromEntity(entity)` dispatches by type:
+
 - **File-backed** (table, view, function, procedure) → read file content
 - **Schema** → `CREATE SCHEMA IF NOT EXISTS {name};`
 - **Extension** → `CREATE EXTENSION IF NOT EXISTS "{name}" WITH SCHEMA {schema};`
@@ -183,6 +185,7 @@ Cache stores results to avoid redundant regex matching.
 ### Import Script Generation
 
 `importScriptForEntity(entity)`:
+
 - CSV/TSV: `\copy {table} FROM '{file}' WITH DELIMITER ... CSV HEADER;`
 - JSON/JSONL: Create temp table → `\copy` into temp → call `staging.import_jsonb_to_table()`
 - Optional `TRUNCATE TABLE` prefix (with exception fallback to `DELETE`)
@@ -190,12 +193,14 @@ Cache stores results to avoid redundant regex matching.
 ### Export Script Generation
 
 `exportScriptForEntity(entity)`:
+
 - CSV/TSV: `\copy (SELECT * FROM {table}) TO '{file}' WITH DELIMITER ... CSV HEADER;`
 - JSON/JSONL: `\copy (SELECT row_to_json(t) FROM {table} t) TO '{file}';`
 
 ## Execution
 
 All database operations use `psql` via child process:
+
 - Temporary `.sql` files written, executed via `psql -f`, then cleaned up
 - `DATABASE_URL` environment variable or explicit connection string
 - No programmatic database connection in the CLI layer

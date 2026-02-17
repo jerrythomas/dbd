@@ -24,6 +24,7 @@ Ready to start Phase 1 of workspace refactoring: Create workspace package.json a
 ## For LLM Assistants
 
 When working on this project:
+
 1. Read the relevant guideline files above
 2. Follow the naming conventions and architecture patterns
 3. Implement changes incrementally with tests

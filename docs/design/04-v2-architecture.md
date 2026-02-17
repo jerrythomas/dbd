@@ -52,6 +52,7 @@ adapters/postgres → db (implements BaseDatabaseAdapter)
 **Responsibility:** Parse SQL DDL → extract structured metadata.
 
 **Public API:**
+
 ```javascript
 // Functional API (preferred)
 export function extractSchema(sql, options)      // → { tables, views, procedures, indexes }
@@ -104,6 +105,7 @@ export class BaseDatabaseAdapter {
 ```
 
 **Design notes:**
+
 - `options` always supports `{ dryRun, verbose }`
 - `applyEntity` delegates to `generateEntityScript()` + `executeScript()` — subclasses override both
 - `applyEntities` iterates in the order given (caller is responsible for dependency sorting)
@@ -136,6 +138,7 @@ export function organizeEntities(entities)         // → { schemas, extensions,
 ```
 
 **Entity object shape** (unchanged from v1):
+
 ```javascript
 {
   type: 'table' | 'view' | 'function' | 'procedure' | 'role' | 'schema' | 'extension',
@@ -177,8 +180,8 @@ export { createAdapter, getAdapterInfo, SUPPORTED_DATABASES } from './factory.js
 ```javascript
 // factory.js
 const ADAPTERS = {
-  postgres:   () => import('@dbd/db-postgres'),
-  postgresql: () => import('@dbd/db-postgres'),
+  postgres: () => import('@dbd/db-postgres'),
+  postgresql: () => import('@dbd/db-postgres')
 }
 
 export async function createAdapter(type, connectionString, options) {
@@ -252,11 +255,11 @@ export function getRoleScript(entity)           // → string
 
 Three candidates. Decision deferred to Batch 3 implementation:
 
-| Library | COPY Support | Streaming | Bun Compat | Notes |
-|---|---|---|---|---|
-| `pg` + `pg-copy-streams` | COPY FROM/TO via streams | Yes | Yes | Most popular, battle-tested |
-| `postgres.js` (porsager) | Built-in `sql.copy()` | Yes | Yes (native) | Fastest, modern API |
-| `@databases/pg` | Via underlying pg | Indirect | Yes | Used in feature branch, safe SQL |
+| Library                  | COPY Support             | Streaming | Bun Compat   | Notes                            |
+| ------------------------ | ------------------------ | --------- | ------------ | -------------------------------- |
+| `pg` + `pg-copy-streams` | COPY FROM/TO via streams | Yes       | Yes          | Most popular, battle-tested      |
+| `postgres.js` (porsager) | Built-in `sql.copy()`    | Yes       | Yes (native) | Fastest, modern API              |
+| `@databases/pg`          | Via underlying pg        | Indirect  | Yes          | Used in feature branch, safe SQL |
 
 **Recommendation:** `pg` + `pg-copy-streams` for proven COPY performance, or `postgres.js` for modern API. Either way, `connection.js` abstracts this — the adapter doesn't care which library is underneath.
 
@@ -272,6 +275,7 @@ export function generateMultipleDBML(entities, dbdocsConfig) // → Map<name, st
 ```
 
 Internally:
+
 1. Filter entities via `filterEntitiesForDBML()` (from `@dbd/db`)
 2. Get DDL via `ddlFromEntity()` (from `@dbd/db`)
 3. Strip indexes, procedures, complex constraints
@@ -295,6 +299,7 @@ Small package. May stay as part of `packages/db` or `packages/cli` if not worth 
 ```
 
 After Stage 5 switchover:
+
 ```json
 {
   "bin": { "dbd": "src/index.js" }
@@ -407,6 +412,7 @@ report(name) → { entity, issues: [...valid with warnings, ...invalid with erro
 ### 4. Dry Run / Verbose
 
 Every operation accepts `{ dryRun, verbose }`:
+
 - `dryRun: true` — print what would happen, execute nothing
 - `verbose: true` — log progress via `adapter.log()`
 - Both propagate from CLI options down to adapter methods
@@ -414,6 +420,7 @@ Every operation accepts `{ dryRun, verbose }`:
 ### 5. Script Generation as Pure Functions
 
 All SQL generation (`ddlFromEntity`, `importScriptForEntity`, etc.) are pure functions:
+
 - Input: entity object
 - Output: SQL string
 - No database connection needed
@@ -492,24 +499,28 @@ dbd/
 During migration, `src/` (old) and `packages/` (new) coexist. The rules:
 
 ### Old code stays untouched until final removal
+
 - `src/` continues to work and serve the CLI throughout Stages 0–5
 - The root `package.json` `bin` entry still points to `src/index.js`
 - Existing tests in `spec/` continue to import from `src/`
 - **No shims, no re-exports, no bridge code** — old and new are independent
 
 ### New code is built alongside, not on top of
+
 - `packages/` code is additive — it doesn't modify `src/`
 - New packages copy logic from `src/` (not import from it)
 - New packages have their own tests in `packages/*/spec/`
 - Both old and new tests must pass at every commit
 
 ### Two binaries coexist during migration
+
 - `packages/cli` gets its own binary: `dbd-cli` (temporary name)
 - Root `package.json` keeps `bin: "dbd"` pointing to `src/index.js`
 - Both binaries are available — `dbd` (old) and `dbd-cli` (new)
 - This allows side-by-side testing of identical commands
 
 ### Switchover happens once, at the end (Stage 5)
+
 - When `dbd-cli` is fully verified and feature-compatible:
   1. Rename `packages/cli` binary from `dbd-cli` to `dbd`
   2. Remove `bin` from root `package.json` (root is no longer a CLI package)
@@ -518,7 +529,9 @@ During migration, `src/` (old) and `packages/` (new) coexist. The rules:
 - This is a single commit: the old code is removed, the new binary takes over
 
 ### Root package becomes workspace-only
+
 After switchover, root `package.json` is used exclusively for:
+
 - Workspace management (`"workspaces": ["packages/*", "adapters/*"]`)
 - Cross-workspace test scripts (`test:workspaces`, `test:compat`, etc.)
 - Versioning and release orchestration
@@ -526,6 +539,7 @@ After switchover, root `package.json` is used exclusively for:
 - It is **not published** — only `packages/cli` (as `dbd`) is published
 
 ### Why this approach?
+
 - No half-migrated states where `src/` imports from `packages/` or vice versa
 - Both CLIs work identically at every commit — users never see breakage
 - Side-by-side comparison: run same command with `dbd` and `dbd-cli`, diff output
@@ -536,18 +550,19 @@ After switchover, root `package.json` is used exclusively for:
 
 ## What Changes for Users
 
-| Aspect | v1.3.2 | v2.0.0 |
-|---|---|---|
-| CLI commands | Same | Same (no breaking CLI changes) |
-| Config format | `design.yaml` | Same (no breaking config changes) |
-| Project structure | `ddl/`, `import/` | Same |
-| `psql` dependency | Required | Optional (programmatic by default) |
-| Install | `npm i -g @jerrythomas/dbd` | `npm i -g @dbd/cli` (publishes as `dbd` binary) |
+| Aspect            | v1.3.2                        | v2.0.0                                                                      |
+| ----------------- | ----------------------------- | --------------------------------------------------------------------------- |
+| CLI commands      | Same                          | Same (no breaking CLI changes)                                              |
+| Config format     | `design.yaml`                 | Same (no breaking config changes)                                           |
+| Project structure | `ddl/`, `import/`             | Same                                                                        |
+| `psql` dependency | Required                      | Optional (programmatic by default)                                          |
+| Install           | `npm i -g @jerrythomas/dbd`   | `npm i -g @dbd/cli` (publishes as `dbd` binary)                             |
 | Published package | `@jerrythomas/dbd` (monolith) | `@dbd/cli` (CLI), `@dbd/parser`, `@dbd/db`, `@dbd/dbml`, `@dbd/db-postgres` |
-| Root package | Published with CLI + library | Workspace-only, not published |
-| Node.js | Any recent | Same |
+| Root package      | Published with CLI + library  | Workspace-only, not published                                               |
+| Node.js           | Any recent                    | Same                                                                        |
 
 **Breaking changes** (justifying major version):
+
 - Install package changes from `@jerrythomas/dbd` to `@dbd/cli`
 - Internal package restructure (affects anyone importing from `src/`)
 - `psql` no longer required for basic operations
