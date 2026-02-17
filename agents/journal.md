@@ -19,11 +19,13 @@ Design details live in `docs/design/` — modular docs per module.
 Derived requirements and design docs from existing codebase:
 
 **Requirements (docs/requirements/):**
+
 - `01-parser.md` — Parser package: schema extraction, validation, dual API, supported SQL features, known limitations
 - `02-cli.md` — CLI: all 7 commands (init, inspect, apply, combine, import, export, dbml), global options, config format, validation rules
 - `03-dbml.md` — DBML generation: SQL-to-DBML conversion, multi-document support, filtering
 
 **Design (docs/design/):**
+
 - `01-parser.md` — Three-layer pipeline architecture, module map, output shapes, error handling, fallback extraction
 - `02-cli.md` — Design class orchestration, configuration pipeline, reference extraction, entity lifecycle, execution via psql, technical debt
 - `03-configuration.md` — design.yaml full schema, project directory layout, entity type system, import flow, DBML config
@@ -31,6 +33,7 @@ Derived requirements and design docs from existing codebase:
 ### v2.0.0 Migration Planning
 
 Explored `feature/monorepo-refactor` branch (10 commits, 22K lines added):
+
 - Has partial monorepo: packages/cli, packages/db, adapters/postgres
 - BaseDatabaseAdapter interface, PostgreSQLAdapter with dual psql/@databases/pg execution
 - Entity processor, schema transformer, dependency processor
@@ -39,12 +42,14 @@ Explored `feature/monorepo-refactor` branch (10 commits, 22K lines added):
 - Branch diverged significantly — cherry-pick useful parts, don't merge
 
 Researched DB libraries:
+
 - `@databases/pg` — used in feature branch, safe API, COPY support unclear
 - `postgres.js` (porsager) — fastest, Bun/Deno support, built-in COPY
 - `pg` + `pg-copy-streams` — most popular, proven COPY streaming
 - `dbdocs` — CLI only, no programmatic API found
 
 Created 7-batch migration plan (agents/plan.md):
+
 - Batch 0: Compatibility test suite (safety net before any refactoring)
 - Batch 1: Monorepo infrastructure
 - Batch 2: DB adapter interface (packages/db)
@@ -60,6 +65,7 @@ Updated backlog with cherry-pick inventory, library evaluation criteria, and fut
 Wrote detailed design documents for review:
 
 - `docs/design/04-v2-architecture.md` — target architecture:
+
   - Package dependency diagram (cli → parser, db, dbml; db → no deps; adapters → db)
   - Full API specifications for each package (BaseDatabaseAdapter, entity-processor, dependency-resolver, factory)
   - Entity object shape (unchanged from v1)
@@ -84,14 +90,15 @@ Read full feature branch source: base-adapter.js, entity-processor.js, dependenc
 
 Wrote 136 compatibility tests across 4 files in `spec/compat/`:
 
-| File | Tests | Coverage |
-|------|-------|----------|
-| `spec/compat/design.spec.js` | 37 | Design class: init, config loading, entity discovery, dependency order, validation, combine, dbml, dry-run, bad-example errors |
-| `spec/compat/references.spec.js` | 29 | Reference extraction: extractReferences, extractTableReferences, extractTriggerReferences, searchPaths, CTE aliases, parseEntityScript, matchReferences, lookup tree, DDL cleanup |
-| `spec/compat/entity.spec.js` | 42 | Entity transforms: entityFromFile (all patterns), entityFrom*Config factories, ddlFromEntity (all types), validateEntityFile, importScriptForEntity, exportScriptForEntity, entitiesForDBML filtering |
-| `spec/compat/config.spec.js` | 28 | Config loading: scan, read, clean, merge, organize, regroup, fillMissingInfoForEntities, dependency ordering, cycle detection |
+| File                             | Tests | Coverage                                                                                                                                                                                               |
+| -------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `spec/compat/design.spec.js`     | 37    | Design class: init, config loading, entity discovery, dependency order, validation, combine, dbml, dry-run, bad-example errors                                                                         |
+| `spec/compat/references.spec.js` | 29    | Reference extraction: extractReferences, extractTableReferences, extractTriggerReferences, searchPaths, CTE aliases, parseEntityScript, matchReferences, lookup tree, DDL cleanup                      |
+| `spec/compat/entity.spec.js`     | 42    | Entity transforms: entityFromFile (all patterns), entityFrom\*Config factories, ddlFromEntity (all types), validateEntityFile, importScriptForEntity, exportScriptForEntity, entitiesForDBML filtering |
+| `spec/compat/config.spec.js`     | 28    | Config loading: scan, read, clean, merge, organize, regroup, fillMissingInfoForEntities, dependency ordering, cycle detection                                                                          |
 
 Also:
+
 - Added `test:compat` script to root package.json
 - All 222 tests pass (86 existing + 136 compat)
 - Prettier clean on all new files
@@ -117,11 +124,13 @@ Implemented `adapters/postgres/` with PsqlAdapter and plugin system. Decision: k
 **Key decision:** Instead of replacing psql with a programmatic DB library immediately, wrap the existing psql CLI as the first adapter plugin. This gives us the adapter abstraction while keeping the proven psql approach as default. Alternative adapters (pg, postgres.js, etc.) can be plugged in later via `registerAdapter()`.
 
 **Modules:**
+
 - `psql-adapter.js` — `PsqlAdapter extends BaseDatabaseAdapter`. Stateless adapter wrapping `execSync('psql ...')`. Methods: connect/disconnect (no-op), executeScript (temp file → psql stdin), executeFile (direct), applyEntity (file-backed or generated DDL), importData/exportData (via entity-processor scripts), testConnection/inspect (via `psql -c`), dryRun support.
 - `index.js` — Exports `PsqlAdapter` and `createAdapter()` factory function.
 - `factory.js` (packages/db) — Added `registerAdapter(type, loader)` for plugin support. Updated index.js re-exports.
 
 **Tests:**
+
 - `adapters/postgres/spec/psql-adapter.spec.js` — 26 tests with mocked execSync/fs
 - `adapters/postgres/spec/index.spec.js` — 3 tests for factory exports
 - `packages/db/spec/factory.spec.js` — 3 new tests for registerAdapter (now 10 total)
@@ -133,6 +142,7 @@ All 222 existing tests + 99 db tests + 29 adapter tests green.
 Implemented `packages/db/` with 4 modules and 96 unit tests. Commit `a643b18`.
 
 **Modules:**
+
 - `base-adapter.js` — `BaseDatabaseAdapter` abstract class with private fields, default implementations for `testConnection()`, `applyEntities()`, `batchImport()`, `batchExport()`, and `log()`. Abstract methods throw `'not implemented'`.
 - `entity-processor.js` — Pure functions copied from `src/entity.js` + `src/constants.js`. All entity factories, DDL generation, import/export script generation, DBML filtering, validation, and organization.
 - `dependency-resolver.js` — Pure functions from `src/metadata.js` organize/regroup. `buildDependencyGraph()`, `sortByDependencies()`, `groupByDependencyLevel()`, `findCycles()`, `validateDependencies()`.
@@ -140,6 +150,7 @@ Implemented `packages/db/` with 4 modules and 96 unit tests. Commit `a643b18`.
 - `index.js` — Re-exports all public API.
 
 **Tests (96 total):**
+
 - `spec/base-adapter.spec.js` — 20 tests: constructor, abstract throws, testConnection, batch ops, logging
 - `spec/entity-processor.spec.js` — 53 tests: constants, factories, DDL generation (via fixtures), import/export scripts, DBML filtering, validation, organization
 - `spec/dependency-resolver.spec.js` — 16 tests: graph building, cycle detection, validation, sorting, grouping
@@ -160,3 +171,31 @@ Moved PostgreSQL integration tests out of `spec/` into `e2e/`:
   - `test:pg` — starts PG, runs e2e, stops PG
   - `test` — full suite: PG + unit + e2e + cleanup
   - Removed `test:nopg` — `test:unit` now serves this purpose
+
+### Stage 3: PostgreSQL Adapter — COMPLETE
+
+Implemented PsqlAdapter as default plugin in `adapters/postgres/`. Commit `acee3ff`.
+
+- `psql-adapter.js` — PsqlAdapter extends BaseDatabaseAdapter, wraps `execSync('psql ...')`
+- `index.js` — exports PsqlAdapter + createAdapter factory
+- Added `registerAdapter()` to `packages/db/src/factory.js` for plugin system
+- 29 adapter tests + 3 factory plugin tests, all passing
+
+### Stage 4: Extract CLI Package — COMPLETE
+
+Extracted CLI logic from `src/` into `packages/cli/`. Commit `abbb7aa`.
+
+**Modules:**
+
+- `config.js` — scan/read/clean/merge from `src/metadata.js` + `src/filler.js`. `clean()` uses dependency injection for `parseEntityScript` and `matchReferences`.
+- `references.js` — exclusions + parsing from `src/parser.js` + `src/exclusions.js` (~565 lines). All extraction, matching, and cleanup functions.
+- `design.js` — Design class from `src/collect.js`. Uses `@jerrythomas/dbd-db` for entity processing and dependency resolution. `apply()`, `importData()`, `exportData()` are now async (adapter-based). Lazy adapter creation via `getAdapter()`.
+- `index.js` — sade CLI with 7 commands: init, inspect, apply, combine, import, export, dbml.
+
+**Tests (45 total):**
+
+- `spec/config.spec.js` — 8 tests: scan, read, fillMissingInfoForEntities, merge
+- `spec/references.spec.js` — 21 tests: internals, extensions, extraction, matching, cleanup
+- `spec/design.spec.js` — 16 tests: mirrors compat/design tests with new package imports
+
+All 222 existing tests remain green. New code is purely additive — `src/` untouched.

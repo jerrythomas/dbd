@@ -5,6 +5,7 @@
 Migrate from monolithic `src/` (v1.3.2) to a proper monorepo with packages and adapters. The `feature/monorepo-refactor` branch has partial work (10 commits, 22K lines changed) that we can cherry-pick from but not merge directly — it diverged significantly and was never completed.
 
 ### Goals
+
 - Proper monorepo: `packages/` for core logic, `adapters/` for database-specific code
 - `packages/parser` — SQL parsing (already mature on develop)
 - `packages/cli` — CLI interface
@@ -14,6 +15,7 @@ Migrate from monolithic `src/` (v1.3.2) to a proper monorepo with packages and a
 - Each batch is a committable, working state
 
 ### Key Decisions Needed
+
 - DB library: `@databases/pg` (already used in feature branch) vs `postgres.js` (faster, COPY support) vs `pg` + `pg-copy-streams`
 - DBML: keep `@dbml/core` importer (works), `dbdocs` CLI for publishing (no programmatic API found)
 - Adapter interface: borrow `BaseDatabaseAdapter` from feature branch, refine
@@ -27,6 +29,7 @@ Migrate from monolithic `src/` (v1.3.2) to a proper monorepo with packages and a
 Write tests against the current working v1.3.2 code that capture ALL existing behavior. These tests become the contract that every subsequent batch must satisfy.
 
 - [x] **0.1** Catalog all current behaviors from specs + manual testing
+
   - CLI commands: init, inspect, apply, combine, import, export, dbml
   - Configuration loading: design.yaml parsing, file discovery, entity merging
   - Reference resolution: function refs, table refs, trigger refs, CTE filtering
@@ -37,6 +40,7 @@ Write tests against the current working v1.3.2 code that capture ALL existing be
   - DBML generation: filtering, schema qualification, index removal
 
 - [x] **0.2** Write integration tests for `Design` class (collect.js)
+
   - spec/compat/design.spec.js — 37 tests
   - using() factory with example/ fixtures
   - validate() → report() round-trip
@@ -46,6 +50,7 @@ Write tests against the current working v1.3.2 code that capture ALL existing be
   - bad-example validation errors
 
 - [x] **0.3** Write snapshot tests for parser.js (legacy reference extractor)
+
   - spec/compat/references.spec.js — 29 tests
   - extractReferences() with known SQL → expected refs
   - extractTableReferences() with known SQL → expected table refs
@@ -54,9 +59,10 @@ Write tests against the current working v1.3.2 code that capture ALL existing be
   - cleanupDDLForDBML(), removeCommentBlocks(), normalizeComment()
 
 - [x] **0.4** Write snapshot tests for entity.js transformations
+
   - spec/compat/entity.spec.js — 42 tests
   - entityFromFile() for all path patterns
-  - entityFrom*Config() factories
+  - entityFrom\*Config() factories
   - ddlFromEntity() for each entity type
   - importScriptForEntity() for each format
   - exportScriptForEntity() for each format
@@ -64,6 +70,7 @@ Write tests against the current working v1.3.2 code that capture ALL existing be
   - entitiesForDBML() filtering
 
 - [x] **0.5** Write snapshot tests for config loading (metadata.js, filler.js)
+
   - spec/compat/config.spec.js — 28 tests
   - scan(), read(), clean(), merge(), organize(), regroup()
   - fillMissingInfoForEntities()
@@ -108,7 +115,7 @@ Create `packages/db` with the adapter abstraction. No code moves from `src/` yet
   - index.js re-exports all public API from all modules
 - [x] **2.3** Create `packages/db/src/entity-processor.js` — entity DDL generation
   - Pure functions copied from `src/entity.js` + `src/constants.js`
-  - entityFromFile, entityFrom*Config, ddlFromEntity, generateRoleScript, combineEntityScripts
+  - entityFromFile, entityFrom\*Config, ddlFromEntity, generateRoleScript, combineEntityScripts
   - importScriptForEntity, exportScriptForEntity, filterEntitiesForDBML
   - validateEntity, getValidEntities, getInvalidEntities, organizeEntities
 - [x] **2.4** Create `packages/db/src/dependency-resolver.js` — topological sort
@@ -153,23 +160,22 @@ Create `adapters/postgres` with psql adapter as default plugin. Plugin system fo
 
 Move CLI logic from `src/` to `packages/cli/`, wiring it to the new adapter.
 
-- [ ] **4.1** Create `packages/cli/src/index.js` — sade command definitions
-  - Same commands, same options, same behavior
-  - Import from `@dbd/db` and `@dbd/parser` instead of `src/` modules
-- [ ] **4.2** Create `packages/cli/src/design.js` — refactored Design class
-  - Use `@dbd/db` adapter factory instead of psql
-  - Use `@dbd/db` entity-processor and dependency-resolver
-  - Keep metadata.js logic (config reading, file discovery, merging)
-- [ ] **4.3** Create `packages/cli/src/config.js` — configuration handling
-  - Extract from `src/metadata.js`: read(), clean(), merge(), organize()
-  - Extract from `src/filler.js`: fillMissingInfoForEntities()
-- [ ] **4.4** Create `packages/cli/src/references.js` — reference extraction
-  - Extract from `src/parser.js`: extractReferences(), matchReferences(), etc.
-  - Extract from `src/exclusions.js`: isInternal(), extension patterns
-- [ ] **4.5** Update root `src/index.js` to re-export from `@dbd/cli`
-  - Backwards-compatible entry point
-- [ ] **4.6** Run Batch 0 compatibility tests — everything must pass
-- [ ] **4.7** Run all workspace tests — everything must pass
+- [x] **4.1** Create `packages/cli/src/index.js` — sade command definitions
+  - 7 commands: init, inspect, apply, combine, import, export, dbml
+  - Imports from `@jerrythomas/dbd-db` and local modules
+- [x] **4.2** Create `packages/cli/src/design.js` — refactored Design class
+  - Uses `@jerrythomas/dbd-db` adapter factory, entity-processor, dependency-resolver
+  - apply/importData/exportData now async (adapter-based)
+  - Lazy adapter creation via getAdapter()
+- [x] **4.3** Create `packages/cli/src/config.js` — configuration handling
+  - Extracted from `src/metadata.js` + `src/filler.js`
+  - clean() uses dependency injection for parseEntityScript/matchReferences
+- [x] **4.4** Create `packages/cli/src/references.js` — reference extraction
+  - Extracted from `src/parser.js` + `src/exclusions.js` (~565 lines)
+  - All extraction, matching, exclusion, and cleanup functions
+- [x] **4.5** Write unit tests — 45 passing (8 config + 21 references + 16 design)
+- [x] **4.6** Verify all existing tests pass — 222 green
+- [x] **4.7** Commit: `abbb7aa`
 
 ---
 
@@ -203,14 +209,16 @@ Extract DBML logic, clean up remaining `src/` code.
 ## Verification
 
 Each batch must satisfy:
+
 1. All existing tests pass (`bun test:unit`, `bun test:nopg`)
 2. Batch 0 compatibility tests pass (once written)
 3. New workspace tests pass
 4. `bun run lint` — 0 errors
 
-## Current Batch: 3 COMPLETE → Next: Batch 4 (Extract CLI Package)
+## Current Batch: 4 COMPLETE → Next: Batch 5 (DBML & Documentation Generation)
 
 Batch 0: 136 compatibility tests in `spec/compat/` (safety net).
 Batch 1: Workspace packages configured, versions at 2.0.0-alpha.0, placeholder entry points created.
 Batch 2: packages/db implemented — 4 modules, 99 tests. All 222 existing tests still green.
 Batch 3: PsqlAdapter (psql plugin), registerAdapter API, 29 adapter tests. All tests green.
+Batch 4: packages/cli extracted — 4 modules (config, references, design, index), 45 tests. All 222 existing tests still green.
