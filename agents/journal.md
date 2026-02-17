@@ -110,6 +110,24 @@ Updated workspace packages for v2.0.0 migration:
 - Recorded naming decision: `@jerrythomas/dbd-*` (no access to `@dbd` npm scope)
 - `bun install` resolves all workspaces, 222 tests + parser workspace tests pass
 
+### Stage 3: PostgreSQL Adapter (PsqlAdapter plugin) — COMPLETE
+
+Implemented `adapters/postgres/` with PsqlAdapter and plugin system. Decision: keep psql as default, allow alternative adapters via `registerAdapter()`.
+
+**Key decision:** Instead of replacing psql with a programmatic DB library immediately, wrap the existing psql CLI as the first adapter plugin. This gives us the adapter abstraction while keeping the proven psql approach as default. Alternative adapters (pg, postgres.js, etc.) can be plugged in later via `registerAdapter()`.
+
+**Modules:**
+- `psql-adapter.js` — `PsqlAdapter extends BaseDatabaseAdapter`. Stateless adapter wrapping `execSync('psql ...')`. Methods: connect/disconnect (no-op), executeScript (temp file → psql stdin), executeFile (direct), applyEntity (file-backed or generated DDL), importData/exportData (via entity-processor scripts), testConnection/inspect (via `psql -c`), dryRun support.
+- `index.js` — Exports `PsqlAdapter` and `createAdapter()` factory function.
+- `factory.js` (packages/db) — Added `registerAdapter(type, loader)` for plugin support. Updated index.js re-exports.
+
+**Tests:**
+- `adapters/postgres/spec/psql-adapter.spec.js` — 26 tests with mocked execSync/fs
+- `adapters/postgres/spec/index.spec.js` — 3 tests for factory exports
+- `packages/db/spec/factory.spec.js` — 3 new tests for registerAdapter (now 10 total)
+
+All 222 existing tests + 99 db tests + 29 adapter tests green.
+
 ### Stage 2: Extract Database Adapter Interface — COMPLETE
 
 Implemented `packages/db/` with 4 modules and 96 unit tests. Commit `a643b18`.

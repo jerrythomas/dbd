@@ -51,8 +51,8 @@ cli -> db -> adapters/postgres
 | Dual binary during migration | `dbd` (old) + `dbd-cli` (new) for side-by-side testing | 2026-02-17 |
 | No legacy shim | At switchover: delete `src/` entirely, rename `dbd-cli` to `dbd` | 2026-02-17 |
 | Root becomes workspace-only | Root `package.json` private, no bin — only for workspace mgmt | 2026-02-17 |
-| Replace psql with programmatic DB | Adapter uses pg library directly — no shelling to psql | 2026-02-17 |
-| DB library TBD | Choose between pg+pg-copy-streams, postgres.js, @databases/pg at Stage 3 | 2026-02-17 |
+| PsqlAdapter as default plugin | Keep existing psql shelling as default adapter; plugin system for alternatives | 2026-02-17 |
+| registerAdapter() plugin API | Custom adapters registered via `registerAdapter(type, loader)` | 2026-02-17 |
 | Package naming: `@jerrythomas/dbd-*` | No access to `@dbd` npm scope; keep existing `@jerrythomas/dbd-{name}` | 2026-02-17 |
 | Cherry-pick from feature branch | Reuse adapter interface, entity-processor, e2e setup; don't merge branch | 2026-02-17 |
 
@@ -76,7 +76,7 @@ cli -> db -> adapters/postgres
 
 ## Current Status
 
-- **v2.0.0 migration:** Stage 0 complete (136 compat tests), Stage 1 next
+- **v2.0.0 migration:** Stages 0-3 complete; next: Stage 4 (Extract CLI Package)
 - Parser package: Complete with full test coverage
 - Legacy `src/` active — untouched until Stage 5 switchover
 - Design docs complete: `docs/design/04-v2-architecture.md`, `docs/design/05-v2-migration-stages.md`

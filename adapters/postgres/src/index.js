@@ -1,2 +1,14 @@
-// @jerrythomas/dbd-postgres-adapter — PostgreSQL adapter
-// Placeholder — implementation in Stage 3
+import { PsqlAdapter } from './psql-adapter.js'
+
+export { PsqlAdapter }
+
+/**
+ * Factory function called by @jerrythomas/dbd-db's createAdapter().
+ *
+ * @param {string} connectionString — PostgreSQL connection URL
+ * @param {Object} [options] — { verbose, dryRun }
+ * @returns {PsqlAdapter}
+ */
+export function createAdapter(connectionString, options = {}) {
+	return new PsqlAdapter(connectionString, options)
+}

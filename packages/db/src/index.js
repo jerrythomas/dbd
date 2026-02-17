@@ -1,7 +1,7 @@
 // @jerrythomas/dbd-db — Database operations abstraction layer
 
 export { BaseDatabaseAdapter } from './base-adapter.js'
-export { createAdapter, getAdapterInfo, SUPPORTED_DATABASES } from './factory.js'
+export { createAdapter, getAdapterInfo, registerAdapter, SUPPORTED_DATABASES } from './factory.js'
 
 export {
 	// Constants

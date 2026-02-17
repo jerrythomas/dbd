@@ -3,6 +3,9 @@
  *
  * Each adapter package exports a `createAdapter(connectionString, options)` function.
  * The factory maps database type names to their package loaders.
+ *
+ * Built-in adapters can be overridden and custom adapters can be registered
+ * via `registerAdapter()`.
  */
 
 const ADAPTERS = {
@@ -11,6 +14,27 @@ const ADAPTERS = {
 }
 
 export const SUPPORTED_DATABASES = Object.keys(ADAPTERS)
+
+/**
+ * Register a custom adapter loader.
+ *
+ * @param {string} type — database type name (e.g. 'postgres', 'mysql')
+ * @param {Function} loader — async function that returns a module with `createAdapter()`
+ *
+ * @example
+ *   // Register a programmatic postgres adapter
+ *   registerAdapter('postgres', () => import('@jerrythomas/dbd-pg-adapter'))
+ *
+ *   // Register a custom adapter from a local path
+ *   registerAdapter('sqlite', () => import('./my-sqlite-adapter.js'))
+ */
+export function registerAdapter(type, loader) {
+	const key = type.toLowerCase()
+	ADAPTERS[key] = loader
+	if (!SUPPORTED_DATABASES.includes(key)) {
+		SUPPORTED_DATABASES.push(key)
+	}
+}
 
 /**
  * Create an adapter instance for the given database type.

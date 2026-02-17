@@ -123,24 +123,29 @@ Create `packages/db` with the adapter abstraction. No code moves from `src/` yet
 
 ### Batch 3: PostgreSQL Adapter
 
-Create `adapters/postgres` with programmatic DB access replacing `psql` shelling.
+Create `adapters/postgres` with psql adapter as default plugin. Plugin system for alternative adapters.
 
-- [ ] **3.1** Choose DB library — evaluate `@databases/pg` vs `postgres.js` vs `pg` + `pg-copy-streams`
-  - Criteria: COPY support, streaming, transaction API, maintenance activity
-  - Decide and document in `agents/memory.md`
-- [ ] **3.2** Create `adapters/postgres/src/adapter.js` — implements base adapter
-  - connect/disconnect with connection pooling
-  - executeScript — run DDL/SQL programmatically
-  - testConnection — verify connectivity
-- [ ] **3.3** Create `adapters/postgres/src/importer.js` — bulk data loading
-  - CSV/TSV via COPY (streaming, not temp files)
-  - JSON/JSONL via staging table + procedure call
-  - Truncate support
-- [ ] **3.4** Create `adapters/postgres/src/exporter.js` — data export
-  - COPY TO for CSV/TSV/JSON formats
-- [ ] **3.5** Write unit tests + integration tests (Docker-based PostgreSQL)
-  - Borrow e2e setup from feature branch
-- [ ] **3.6** Verify: adapter can perform all operations that `psql` shelling currently does
+- [x] **3.1** Decision: keep `psql` as default adapter (already works); plugin system via `registerAdapter()`
+  - PsqlAdapter wraps existing `execSync('psql ...')` pattern
+  - Alternative programmatic adapters (pg, postgres.js) can be registered later
+  - Documented in `agents/memory.md`
+- [x] **3.2** Create `adapters/postgres/src/psql-adapter.js` — PsqlAdapter extends BaseDatabaseAdapter
+  - connect/disconnect (stateless for psql)
+  - executeScript — writes temp file, feeds to psql
+  - executeFile — runs DDL file directly via psql
+  - applyEntity — file-backed or generated DDL
+  - importData/exportData — generate scripts via entity-processor, execute via psql
+  - testConnection/inspect — via `psql -c "SELECT ..."`
+  - dryRun support at both instance and per-call level
+- [x] **3.3** Create `adapters/postgres/src/index.js` — exports PsqlAdapter + createAdapter factory
+- [x] **3.4** Add `registerAdapter()` to `packages/db/src/factory.js`
+  - Allows overriding built-in adapters or adding new ones
+  - Updated index.js re-exports
+- [x] **3.5** Write unit tests (29 adapter tests + 3 factory plugin tests)
+  - spec/psql-adapter.spec.js — 26 tests with mocked execSync/fs
+  - spec/index.spec.js — 3 tests for factory exports
+  - packages/db/spec/factory.spec.js — 3 new tests for registerAdapter
+- [x] **3.6** Verify: all 222 existing tests pass, 99 db tests pass, 29 adapter tests pass
 
 ---
 
@@ -203,8 +208,9 @@ Each batch must satisfy:
 3. New workspace tests pass
 4. `bun run lint` — 0 errors
 
-## Current Batch: 2 COMPLETE → Next: Batch 3 (PostgreSQL Adapter)
+## Current Batch: 3 COMPLETE → Next: Batch 4 (Extract CLI Package)
 
 Batch 0: 136 compatibility tests in `spec/compat/` (safety net).
 Batch 1: Workspace packages configured, versions at 2.0.0-alpha.0, placeholder entry points created.
-Batch 2: packages/db implemented — 4 modules, 96 tests. All 222 existing tests still green.
+Batch 2: packages/db implemented — 4 modules, 99 tests. All 222 existing tests still green.
+Batch 3: PsqlAdapter (psql plugin), registerAdapter API, 29 adapter tests. All tests green.

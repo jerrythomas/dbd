@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { createAdapter, getAdapterInfo, SUPPORTED_DATABASES } from '../src/factory.js'
+import {
+	createAdapter,
+	getAdapterInfo,
+	registerAdapter,
+	SUPPORTED_DATABASES
+} from '../src/factory.js'
+import { BaseDatabaseAdapter } from '../src/base-adapter.js'
 
 describe('factory', () => {
 	describe('SUPPORTED_DATABASES', () => {
@@ -38,6 +44,40 @@ describe('factory', () => {
 			await expect(createAdapter('sqlite', 'sqlite://test.db')).rejects.toThrow(
 				'Supported: postgres, postgresql'
 			)
+		})
+	})
+
+	describe('registerAdapter()', () => {
+		it('registers a custom adapter that can be created', async () => {
+			class TestAdapter extends BaseDatabaseAdapter {}
+			registerAdapter('testdb', () =>
+				Promise.resolve({
+					createAdapter: (conn, opts) => new TestAdapter(conn, opts)
+				})
+			)
+			expect(getAdapterInfo('testdb').supported).toBe(true)
+			const adapter = await createAdapter('testdb', 'testdb://localhost')
+			expect(adapter).toBeInstanceOf(TestAdapter)
+			expect(adapter).toBeInstanceOf(BaseDatabaseAdapter)
+		})
+
+		it('can override a built-in adapter', async () => {
+			class CustomPg extends BaseDatabaseAdapter {}
+			const originalInfo = getAdapterInfo('postgres')
+			expect(originalInfo.supported).toBe(true)
+
+			registerAdapter('postgres', () =>
+				Promise.resolve({
+					createAdapter: (conn, opts) => new CustomPg(conn, opts)
+				})
+			)
+			const adapter = await createAdapter('postgres', 'pg://localhost')
+			expect(adapter).toBeInstanceOf(CustomPg)
+		})
+
+		it('is case-insensitive', () => {
+			registerAdapter('MyDB', () => Promise.resolve({}))
+			expect(getAdapterInfo('mydb').supported).toBe(true)
 		})
 	})
 })
