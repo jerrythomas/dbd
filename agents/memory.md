@@ -34,8 +34,9 @@ cli -> db -> adapters/postgres
 
 ### Package Naming
 - Core packages: `@dbd/{name}` (parser, dbml, db)
-- CLI: `dbd` (no namespace, provides the binary)
+- CLI: `@dbd/cli` (publishes `dbd` binary)
 - Adapters: `@dbd/db-{database}` in `adapters/{database}/`
+- Root package: workspace-only (private, not published)
 
 ## Key Decisions
 
@@ -46,6 +47,13 @@ cli -> db -> adapters/postgres
 | Workspace refactoring | Monolith -> packages for maintainability | Pre-existing |
 | Vitest for testing | Fast, ES module native, good DX | Pre-existing |
 | Ramda for FP utilities | Consistent functional toolkit | Pre-existing |
+| Coexistence strategy | Old `src/` untouched until switchover; new code alongside, not on top | 2026-02-17 |
+| Dual binary during migration | `dbd` (old) + `dbd-cli` (new) for side-by-side testing | 2026-02-17 |
+| No legacy shim | At switchover: delete `src/` entirely, rename `dbd-cli` to `dbd` | 2026-02-17 |
+| Root becomes workspace-only | Root `package.json` private, no bin — only for workspace mgmt | 2026-02-17 |
+| Replace psql with programmatic DB | Adapter uses pg library directly — no shelling to psql | 2026-02-17 |
+| DB library TBD | Choose between pg+pg-copy-streams, postgres.js, @databases/pg at Stage 3 | 2026-02-17 |
+| Cherry-pick from feature branch | Reuse adapter interface, entity-processor, e2e setup; don't merge branch | 2026-02-17 |
 
 ## Technical Notes
 
@@ -67,6 +75,17 @@ cli -> db -> adapters/postgres
 
 ## Current Status
 
+- **v2.0.0 migration:** Stage 0 next (compatibility test suite)
 - Parser package: Complete with full test coverage
-- Workspace refactoring: Phase 1 (Infrastructure Setup) in progress
-- Legacy `src/` still active alongside new packages
+- Legacy `src/` active — untouched until Stage 5 switchover
+- Design docs complete: `docs/design/04-v2-architecture.md`, `docs/design/05-v2-migration-stages.md`
+- Plan: `agents/plan.md` has full 7-stage batch plan
+
+## Key Files for Resuming
+
+| File | What to read |
+|------|-------------|
+| `agents/plan.md` | Current batch plan — Stage 0 is next |
+| `docs/design/04-v2-architecture.md` | Target architecture, interfaces, patterns |
+| `docs/design/05-v2-migration-stages.md` | Detailed steps for each stage |
+| `agents/backlog.md` | Cherry-pick inventory, DB library evaluation, future work |
