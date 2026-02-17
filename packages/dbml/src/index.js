@@ -2,6 +2,7 @@
 export {
 	removeCommentBlocks,
 	removeIndexCreationStatements,
+	removeCommentOnStatements,
 	normalizeComment,
 	cleanupDDLForDBML,
 	buildTableReplacements,

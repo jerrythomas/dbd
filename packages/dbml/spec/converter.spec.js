@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest'
 import {
 	removeCommentBlocks,
 	removeIndexCreationStatements,
+	removeCommentOnStatements,
 	normalizeComment,
 	cleanupDDLForDBML,
 	buildTableReplacements,
@@ -57,6 +58,36 @@ describe('DDL cleanup', () => {
 		})
 	})
 
+	describe('removeCommentOnStatements()', () => {
+		it('removes single-line COMMENT ON statements', () => {
+			const sql = "CREATE TABLE t (id int);\nCOMMENT ON TABLE t IS 'a table';\nSELECT 1;"
+			const result = removeCommentOnStatements(sql)
+			expect(result).not.toContain('COMMENT ON')
+			expect(result).toContain('CREATE TABLE')
+			expect(result).toContain('SELECT 1;')
+		})
+
+		it('removes multi-line COMMENT ON FUNCTION statements', () => {
+			const sql = `CREATE FUNCTION foo() RETURNS void;
+comment on function foo is
+'Returns statistical information.
+- Provides chunk count
+- Useful for analytics';
+SELECT 1;`
+			const result = removeCommentOnStatements(sql)
+			expect(result).not.toContain('comment on function')
+			expect(result).not.toContain('Returns statistical')
+			expect(result).toContain('CREATE FUNCTION')
+			expect(result).toContain('SELECT 1;')
+		})
+
+		it('removes COMMENT ON COLUMN statements', () => {
+			const sql = "COMMENT ON COLUMN users.id IS 'unique id';"
+			const result = removeCommentOnStatements(sql)
+			expect(result.trim()).toBe('')
+		})
+	})
+
 	describe('normalizeComment()', () => {
 		it('normalizes multi-line COMMENT ON TABLE to single line', () => {
 			const input = "comment on table users IS 'line1\nline2\nline3';"
@@ -76,6 +107,13 @@ describe('DDL cleanup', () => {
 			const sql = 'CREATE TABLE t (id int);\nCREATE INDEX idx ON t(id);'
 			const result = cleanupDDLForDBML(sql)
 			expect(result).not.toContain('CREATE INDEX')
+			expect(result).toContain('CREATE TABLE')
+		})
+
+		it('removes COMMENT ON statements from DDL', () => {
+			const sql = "CREATE TABLE t (id int);\nCOMMENT ON TABLE t IS 'a table';"
+			const result = cleanupDDLForDBML(sql)
+			expect(result).not.toContain('COMMENT ON')
 			expect(result).toContain('CREATE TABLE')
 		})
 
@@ -301,5 +339,30 @@ describe('generateDBML()', () => {
 
 		// config.settings → Table "config"."settings" as "settings"
 		expect(results[0].content).toContain('"config"."settings"')
+	})
+
+	it('returns error instead of throwing on invalid SQL', () => {
+		const project = {
+			name: 'Test',
+			database: 'PostgreSQL',
+			note: '',
+			dbdocs: {
+				main: { exclude: { schemas: [] } }
+			}
+		}
+
+		const badDdl = () => 'THIS IS NOT VALID SQL AT ALL {'
+
+		const results = generateDBML({
+			entities: mockEntities,
+			project,
+			ddlFromEntity: badDdl,
+			filterEntities: mockFilterEntities
+		})
+
+		expect(results).toHaveLength(1)
+		expect(results[0].content).toBeNull()
+		expect(results[0].error).toBeDefined()
+		expect(results[0].fileName).toBe('Test-main-design.dbml')
 	})
 })

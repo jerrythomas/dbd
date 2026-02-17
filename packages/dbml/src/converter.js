@@ -44,11 +44,21 @@ export function normalizeComment(inputString) {
 }
 
 /**
- * Clean up DDL text for DBML conversion — removes index statements.
+ * Remove COMMENT ON statements from DDL text (including multi-line).
+ * These cause @dbml/core to crash on functions, procedures, etc.
+ */
+export function removeCommentOnStatements(ddlText) {
+	const commentOnRegex = /comment\s+on\s+[\s\S]*?'[\s\S]*?'\s*;/gi
+	return ddlText.replace(commentOnRegex, '')
+}
+
+/**
+ * Clean up DDL text for DBML conversion — removes index statements and COMMENT ON statements.
  */
 export function cleanupDDLForDBML(ddlText) {
 	if (!ddlText) return ddlText
 	let cleaned = removeIndexCreationStatements(ddlText)
+	cleaned = removeCommentOnStatements(cleaned)
 	return cleaned
 }
 
@@ -166,13 +176,22 @@ export function generateDBML({
 		const combinedSql = combined.join('\n')
 
 		const projectBlock = buildProjectBlock(doc.project, project.database, project.note)
-		const dbml = convertToDBML(combinedSql)
-		const qualifiedDbml = applyTableReplacements(dbml, replacements)
 		const fileName = [doc.project, file].join('-')
 
-		return {
-			fileName,
-			content: projectBlock + qualifiedDbml
+		try {
+			const dbml = convertToDBML(combinedSql)
+			const qualifiedDbml = applyTableReplacements(dbml, replacements)
+
+			return {
+				fileName,
+				content: projectBlock + qualifiedDbml
+			}
+		} catch (err) {
+			return {
+				fileName,
+				content: null,
+				error: err
+			}
 		}
 	})
 }

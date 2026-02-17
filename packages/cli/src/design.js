@@ -162,12 +162,16 @@ class Design {
 			file
 		})
 
-		results.map(({ fileName, content }) => {
-			try {
-				fs.writeFileSync(fileName, content)
-				console.info(`Generated DBML in ${fileName}`)
-			} catch (err) {
-				console.error(err)
+		results.map(({ fileName, content, error }) => {
+			if (error) {
+				console.error(error)
+			} else {
+				try {
+					fs.writeFileSync(fileName, content)
+					console.info(`Generated DBML in ${fileName}`)
+				} catch (err) {
+					console.error(err)
+				}
 			}
 		})
 
