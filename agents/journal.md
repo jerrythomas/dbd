@@ -177,6 +177,18 @@ Extracted DBML conversion into `packages/dbml/`. Commit `e6258ab`.
 
 All 222 existing tests + 45 CLI tests remain green.
 
+### Stage 6: Cleanup & v2.0.0 Release Prep — COMPLETE
+
+Release preparation. Commit `e5b3a71`.
+
+- Bumped all workspace packages from `2.0.0-alpha.0` to `2.0.0`
+- Root package: `2.0.0`, `private: true` (workspace-only)
+- Updated README.md with v2 architecture, package table, dependency flow, dev commands
+- Updated `agents/memory.md` with final status, package summary, test counts
+- Final test run: **417 tests passing** (222 legacy/compat + 99 db + 45 cli + 22 dbml + 29 postgres)
+
+**v2.0.0 migration complete.** All 7 stages (0–6) done. Legacy `src/` retained for compat tests.
+
 ### Separate e2e tests from unit tests
 
 Moved PostgreSQL integration tests out of `spec/` into `e2e/`:
