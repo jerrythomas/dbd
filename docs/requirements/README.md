@@ -26,4 +26,8 @@ Use numbered files: `01-parser.md`, `02-cli.md`, `03-dbml.md`, etc.
 
 ## Documents
 
-*No requirements documents yet. Derive them incrementally as modules are worked on.*
+| # | Document | Description |
+|---|----------|-------------|
+| 01 | [01-parser.md](01-parser.md) | SQL DDL parser — schema extraction, validation, dual API |
+| 02 | [02-cli.md](02-cli.md) | CLI commands — apply, combine, import, export, dbml, inspect |
+| 03 | [03-dbml.md](03-dbml.md) | DBML generation — SQL-to-DBML conversion for dbdocs.io |

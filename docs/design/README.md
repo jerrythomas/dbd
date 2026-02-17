@@ -35,9 +35,13 @@ Use numbered files: `01-parser.md`, `02-cli.md`, `03-dbml.md`, etc.
 
 ## Documents
 
-*No design documents yet. Derive them incrementally as modules are worked on.*
+| # | Document | Description | Status |
+|---|----------|-------------|--------|
+| 01 | [01-parser.md](01-parser.md) | Parser — three-layer pipeline, extractors, error handling | Complete |
+| 02 | [02-cli.md](02-cli.md) | CLI & orchestration — Design class, metadata, entity, execution | Active (legacy) |
+| 03 | [03-configuration.md](03-configuration.md) | Configuration — design.yaml schema, project layout, entity lifecycle | Active |
 
 ## Architecture
 
 Reference: `.rules/architecture.md` contains the original architecture documentation.
-Migrate relevant content here as modules are documented.
+The design docs above supersede it with more detailed, code-derived documentation.
