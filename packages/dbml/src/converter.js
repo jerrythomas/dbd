@@ -53,12 +53,71 @@ export function removeCommentOnStatements(ddlText) {
 }
 
 /**
- * Clean up DDL text for DBML conversion — removes index statements and COMMENT ON statements.
+ * Schema-qualify unqualified CREATE TABLE statements using the entity's schema.
+ * @dbml/core doesn't understand `set search_path`, so tables created without
+ * a schema prefix won't match cross-schema FK references like `config.profiles(id)`.
+ *
+ * @param {string} ddlText - DDL text
+ * @param {string} schema - entity schema name
+ * @returns {string} DDL with schema-qualified CREATE TABLE
  */
-export function cleanupDDLForDBML(ddlText) {
+/**
+ * Build a lookup from unqualified table name to schema-qualified name.
+ * When multiple schemas have a table with the same name, the first one wins.
+ *
+ * @param {Array} entities - entities with name and schema
+ * @returns {Object} map of unqualified name → schema.name
+ */
+export function buildTableLookup(entities) {
+	const lookup = {}
+	entities
+		.filter((e) => e.type === 'table')
+		.forEach((e) => {
+			const shortName = e.name.replace(e.schema + '.', '')
+			if (!lookup[shortName]) {
+				lookup[shortName] = e.name
+			}
+		})
+	return lookup
+}
+
+export function qualifyTableNames(ddlText, schema, tableLookup) {
+	if (!ddlText || !schema) return ddlText
+	// Qualify unqualified CREATE TABLE names using entity schema
+	let result = ddlText.replace(
+		/(create\s+table\s+(?:if\s+not\s+exists\s+)?)([a-z_][a-z0-9_]*)(\s*[\(\n])/gi,
+		(match, prefix, tableName, suffix) => {
+			return `${prefix}${schema}.${tableName}${suffix}`
+		}
+	)
+	// Qualify unqualified REFERENCES <table>(col) using table lookup
+	if (tableLookup) {
+		result = result.replace(
+			/(references\s+)([a-z_][a-z0-9_]*)(\s*\()/gi,
+			(match, prefix, tableName, suffix) => {
+				const qualified = tableLookup[tableName] || `${schema}.${tableName}`
+				return `${prefix}${qualified}${suffix}`
+			}
+		)
+	}
+	return result
+}
+
+/**
+ * Clean up DDL text for DBML conversion — removes index statements, COMMENT ON statements,
+ * and schema-qualifies unqualified CREATE TABLE statements.
+ *
+ * @param {string} ddlText - DDL text
+ * @param {string} [schema] - entity schema for qualifying table names
+ * @param {Object} [tableLookup] - map of unqualified name → schema.name for FK resolution
+ */
+export function cleanupDDLForDBML(ddlText, schema, tableLookup) {
 	if (!ddlText) return ddlText
 	let cleaned = removeIndexCreationStatements(ddlText)
 	cleaned = removeCommentOnStatements(cleaned)
+	if (schema) {
+		cleaned = qualifyTableNames(cleaned, schema, tableLookup)
+	}
 	return cleaned
 }
 
@@ -168,9 +227,10 @@ export function generateDBML({
 
 	return docs.map((doc) => {
 		const filtered = filterEntities(entities, doc.config)
-		const combined = filtered
-			.map((entity) => ddlFromEntity(entity))
-			.map((ddl) => cleanupDDLForDBML(ddl))
+		const tableLookup = buildTableLookup(filtered)
+		const combined = filtered.map((entity) =>
+			cleanupDDLForDBML(ddlFromEntity(entity), entity.schema, tableLookup)
+		)
 
 		const replacements = buildTableReplacements(filtered)
 		const combinedSql = combined.join('\n')

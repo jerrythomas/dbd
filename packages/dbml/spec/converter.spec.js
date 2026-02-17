@@ -10,6 +10,8 @@ import {
 	removeIndexCreationStatements,
 	removeCommentOnStatements,
 	normalizeComment,
+	buildTableLookup,
+	qualifyTableNames,
 	cleanupDDLForDBML,
 	buildTableReplacements,
 	applyTableReplacements,
@@ -120,6 +122,75 @@ SELECT 1;`
 		it('returns null/empty for null/empty input', () => {
 			expect(cleanupDDLForDBML(null)).toBeNull()
 			expect(cleanupDDLForDBML('')).toBe('')
+		})
+	})
+})
+
+describe('Schema qualification', () => {
+	describe('buildTableLookup()', () => {
+		it('maps unqualified names to schema-qualified names', () => {
+			const entities = [
+				{ name: 'config.profiles', schema: 'config', type: 'table' },
+				{ name: 'public.users', schema: 'public', type: 'table' },
+				{ name: 'config.my_view', schema: 'config', type: 'view' }
+			]
+			const lookup = buildTableLookup(entities)
+			expect(lookup).toEqual({
+				profiles: 'config.profiles',
+				users: 'public.users'
+			})
+		})
+
+		it('first schema wins for duplicate short names', () => {
+			const entities = [
+				{ name: 'config.profiles', schema: 'config', type: 'table' },
+				{ name: 'staging.profiles', schema: 'staging', type: 'table' }
+			]
+			const lookup = buildTableLookup(entities)
+			expect(lookup.profiles).toBe('config.profiles')
+		})
+	})
+
+	describe('qualifyTableNames()', () => {
+		it('qualifies unqualified CREATE TABLE', () => {
+			const sql = 'create table if not exists profiles (\n  id uuid\n);'
+			const result = qualifyTableNames(sql, 'config')
+			expect(result).toContain('config.profiles')
+		})
+
+		it('does not double-qualify already qualified tables', () => {
+			const sql = 'create table if not exists config.profiles (\n  id uuid\n);'
+			// Already has dot — regex won't match (dots excluded from name capture)
+			const result = qualifyTableNames(sql, 'config')
+			expect(result).toContain('config.profiles')
+			expect(result).not.toContain('config.config.profiles')
+		})
+
+		it('qualifies FK references using table lookup', () => {
+			const sql = ', model_id uuid not null references models(id)'
+			const lookup = { models: 'config.models' }
+			const result = qualifyTableNames(sql, 'public', lookup)
+			expect(result).toContain('references config.models(')
+		})
+
+		it('falls back to entity schema when table not in lookup', () => {
+			const sql = ', ref_id uuid references unknown_table(id)'
+			const result = qualifyTableNames(sql, 'public', {})
+			expect(result).toContain('references public.unknown_table(')
+		})
+
+		it('does not qualify already schema-qualified FK references', () => {
+			const sql = ', profile_id uuid references config.profiles(id)'
+			const lookup = { profiles: 'config.profiles' }
+			const result = qualifyTableNames(sql, 'public', lookup)
+			expect(result).toContain('references config.profiles(')
+			expect(result).not.toContain('public.config')
+		})
+
+		it('returns unchanged for null/empty input', () => {
+			expect(qualifyTableNames(null, 'config')).toBeNull()
+			expect(qualifyTableNames('', 'config')).toBe('')
+			expect(qualifyTableNames('some text', null)).toBe('some text')
 		})
 	})
 })

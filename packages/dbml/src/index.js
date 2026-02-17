@@ -4,6 +4,8 @@ export {
 	removeIndexCreationStatements,
 	removeCommentOnStatements,
 	normalizeComment,
+	buildTableLookup,
+	qualifyTableNames,
 	cleanupDDLForDBML,
 	buildTableReplacements,
 	applyTableReplacements,
