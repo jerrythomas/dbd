@@ -320,15 +320,15 @@ Borrow from feature branch:
 
 ## Stage 4: packages/cli — Extract CLI
 
-**Goal:** Move CLI logic from `src/` to `packages/cli/`, wiring to adapter.
+**Goal:** Build CLI package alongside `src/`. Old code stays untouched — the working CLI still runs from `src/`.
 
-### This is the big move. Approach:
+### Approach: build alongside, don't replace yet
 
 1. **Copy, don't move** — create new files in `packages/cli/src/`, copying logic from `src/`
 2. **Wire to new packages** — import from `@dbd/db`, `@dbd/parser`, `@dbd/dbml`
-3. **Update root `src/index.js`** — re-export from `@dbd/cli`
-4. **Run compat tests** — must all pass
-5. **Only then** remove duplicated code from `src/`
+3. **Do NOT touch `src/`** — old CLI continues to work as-is
+4. **Write package-level tests** in `packages/cli/spec/` that verify identical behavior
+5. **Run both** old tests (`spec/*.spec.js`) and new tests — both must pass
 
 ### Module: `config.js`
 
@@ -373,35 +373,35 @@ Source: `src/index.js`
 
 Same sade commands, same options. Imports `design.js` from this package.
 
-### Root shim
+### What stays untouched
 
-`src/index.js` becomes:
-```javascript
-#!/usr/bin/env node
-export { using } from '@dbd/cli/src/design.js'
-// CLI entry re-exported for backwards compat
-```
+- `src/` — all files remain, no modifications
+- Root `package.json` `bin` — still points to `src/index.js`
+- `spec/*.spec.js` — still import from `src/`, still pass
 
 ### Verification
 
-1. All `spec/compat/*.spec.js` pass (update imports if needed)
-2. All `spec/*.spec.js` pass (update imports if needed)
-3. All workspace tests pass
-4. `bun run lint` — 0 errors
+1. All `spec/*.spec.js` pass (old tests, old imports, unchanged)
+2. All `spec/compat/*.spec.js` pass
+3. All `packages/cli/spec/*.spec.js` pass (new tests proving feature parity)
+4. All other workspace tests pass
+5. `bun run lint` — 0 errors
 
 ### Deliverable
 
-`packages/cli/` fully implemented. `src/` reduced to a thin shim. All tests green.
+`packages/cli/` fully implemented and tested alongside `src/`. Both old and new code coexist. Old CLI still works.
 
 ---
 
-## Stage 5: DBML Extraction & Cleanup
+## Stage 5: DBML Extraction, Switchover & Old Code Removal
 
-**Goal:** Extract DBML logic, clean up remaining legacy code.
+**Goal:** Extract DBML logic, switch the CLI entry point to packages, and delete `src/`.
 
-### Module: `packages/dbml/src/index.js`
+This is the stage where coexistence ends and the new code takes over.
 
-Source: DBML logic from `src/collect.js:dbml()` method
+### Part A: DBML Package
+
+Create `packages/dbml/src/index.js`:
 
 ```javascript
 import { importer } from '@dbml/core'
@@ -423,26 +423,38 @@ export function generateMultipleDBML(entities, dbdocsConfig) {
 }
 ```
 
-### Cleanup
+Wire into `packages/cli/src/design.js` for the `dbml()` command.
 
-Remove from `src/` anything that has been fully extracted:
-- `src/collect.js` → logic moved to `packages/cli/src/design.js`
-- `src/metadata.js` → logic moved to `packages/cli/src/config.js`
-- `src/parser.js` → logic moved to `packages/cli/src/references.js`
-- `src/entity.js` → logic moved to `packages/db/src/entity-processor.js`
-- `src/exclusions.js` → logic moved to `packages/cli/src/references.js`
-- `src/filler.js` → logic moved to `packages/cli/src/config.js`
-- `src/constants.js` → split into relevant packages
+### Part B: Switchover (single commit)
 
-Keep `src/index.js` as thin re-export shim for anyone importing from the root package.
+Once all package tests confirm feature parity:
 
-### Update legacy tests
+1. **Update root `package.json`** — change `bin` and `main` to point to `packages/cli/src/index.js`
+2. **Run compatibility tests** against the new entry point — must all pass
+3. **Delete `src/` entirely** — no shim, no re-exports, clean removal:
+   - `src/index.js`
+   - `src/collect.js`
+   - `src/metadata.js`
+   - `src/parser.js`
+   - `src/entity.js`
+   - `src/exclusions.js`
+   - `src/filler.js`
+   - `src/constants.js`
+4. **Delete `spec/` legacy tests** — these tested `src/` internals, now replaced by:
+   - `spec/compat/` — behavior tests (update imports to `packages/`)
+   - `packages/*/spec/` — package-level tests
+5. **Update `spec/compat/` imports** to reference `packages/` instead of `src/`
 
-Move/update `spec/*.spec.js` to test the new package locations. Keep `spec/compat/` as-is (these test behavior, not module paths).
+### Verification
+
+1. All `spec/compat/*.spec.js` pass (now importing from packages)
+2. All `packages/*/spec/*.spec.js` pass
+3. `bun run lint` — 0 errors
+4. CLI commands work end-to-end (manual smoke test)
 
 ### Deliverable
 
-Clean package boundaries. `src/` is a shim. All tests green.
+`src/` is gone. `spec/` legacy tests are gone. All code lives in `packages/` and `adapters/`. Clean break.
 
 ---
 

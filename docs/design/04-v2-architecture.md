@@ -465,13 +465,42 @@ dbd/
 │       ├── e2e/                   # Docker-based integration tests
 │       └── package.json
 │
-├── src/                           # LEGACY (thin shim after migration)
-│   └── index.js                   # re-exports from @dbd/cli
-│
 ├── example/                       # Unchanged
 ├── package.json                   # Root workspace config
 └── vitest.config.js
 ```
+
+---
+
+## Migration Coexistence Strategy
+
+During migration, `src/` (old) and `packages/` (new) coexist. The rules:
+
+### Old code stays untouched until final removal
+- `src/` continues to work and serve the CLI throughout Stages 0–5
+- The root `package.json` `bin` entry still points to `src/index.js`
+- Existing tests in `spec/` continue to import from `src/`
+- **No shims, no re-exports, no bridge code** — old and new are independent
+
+### New code is built alongside, not on top of
+- `packages/` code is additive — it doesn't modify `src/`
+- New packages copy logic from `src/` (not import from it)
+- New packages have their own tests in `packages/*/spec/`
+- Both old and new tests must pass at every commit
+
+### Switchover happens once, at the end (Stage 5)
+- When `packages/cli` is fully tested and feature-compatible:
+  1. Update root `package.json` `bin` to point to `packages/cli/src/index.js`
+  2. Run compatibility tests against the new CLI entry point
+  3. Delete `src/` entirely — no shim, no re-exports
+  4. Move/update `spec/` tests to reference `packages/` imports
+- This is a single commit: the old code is removed, the new code takes over
+
+### Why this approach?
+- No half-migrated states where `src/` imports from `packages/` or vice versa
+- The CLI works identically at every commit — users never see breakage
+- Easy to abandon a batch if something goes wrong — just revert, `src/` is untouched
+- Clear "done" moment: `src/` deleted = migration complete
 
 ---
 
