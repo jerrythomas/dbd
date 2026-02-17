@@ -92,12 +92,12 @@ cli -> db -> adapters/postgres
 
 ### Package Summary
 
-| Package             | Tests | Key Modules                                                  |
-| ------------------- | ----- | ------------------------------------------------------------ |
-| `packages/db`       | 99    | base-adapter, entity-processor, dependency-resolver, factory |
-| `packages/cli`      | 45    | config, references, design, index (sade CLI)                 |
-| `packages/dbml`     | 22    | converter (cleanup, conversion, generateDBML)                |
-| `adapters/postgres` | 29    | psql-adapter (wraps execSync psql)                           |
+| Package             | Tests | Key Modules                                                        |
+| ------------------- | ----- | ------------------------------------------------------------------ |
+| `packages/db`       | 99    | base-adapter, entity-processor, dependency-resolver, factory       |
+| `packages/cli`      | 45    | config, references, design, index (sade CLI)                       |
+| `packages/dbml`     | 22    | converter (cleanup, conversion, generateDBML)                      |
+| `adapters/postgres` | 29    | psql-adapter (wraps execSync psql)                                 |
 | `packages/parser`   | 114   | SQL parsing, AST extraction, functional API, dependency extraction |
 
 ## Key Files for Resuming
