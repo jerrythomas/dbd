@@ -27,3 +27,30 @@ Derived requirements and design docs from existing codebase:
 - `01-parser.md` — Three-layer pipeline architecture, module map, output shapes, error handling, fallback extraction
 - `02-cli.md` — Design class orchestration, configuration pipeline, reference extraction, entity lifecycle, execution via psql, technical debt
 - `03-configuration.md` — design.yaml full schema, project directory layout, entity type system, import flow, DBML config
+
+### v2.0.0 Migration Planning
+
+Explored `feature/monorepo-refactor` branch (10 commits, 22K lines added):
+- Has partial monorepo: packages/cli, packages/db, adapters/postgres
+- BaseDatabaseAdapter interface, PostgreSQLAdapter with dual psql/@databases/pg execution
+- Entity processor, schema transformer, dependency processor
+- Parser entity-analyzer (672 lines)
+- E2E test infrastructure with Docker
+- Branch diverged significantly — cherry-pick useful parts, don't merge
+
+Researched DB libraries:
+- `@databases/pg` — used in feature branch, safe API, COPY support unclear
+- `postgres.js` (porsager) — fastest, Bun/Deno support, built-in COPY
+- `pg` + `pg-copy-streams` — most popular, proven COPY streaming
+- `dbdocs` — CLI only, no programmatic API found
+
+Created 7-batch migration plan (agents/plan.md):
+- Batch 0: Compatibility test suite (safety net before any refactoring)
+- Batch 1: Monorepo infrastructure
+- Batch 2: DB adapter interface (packages/db)
+- Batch 3: PostgreSQL adapter (adapters/postgres)
+- Batch 4: Extract CLI package
+- Batch 5: DBML extraction + src/ cleanup
+- Batch 6: v2.0.0 release prep
+
+Updated backlog with cherry-pick inventory, library evaluation criteria, and future work items.
