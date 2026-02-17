@@ -33,10 +33,10 @@ cli -> db -> adapters/postgres
 ```
 
 ### Package Naming
-- Core packages: `@dbd/{name}` (parser, dbml, db)
-- CLI: `@dbd/cli` (publishes `dbd` binary)
-- Adapters: `@dbd/db-{database}` in `adapters/{database}/`
-- Root package: workspace-only (private, not published)
+- Core packages: `@jerrythomas/dbd-{name}` (parser, dbml, db)
+- CLI: `@jerrythomas/dbd-cli` (publishes `dbd` binary)
+- Adapters: `@jerrythomas/dbd-{database}-adapter` in `adapters/{database}/`
+- Root package: `@jerrythomas/dbd` — workspace-only (private, not published)
 
 ## Key Decisions
 
@@ -53,6 +53,7 @@ cli -> db -> adapters/postgres
 | Root becomes workspace-only | Root `package.json` private, no bin — only for workspace mgmt | 2026-02-17 |
 | Replace psql with programmatic DB | Adapter uses pg library directly — no shelling to psql | 2026-02-17 |
 | DB library TBD | Choose between pg+pg-copy-streams, postgres.js, @databases/pg at Stage 3 | 2026-02-17 |
+| Package naming: `@jerrythomas/dbd-*` | No access to `@dbd` npm scope; keep existing `@jerrythomas/dbd-{name}` | 2026-02-17 |
 | Cherry-pick from feature branch | Reuse adapter interface, entity-processor, e2e setup; don't merge branch | 2026-02-17 |
 
 ## Technical Notes

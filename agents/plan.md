@@ -78,17 +78,20 @@ Write tests against the current working v1.3.2 code that capture ALL existing be
 
 ---
 
-### Batch 1: Monorepo Infrastructure
+### Batch 1: Monorepo Infrastructure — COMPLETE
 
 Set up workspace structure without moving any code. Everything still works through `src/`.
 
-- [ ] **1.1** Configure root package.json workspaces: `["packages/*", "adapters/*"]`
-- [ ] **1.2** Create `packages/cli/package.json` with proper dependencies
-- [ ] **1.3** Create `packages/db/package.json` with proper dependencies
-- [ ] **1.4** Create `adapters/postgres/package.json` with proper dependencies
-- [ ] **1.5** Update `packages/parser/package.json` — ensure it works standalone
-- [ ] **1.6** Add workspace test scripts: `test:parser`, `test:cli`, `test:db`, `test:postgres`
-- [ ] **1.7** Verify: `bun install` succeeds, all existing tests still pass
+- [x] **1.1** Root package.json workspaces already configured: `["packages/*", "adapters/*"]`
+- [x] **1.2** `packages/cli/package.json` — v2.0.0-alpha.0, bin: `dbd-cli`, deps on parser+db+dbml+sade+yaml+ramda
+- [x] **1.3** `packages/db/package.json` — v2.0.0-alpha.0, no external deps (pure abstractions)
+- [x] **1.4** `packages/dbml/package.json` — v2.0.0-alpha.0, deps on dbd-db + @dbml/core
+- [x] **1.5** `adapters/postgres/package.json` — v2.0.0-alpha.0, deps on dbd-db (PG lib added in Stage 3)
+- [x] **1.6** `packages/parser/package.json` — v2.0.0-alpha.0, standalone
+- [x] **1.7** Placeholder `src/index.js` for cli, db, dbml, postgres adapter
+- [x] **1.8** Workspace test scripts already present: test:parser, test:cli, test:db, test:postgres, test:workspaces
+- [x] **1.9** Verify: `bun install` succeeds, 222 tests pass, parser workspace tests pass
+- [x] **1.10** Recorded `@jerrythomas/dbd-*` naming decision in memory.md
 
 ---
 
@@ -195,7 +198,7 @@ Each batch must satisfy:
 3. New workspace tests pass
 4. `bun run lint` — 0 errors
 
-## Current Batch: 0 COMPLETE → Next: Batch 1 (Monorepo Infrastructure)
+## Current Batch: 1 COMPLETE → Next: Batch 2 (Extract Database Adapter Interface)
 
-Batch 0 delivered 136 compatibility tests across 4 files in `spec/compat/`.
-No refactoring until the safety net is in place — and it now is.
+Batch 0: 136 compatibility tests in `spec/compat/` (safety net).
+Batch 1: Workspace packages configured, versions at 2.0.0-alpha.0, placeholder entry points created.

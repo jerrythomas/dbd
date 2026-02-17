@@ -95,3 +95,17 @@ Also:
 - Added `test:compat` script to root package.json
 - All 222 tests pass (86 existing + 136 compat)
 - Prettier clean on all new files
+
+### Stage 1: Monorepo Infrastructure — COMPLETE
+
+Updated workspace packages for v2.0.0 migration:
+
+- All packages bumped to `2.0.0-alpha.0`
+- Fixed dependency wiring per design:
+  - `packages/db` — no external deps (pure abstractions)
+  - `packages/dbml` — depends on `@jerrythomas/dbd-db` + `@dbml/core`
+  - `packages/cli` — depends on parser + db + dbml + sade/yaml/ramda, bin renamed to `dbd-cli`
+  - `adapters/postgres` — depends on `@jerrythomas/dbd-db` (PG lib deferred to Stage 3)
+- Created placeholder `src/index.js` for cli, db, dbml, postgres adapter
+- Recorded naming decision: `@jerrythomas/dbd-*` (no access to `@dbd` npm scope)
+- `bun install` resolves all workspaces, 222 tests + parser workspace tests pass
