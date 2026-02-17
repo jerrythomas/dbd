@@ -99,20 +99,25 @@ Set up workspace structure without moving any code. Everything still works throu
 
 Create `packages/db` with the adapter abstraction. No code moves from `src/` yet — this is new code.
 
-- [ ] **2.1** Create `packages/db/src/base-adapter.js` — abstract adapter interface
-  - Methods: connect, disconnect, executeScript, importData, exportData, testConnection
-  - Borrow interface design from feature branch, simplify
-- [ ] **2.2** Create `packages/db/src/index.js` — adapter factory
-  - `createAdapter(type, connectionString, options)` → adapter instance
-  - Dynamic import of adapter packages
-- [ ] **2.3** Create `packages/db/src/entity-processor.js` — entity DDL generation
-  - Extract `ddlFromEntity()`, `importScriptForEntity()`, `exportScriptForEntity()` logic
-  - Keep as pure functions (no DB dependency)
-- [ ] **2.4** Create `packages/db/src/dependency-resolver.js` — topological sort
-  - Extract from `metadata.organize()` / `metadata.regroup()`
-  - Cycle detection, group ordering
-- [ ] **2.5** Write unit tests for all new modules
-- [ ] **2.6** Verify: all existing tests still pass (new code is additive)
+- [x] **2.1** Create `packages/db/src/base-adapter.js` — abstract adapter interface
+  - BaseDatabaseAdapter: connect, disconnect, executeScript, applyEntity/applyEntities, importData/exportData, batchImport/batchExport, testConnection, inspect, log
+  - Default implementations for testConnection (via inspect), applyEntities/batch (sequential iteration)
+- [x] **2.2** Create `packages/db/src/factory.js` + `packages/db/src/index.js`
+  - `createAdapter(type, connectionString, options)` → dynamic import of adapter packages
+  - `getAdapterInfo()`, `SUPPORTED_DATABASES`
+  - index.js re-exports all public API from all modules
+- [x] **2.3** Create `packages/db/src/entity-processor.js` — entity DDL generation
+  - Pure functions copied from `src/entity.js` + `src/constants.js`
+  - entityFromFile, entityFrom*Config, ddlFromEntity, generateRoleScript, combineEntityScripts
+  - importScriptForEntity, exportScriptForEntity, filterEntitiesForDBML
+  - validateEntity, getValidEntities, getInvalidEntities, organizeEntities
+- [x] **2.4** Create `packages/db/src/dependency-resolver.js` — topological sort
+  - Pure functions from `src/metadata.js:organize/regroup`
+  - buildDependencyGraph, sortByDependencies, groupByDependencyLevel
+  - findCycles, validateDependencies
+- [x] **2.5** Write unit tests for all new modules
+  - 96 tests across 4 spec files (base-adapter, entity-processor, dependency-resolver, factory)
+- [x] **2.6** Verify: all existing tests still pass (222 unit + 96 db = 318 total)
 
 ---
 
@@ -198,7 +203,8 @@ Each batch must satisfy:
 3. New workspace tests pass
 4. `bun run lint` — 0 errors
 
-## Current Batch: 1 COMPLETE → Next: Batch 2 (Extract Database Adapter Interface)
+## Current Batch: 2 COMPLETE → Next: Batch 3 (PostgreSQL Adapter)
 
 Batch 0: 136 compatibility tests in `spec/compat/` (safety net).
 Batch 1: Workspace packages configured, versions at 2.0.0-alpha.0, placeholder entry points created.
+Batch 2: packages/db implemented — 4 modules, 96 tests. All 222 existing tests still green.

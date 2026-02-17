@@ -110,6 +110,25 @@ Updated workspace packages for v2.0.0 migration:
 - Recorded naming decision: `@jerrythomas/dbd-*` (no access to `@dbd` npm scope)
 - `bun install` resolves all workspaces, 222 tests + parser workspace tests pass
 
+### Stage 2: Extract Database Adapter Interface — COMPLETE
+
+Implemented `packages/db/` with 4 modules and 96 unit tests. Commit `a643b18`.
+
+**Modules:**
+- `base-adapter.js` — `BaseDatabaseAdapter` abstract class with private fields, default implementations for `testConnection()`, `applyEntities()`, `batchImport()`, `batchExport()`, and `log()`. Abstract methods throw `'not implemented'`.
+- `entity-processor.js` — Pure functions copied from `src/entity.js` + `src/constants.js`. All entity factories, DDL generation, import/export script generation, DBML filtering, validation, and organization.
+- `dependency-resolver.js` — Pure functions from `src/metadata.js` organize/regroup. `buildDependencyGraph()`, `sortByDependencies()`, `groupByDependencyLevel()`, `findCycles()`, `validateDependencies()`.
+- `factory.js` — `createAdapter()` with dynamic import, `getAdapterInfo()`, `SUPPORTED_DATABASES`.
+- `index.js` — Re-exports all public API.
+
+**Tests (96 total):**
+- `spec/base-adapter.spec.js` — 20 tests: constructor, abstract throws, testConnection, batch ops, logging
+- `spec/entity-processor.spec.js` — 53 tests: constants, factories, DDL generation (via fixtures), import/export scripts, DBML filtering, validation, organization
+- `spec/dependency-resolver.spec.js` — 16 tests: graph building, cycle detection, validation, sorting, grouping
+- `spec/factory.spec.js` — 7 tests: supported databases, adapter info, error on unsupported
+
+All 222 existing tests remain green. New code is purely additive — `src/` untouched.
+
 ### Separate e2e tests from unit tests
 
 Moved PostgreSQL integration tests out of `spec/` into `e2e/`:
