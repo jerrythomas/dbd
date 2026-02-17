@@ -6,7 +6,7 @@ import createConnectionPool, { sql } from '@databases/pg'
 import { MockConsole } from '@vanillaes/mock-console'
 import { using } from '../src/collect.js'
 import { resetCache } from '../src/exclusions.js'
-import { config, exports, validations } from './fixtures/design'
+import { config, exports, validations } from '../spec/fixtures/design'
 
 describe('collect', async () => {
 	let context = {}

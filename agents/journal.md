@@ -109,3 +109,17 @@ Updated workspace packages for v2.0.0 migration:
 - Created placeholder `src/index.js` for cli, db, dbml, postgres adapter
 - Recorded naming decision: `@jerrythomas/dbd-*` (no access to `@dbd` npm scope)
 - `bun install` resolves all workspaces, 222 tests + parser workspace tests pass
+
+### Separate e2e tests from unit tests
+
+Moved PostgreSQL integration tests out of `spec/` into `e2e/`:
+
+- `spec/collect.spec.js` → `e2e/collect.spec.js` (updated fixture import path)
+- Created `vitest.e2e.config.js` — includes `e2e/**/*.spec.js`, 30s timeout
+- `vitest.config.js` unchanged — `spec/**/*.spec.js` naturally excludes `e2e/`
+- Updated scripts:
+  - `test:unit` — runs `spec/` only (222 tests, no PG needed)
+  - `test:e2e` — runs `e2e/` via `vitest.e2e.config.js` (requires Docker PG)
+  - `test:pg` — starts PG, runs e2e, stops PG
+  - `test` — full suite: PG + unit + e2e + cleanup
+  - Removed `test:nopg` — `test:unit` now serves this purpose
