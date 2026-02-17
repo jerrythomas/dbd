@@ -158,6 +158,57 @@ Implemented `packages/db/` with 4 modules and 96 unit tests. Commit `a643b18`.
 
 All 222 existing tests remain green. New code is purely additive — `src/` untouched.
 
+### Classify Unresolved References as Warnings
+
+Changed `findEntityByName()` to return `warning` instead of `error` for unresolved references. Added `matchesKnownExtension()` for extension detection without requiring them to be declared. Updated `matchReferences()` and `report()` to collect and display warnings separately. Added missing extensions (pgmq, pg_cron, dblink, pg_background, hnsw/ivfflat). Updated legacy `src/` code in sync. Commit `7bc837e`.
+
+### Replace Regex Reference Extraction with AST Parser
+
+Major migration: replaced regex-based `parseEntityScript()` with AST-based extraction using `extractDependencies()` from `@jerrythomas/dbd-parser`.
+
+**Parser changes (`packages/parser/`):**
+- Extended `procedures.js` to handle `CREATE FUNCTION` — different AST shape (`stmt.name.name[0].value`, `stmt.args`, `stmt.options`)
+- Added `extractBodyReferencesFromAst()` for functions with AST-parsed bodies
+- Improved `extractTableReferencesFromBody()` regex fallback: removed bare `INTO` (PL/pgSQL variable assignments), added comment/string stripping, expanded non-table-word filter
+- Created `triggers.js` — regex-based trigger extractor (node-sql-parser doesn't support CREATE TRIGGER)
+- Added `extractSearchPaths()` (plural) returning full array
+- Fixed `extractViewDependencies()` to exclude CTE aliases and include CTE body dependencies
+- Added `extractDependencies()`, `identifyEntity()`, `collectReferences()` to functional API
+
+**CLI changes (`packages/cli/`):**
+- `parseEntityScript()` now calls AST-based `parseEntityScriptAST()` first, falls back to `parseEntityScriptRegex()` on failure
+- Marked regex extraction functions as `@deprecated`
+- No changes to `matchReferences()`, `sortByDependencies()`, or `config.js`
+
+**New tests:** `triggers.spec.js` (7), `dependencies.spec.js` (16)
+
+**FizzBot results:** Zero warnings on `.ddl` files (down from ~30+ false positives). Only remaining items are legitimate errors (`.sql` files unsupported as DDL type).
+
+### Inspect Command: Warnings vs Errors — COMPLETE
+
+Improved `inspect` command to classify unresolved references as warnings instead of errors. Commit `7bc837e`.
+
+**Problem:** The regex-based reference extractor produced many false positives — function parameter names (`level`, `message`, `name`), SQL keywords (`between`, `columns`, `default`), and extension functions (`pgmq.*`, `cron.*`, `dblink_exec`) were all reported as hard errors, making the output noisy and unhelpful.
+
+**Changes:**
+
+- Added missing extensions to exclusion list: `pgmq`, `pg_cron`, `dblink`, `pg_background`; added `hnsw`/`ivfflat` to `vector`
+- Added common false-positive SQL keywords to ANSI internals: `between`, `columns`, `default`, `system`, `user`
+- New `matchesKnownExtension()` function checks ALL known extensions regardless of install status
+- `findEntityByName()` now returns `warning` instead of `error` for unresolved references, with specific messages for undeclared extensions ("may require undeclared extension 'pgmq'")
+- `matchReferences()` collects warnings into a separate `warnings` array on entities
+- `report()` returns `{ entity, issues, warnings }` — backwards compatible addition
+- `inspect` command displays Errors and Warnings in separate labeled sections
+- Updated both `packages/cli/` and legacy `src/` code to stay in sync
+- All fixtures updated for `error` → `warning` and new `warnings` arrays
+
+**Result on FizzBot database:**
+
+- Before: 30+ entities shown as errors (all mixed together)
+- After: 12 real errors (structural: unsupported file types, unnecessary extension DDL) + 17 warnings (unresolved refs clearly categorized with extension hints)
+
+All 492 tests pass (222 legacy + 99 db + 45 cli + 35 dbml + 91 parser).
+
 ### Stage 5: DBML & Documentation Generation — COMPLETE
 
 Extracted DBML conversion into `packages/dbml/`. Commit `e6258ab`.

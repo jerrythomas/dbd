@@ -84,3 +84,12 @@ export function extractIndexes(sql, options = {}) {
 
 // Export the SQLParser class for more advanced usage
 export { SQLParser }
+
+// Re-export dependency extraction API from functional module
+export {
+	extractDependencies,
+	identifyEntity,
+	collectReferences,
+	extractTriggers as extractTriggerDefinitions,
+	extractSearchPaths
+} from './index-functional.js'

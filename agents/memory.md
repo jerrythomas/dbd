@@ -82,7 +82,13 @@ cli -> db -> adapters/postgres
 - All packages at v2.0.0: parser, db, dbml, cli, postgres-adapter
 - Root package: v2.0.0, private (workspace-only)
 - Legacy `src/` retained — compat tests still import from it; can be removed in a future cleanup
-- Test counts: 222 legacy/compat + 99 db + 29 postgres + 45 cli + 22 dbml = 417 total
+- Test counts: 222 legacy/compat + 99 db + 29 postgres + 45 cli + 22 dbml + 114 parser = ~530 total
+- **AST-based reference extraction:** `parseEntityScript()` now uses AST parser first, regex fallback second
+  - `extractDependencies()` in parser functional API — composes all extractors
+  - View CTE aliases filtered from dependencies; CTE body deps included
+  - Procedure/function body: AST extraction when parsed, regex fallback strips comments/strings
+  - Trigger extractor: regex-based (node-sql-parser doesn't support CREATE TRIGGER)
+  - Regex exclusion lists (`internals`, `isAnsiiSQL`, `isPostgres`) marked deprecated
 
 ### Package Summary
 
@@ -92,7 +98,7 @@ cli -> db -> adapters/postgres
 | `packages/cli`      | 45    | config, references, design, index (sade CLI)                 |
 | `packages/dbml`     | 22    | converter (cleanup, conversion, generateDBML)                |
 | `adapters/postgres` | 29    | psql-adapter (wraps execSync psql)                           |
-| `packages/parser`   | 118   | SQL parsing, AST extraction, functional API                  |
+| `packages/parser`   | 114   | SQL parsing, AST extraction, functional API, dependency extraction |
 
 ## Key Files for Resuming
 

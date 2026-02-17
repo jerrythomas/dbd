@@ -1,13 +1,16 @@
 /**
- * Reference extraction — legacy regex-based reference finder.
+ * Reference extraction — AST-based + legacy regex fallback.
  *
- * Extracted from src/parser.js + src/exclusions.js.
- * Finds function calls, table references, and trigger references in SQL scripts
- * for dependency resolution.
+ * Primary path: uses @jerrythomas/dbd-parser extractDependencies() for
+ * structured AST analysis that naturally excludes comments and string content.
+ *
+ * Fallback path: legacy regex-based extraction from src/parser.js + src/exclusions.js
+ * (used when AST parsing fails for unsupported SQL).
  */
 import fs from 'fs'
 import { pick, uniq } from 'ramda'
 import { allowedTypes } from '@jerrythomas/dbd-db'
+import { extractDependencies } from '@jerrythomas/dbd-parser'
 
 // --- Exclusion patterns (from src/exclusions.js) ---
 
@@ -162,10 +165,12 @@ export const internals = {
 	}
 }
 
+/** @deprecated Used only by regex fallback path and isInternal(). */
 export function isAnsiiSQL(input) {
 	return internals.ansii.entities.includes(input) ? 'internal' : null
 }
 
+/** @deprecated Used only by regex fallback path and isInternal(). */
 export function isPostgres(input) {
 	let matched = internals.postgres.entities.includes(input)
 	if (!matched) {
@@ -412,6 +417,7 @@ export function extractWithAliases(sqlScript) {
 	return Array.from(aliases)
 }
 
+/** @deprecated Used only by regex fallback path. AST path uses extractDependencies(). */
 export function extractReferences(sqlScript) {
 	const processedSql = removeCommentBlocks(sqlScript)
 	const withAliases = extractWithAliases(processedSql)
@@ -445,6 +451,7 @@ export function extractReferences(sqlScript) {
 	return [...funcRefs]
 }
 
+/** @deprecated Used only by regex fallback path. AST path uses extractDependencies(). */
 export function extractTriggerReferences(sqlScript) {
 	const cleanedSql = removeCommentBlocks(sqlScript)
 	const pattern = new RegExp(TRIGGER_PATTERN, 'gim')
@@ -460,6 +467,7 @@ export function extractTriggerReferences(sqlScript) {
 	return Array.from(triggers).map((name) => ({ name, type: 'table' }))
 }
 
+/** @deprecated Used only by regex fallback path. AST path uses extractDependencies(). */
 export function extractTableReferences(sqlScript) {
 	const processedSql = removeCommentBlocks(sqlScript)
 	const pattern = new RegExp(TABLE_REF_PATTERN, 'gim')
@@ -493,8 +501,63 @@ export function extractEntity(script) {
 
 // --- Entity-level reference parsing ---
 
+/**
+ * Parse entity script using AST-based extraction (primary path).
+ * Falls back to regex-based extraction if AST parsing fails.
+ */
 export function parseEntityScript(entity) {
 	const content = fs.readFileSync(entity.file, 'utf-8')
+
+	try {
+		return parseEntityScriptAST(entity, content)
+	} catch {
+		// Graceful degradation: fall back to regex extraction
+		return parseEntityScriptRegex(entity, content)
+	}
+}
+
+/**
+ * AST-based entity script parsing using @jerrythomas/dbd-parser.
+ * Extracts references via structured AST — naturally excludes comments and strings.
+ */
+function parseEntityScriptAST(entity, content) {
+	const result = extractDependencies(content)
+	const info = result.entity
+	const searchPaths = result.searchPaths
+
+	if (!info || !info.name) {
+		// AST couldn't identify entity — fall back to regex
+		return parseEntityScriptRegex(entity, content)
+	}
+
+	const schema = info.schema || searchPaths[0]
+	const fullName = schema + '.' + info.name
+
+	let errors = []
+	if (schema !== entity.schema) errors.push('Schema in script does not match file path')
+	if (info.type !== entity.type) errors.push('Entity type in script does not match file path')
+	if (fullName !== entity.name) errors.push('Entity name in script does not match file name')
+
+	// Filter out self-references
+	const excludeEntity = [info.name, fullName]
+	const references = result.references.filter(({ name }) => !excludeEntity.includes(name))
+
+	return {
+		...entity,
+		type: info.type,
+		name: fullName,
+		schema,
+		searchPaths,
+		references,
+		errors
+	}
+}
+
+/**
+ * Legacy regex-based entity script parsing.
+ * @deprecated Used as fallback when AST parsing fails.
+ */
+function parseEntityScriptRegex(entity, content) {
 	const searchPaths = extractSearchPaths(content)
 	let info = extractEntity(content)
 
