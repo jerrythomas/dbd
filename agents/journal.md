@@ -158,6 +158,25 @@ Implemented `packages/db/` with 4 modules and 96 unit tests. Commit `a643b18`.
 
 All 222 existing tests remain green. New code is purely additive — `src/` untouched.
 
+### Stage 5: DBML & Documentation Generation — COMPLETE
+
+Extracted DBML conversion into `packages/dbml/`. Commit `e6258ab`.
+
+**Modules:**
+
+- `converter.js` — DDL cleanup functions (removeCommentBlocks, removeIndexCreationStatements, normalizeComment, cleanupDDLForDBML), schema-qualified table replacements (buildTableReplacements, applyTableReplacements), project block generation (buildProjectBlock), SQL→DBML conversion (convertToDBML via @dbml/core), and `generateDBML()` orchestrator that takes entities + project config + function deps and returns `[{fileName, content}]`.
+
+**Changes:**
+
+- `packages/cli/src/design.js` — `dbml()` method now delegates to `generateDBML()`, removing ~40 lines of inline logic. Removed `@dbml/core` import and `rmSync` import.
+- `packages/cli/package.json` — removed direct `@dbml/core` dependency (goes through `@jerrythomas/dbd-dbml`).
+
+**Tests (22 total):**
+
+- `spec/converter.spec.js` — 22 tests: DDL cleanup (9), table replacements (6), project block (1), convertToDBML (2), generateDBML (4)
+
+All 222 existing tests + 45 CLI tests remain green.
+
 ### Separate e2e tests from unit tests
 
 Moved PostgreSQL integration tests out of `spec/` into `e2e/`:

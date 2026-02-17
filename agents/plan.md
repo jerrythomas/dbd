@@ -183,15 +183,15 @@ Move CLI logic from `src/` to `packages/cli/`, wiring it to the new adapter.
 
 Extract DBML logic, clean up remaining `src/` code.
 
-- [ ] **5.1** Move DBML generation into `packages/db/src/dbml.js` (or `packages/cli/src/dbml.js`)
-  - entitiesForDBML() filtering
-  - Index statement removal
-  - @dbml/core importer usage
-  - Schema-qualified name replacement
-- [ ] **5.2** Write tests for DBML generation
-- [ ] **5.3** Deprecate/remove legacy `src/` modules that have been fully extracted
-  - Keep `src/index.js` as thin re-export shim for backwards compat
-- [ ] **5.4** Run full test suite — Batch 0 compat tests + all workspace tests
+- [x] **5.1** Create `packages/dbml/src/converter.js` — DBML conversion logic
+  - DDL cleanup: removeCommentBlocks, removeIndexCreationStatements, normalizeComment, cleanupDDLForDBML
+  - Conversion: buildTableReplacements, applyTableReplacements, buildProjectBlock, convertToDBML
+  - Orchestrator: generateDBML() — takes entities, project config, DDL generator, entity filter
+- [x] **5.2** Write tests — 22 passing (cleanup, replacements, conversion, generateDBML)
+- [x] **5.3** Update packages/cli/src/design.js — dbml() delegates to generateDBML()
+  - Removed direct @dbml/core dependency from CLI package
+- [x] **5.4** Verify all tests pass — 222 existing + 45 CLI + 22 DBML all green
+- [x] **5.5** Commit: `e6258ab`
 
 ---
 
@@ -215,10 +215,11 @@ Each batch must satisfy:
 3. New workspace tests pass
 4. `bun run lint` — 0 errors
 
-## Current Batch: 4 COMPLETE → Next: Batch 5 (DBML & Documentation Generation)
+## Current Batch: 5 COMPLETE → Next: Batch 6 (Cleanup & v2.0.0 Release Prep)
 
 Batch 0: 136 compatibility tests in `spec/compat/` (safety net).
 Batch 1: Workspace packages configured, versions at 2.0.0-alpha.0, placeholder entry points created.
 Batch 2: packages/db implemented — 4 modules, 99 tests. All 222 existing tests still green.
 Batch 3: PsqlAdapter (psql plugin), registerAdapter API, 29 adapter tests. All tests green.
 Batch 4: packages/cli extracted — 4 modules (config, references, design, index), 45 tests. All 222 existing tests still green.
+Batch 5: packages/dbml implemented — converter.js with generateDBML orchestrator, 22 tests. CLI dbml() delegates to package.
