@@ -286,6 +286,21 @@ Small package. May stay as part of `packages/db` or `packages/cli` if not worth 
 
 **Responsibility:** CLI interface, configuration loading, orchestration.
 
+**Binary:** `dbd-cli` during migration, renamed to `dbd` at switchover.
+
+```json
+{
+  "bin": { "dbd-cli": "src/index.js" }
+}
+```
+
+After Stage 5 switchover:
+```json
+{
+  "bin": { "dbd": "src/index.js" }
+}
+```
+
 #### Module: `index.js` — Command Definitions
 
 ```javascript
@@ -488,19 +503,34 @@ During migration, `src/` (old) and `packages/` (new) coexist. The rules:
 - New packages have their own tests in `packages/*/spec/`
 - Both old and new tests must pass at every commit
 
+### Two binaries coexist during migration
+- `packages/cli` gets its own binary: `dbd-cli` (temporary name)
+- Root `package.json` keeps `bin: "dbd"` pointing to `src/index.js`
+- Both binaries are available — `dbd` (old) and `dbd-cli` (new)
+- This allows side-by-side testing of identical commands
+
 ### Switchover happens once, at the end (Stage 5)
-- When `packages/cli` is fully tested and feature-compatible:
-  1. Update root `package.json` `bin` to point to `packages/cli/src/index.js`
-  2. Run compatibility tests against the new CLI entry point
+- When `dbd-cli` is fully verified and feature-compatible:
+  1. Rename `packages/cli` binary from `dbd-cli` to `dbd`
+  2. Remove `bin` from root `package.json` (root is no longer a CLI package)
   3. Delete `src/` entirely — no shim, no re-exports
   4. Move/update `spec/` tests to reference `packages/` imports
-- This is a single commit: the old code is removed, the new code takes over
+- This is a single commit: the old code is removed, the new binary takes over
+
+### Root package becomes workspace-only
+After switchover, root `package.json` is used exclusively for:
+- Workspace management (`"workspaces": ["packages/*", "adapters/*"]`)
+- Cross-workspace test scripts (`test:workspaces`, `test:compat`, etc.)
+- Versioning and release orchestration
+- Lint/format across all packages
+- It is **not published** — only `packages/cli` (as `dbd`) is published
 
 ### Why this approach?
 - No half-migrated states where `src/` imports from `packages/` or vice versa
-- The CLI works identically at every commit — users never see breakage
+- Both CLIs work identically at every commit — users never see breakage
+- Side-by-side comparison: run same command with `dbd` and `dbd-cli`, diff output
 - Easy to abandon a batch if something goes wrong — just revert, `src/` is untouched
-- Clear "done" moment: `src/` deleted = migration complete
+- Clear "done" moment: `src/` deleted, `dbd-cli` renamed to `dbd` = migration complete
 
 ---
 
@@ -512,10 +542,13 @@ During migration, `src/` (old) and `packages/` (new) coexist. The rules:
 | Config format | `design.yaml` | Same (no breaking config changes) |
 | Project structure | `ddl/`, `import/` | Same |
 | `psql` dependency | Required | Optional (programmatic by default) |
-| Install | `npm i -g @jerrythomas/dbd` | Same package, new version |
+| Install | `npm i -g @jerrythomas/dbd` | `npm i -g @dbd/cli` (publishes as `dbd` binary) |
+| Published package | `@jerrythomas/dbd` (monolith) | `@dbd/cli` (CLI), `@dbd/parser`, `@dbd/db`, `@dbd/dbml`, `@dbd/db-postgres` |
+| Root package | Published with CLI + library | Workspace-only, not published |
 | Node.js | Any recent | Same |
 
 **Breaking changes** (justifying major version):
+- Install package changes from `@jerrythomas/dbd` to `@dbd/cli`
 - Internal package restructure (affects anyone importing from `src/`)
 - `psql` no longer required for basic operations
 - Minimum Node.js version may increase if using modern DB library features

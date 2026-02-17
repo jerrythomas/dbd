@@ -147,7 +147,7 @@ New `spec/compat/` directory with ~50 tests that lock in current behavior. These
      "version": "2.0.0-alpha.0",
      "type": "module",
      "main": "src/index.js",
-     "bin": { "dbd": "src/index.js" },
+     "bin": { "dbd-cli": "src/index.js" },
      "dependencies": {
        "@dbd/parser": "workspace:*",
        "@dbd/db": "workspace:*",
@@ -158,6 +158,7 @@ New `spec/compat/` directory with ~50 tests that lock in current behavior. These
      }
    }
    ```
+   Note: binary is `dbd-cli` during migration. Renamed to `dbd` at Stage 5 switchover.
 
 5. **`adapters/postgres/package.json`**
    ```json
@@ -427,11 +428,12 @@ Wire into `packages/cli/src/design.js` for the `dbml()` command.
 
 ### Part B: Switchover (single commit)
 
-Once all package tests confirm feature parity:
+Once `dbd-cli` passes all compatibility tests and side-by-side comparison with `dbd`:
 
-1. **Update root `package.json`** — change `bin` and `main` to point to `packages/cli/src/index.js`
-2. **Run compatibility tests** against the new entry point — must all pass
-3. **Delete `src/` entirely** — no shim, no re-exports, clean removal:
+1. **Rename binary** in `packages/cli/package.json` — change `"dbd-cli"` to `"dbd"`
+2. **Remove `bin` and `main` from root `package.json`** — root is workspace-only, not a CLI
+3. **Mark root `package.json` as `"private": true`** — prevent accidental publishing
+4. **Delete `src/` entirely** — clean removal:
    - `src/index.js`
    - `src/collect.js`
    - `src/metadata.js`
@@ -440,10 +442,11 @@ Once all package tests confirm feature parity:
    - `src/exclusions.js`
    - `src/filler.js`
    - `src/constants.js`
-4. **Delete `spec/` legacy tests** — these tested `src/` internals, now replaced by:
+5. **Delete `spec/` legacy tests** — these tested `src/` internals, now replaced by:
    - `spec/compat/` — behavior tests (update imports to `packages/`)
    - `packages/*/spec/` — package-level tests
-5. **Update `spec/compat/` imports** to reference `packages/` instead of `src/`
+6. **Update `spec/compat/` imports** to reference `packages/` instead of `src/`
+7. **Update root `vitest.config.js`** — point test includes to `spec/compat/` only
 
 ### Verification
 
