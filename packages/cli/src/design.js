@@ -3,10 +3,9 @@
  *
  * Refactored from src/collect.js to use @jerrythomas/dbd-db packages.
  */
-import fs, { rmSync } from 'fs'
+import fs from 'fs'
 import path from 'path'
 import { omit, pick } from 'ramda'
-import { importer } from '@dbml/core'
 import {
 	entityFromSchemaName,
 	entityFromExportConfig,
@@ -18,8 +17,9 @@ import {
 	filterEntitiesForDBML,
 	sortByDependencies
 } from '@jerrythomas/dbd-db'
+import { generateDBML } from '@jerrythomas/dbd-dbml'
 import { read, clean } from './config.js'
-import { parseEntityScript, matchReferences, cleanupDDLForDBML } from './references.js'
+import { parseEntityScript, matchReferences } from './references.js'
 
 class Design {
 	#config = {}
@@ -154,58 +154,17 @@ class Design {
 	}
 
 	dbml(file = 'design.dbml') {
-		const keys = Object.keys(this.config.project.dbdocs)
-		let docs = []
+		const results = generateDBML({
+			entities: this.entities,
+			project: this.config.project,
+			ddlFromEntity,
+			filterEntities: filterEntitiesForDBML,
+			file
+		})
 
-		if (keys.includes('exclude') || keys.includes('include')) {
-			docs = [
-				{
-					config: this.config.project.dbdocs,
-					project: this.config.project.name
-				}
-			]
-		}
-		docs = [
-			...docs,
-			...keys
-				.filter((key) => key !== 'exclude' && key !== 'include')
-				.map((key) => ({
-					config: this.config.project.dbdocs[key],
-					project: this.config.project.name + '-' + key
-				}))
-		]
-
-		docs.map((doc) => {
-			let combined = filterEntitiesForDBML(this.entities, doc.config)
-				.map((entity) => ddlFromEntity(entity))
-				.map((ddl) => cleanupDDLForDBML(ddl))
-
-			const replacer = filterEntitiesForDBML(this.entities, doc.config)
-				.filter((entity) => entity.type === 'table')
-				.map(({ name, schema }) => ({
-					name: name.replace(schema + '.', ''),
-					schema
-				}))
-				.map(({ name, schema }) => ({
-					original: `Table "${name}"`,
-					replacement:
-						schema === 'public'
-							? `Table "${schema}"."${name}"`
-							: `Table "${schema}"."${name}" as "${name}"`
-				}))
-
-			fs.writeFileSync('combined.sql', combined.join('\n'))
-
+		results.map(({ fileName, content }) => {
 			try {
-				const project = `Project "${doc.project}" {\n database_type: '${this.config.project.database}'\n Note: "${this.config.project.note}" \n}\n`
-				let dbml = importer.import(combined.join('\n'), 'postgres')
-				const fileName = [doc.project, file].join('-')
-
-				replacer.map(({ original, replacement }) => {
-					dbml = dbml.replace(new RegExp(original, 'g'), replacement)
-				})
-				fs.writeFileSync(fileName, project + dbml)
-				rmSync('combined.sql')
+				fs.writeFileSync(fileName, content)
 				console.info(`Generated DBML in ${fileName}`)
 			} catch (err) {
 				console.error(err)

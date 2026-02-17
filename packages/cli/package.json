@@ -27,7 +27,6 @@
     "@jerrythomas/dbd-parser": "workspace:*",
     "@jerrythomas/dbd-db": "workspace:*",
     "@jerrythomas/dbd-dbml": "workspace:*",
-    "@dbml/core": "^3.13.5",
     "sade": "^1.8.1",
     "js-yaml": "^4.1.0",
     "ramda": "^0.30.1"

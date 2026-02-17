@@ -1,0 +1,305 @@
+/**
+ * Tests for packages/dbml/src/converter.js
+ *
+ * Tests the DBML conversion pipeline: DDL cleanup, SQL→DBML conversion,
+ * schema qualification, and the full generateDBML orchestrator.
+ */
+import { describe, it, expect } from 'vitest'
+import {
+	removeCommentBlocks,
+	removeIndexCreationStatements,
+	normalizeComment,
+	cleanupDDLForDBML,
+	buildTableReplacements,
+	applyTableReplacements,
+	buildProjectBlock,
+	convertToDBML,
+	generateDBML
+} from '../src/converter.js'
+
+describe('DDL cleanup', () => {
+	describe('removeCommentBlocks()', () => {
+		it('removes COMMENT ON statements', () => {
+			const sql = "CREATE TABLE t (id int);\nCOMMENT ON TABLE t IS 'a table';"
+			const result = removeCommentBlocks(sql)
+			expect(result).not.toContain('COMMENT ON')
+			expect(result).toContain('CREATE TABLE')
+		})
+
+		it('removes line comments', () => {
+			const sql = 'CREATE TABLE t (id int); -- this is a comment\nSELECT 1;'
+			const result = removeCommentBlocks(sql)
+			expect(result).not.toContain('-- this is a comment')
+			expect(result).toContain('SELECT 1;')
+		})
+
+		it('removes block comments', () => {
+			const sql = 'CREATE TABLE t (id int); /* block comment */ SELECT 1;'
+			const result = removeCommentBlocks(sql)
+			expect(result).not.toContain('block comment')
+			expect(result).toContain('SELECT 1;')
+		})
+	})
+
+	describe('removeIndexCreationStatements()', () => {
+		it('removes CREATE INDEX statements', () => {
+			const sql = 'CREATE TABLE t (id int);\nCREATE INDEX idx_t_id ON t(id);\nSELECT 1;'
+			const result = removeIndexCreationStatements(sql)
+			expect(result).not.toContain('CREATE INDEX')
+			expect(result).toContain('CREATE TABLE')
+			expect(result).toContain('SELECT 1;')
+		})
+
+		it('removes CREATE UNIQUE INDEX statements', () => {
+			const sql = 'CREATE UNIQUE INDEX idx_t_id ON t(id);'
+			const result = removeIndexCreationStatements(sql)
+			expect(result).not.toContain('CREATE UNIQUE INDEX')
+		})
+	})
+
+	describe('normalizeComment()', () => {
+		it('normalizes multi-line COMMENT ON TABLE to single line', () => {
+			const input = "comment on table users IS 'line1\nline2\nline3';"
+			const result = normalizeComment(input)
+			expect(result).not.toContain('\n')
+			expect(result).toContain('line1\\nline2\\nline3')
+		})
+
+		it('passes through non-matching strings unchanged', () => {
+			const input = 'SELECT 1;'
+			expect(normalizeComment(input)).toBe(input)
+		})
+	})
+
+	describe('cleanupDDLForDBML()', () => {
+		it('removes index statements from DDL', () => {
+			const sql = 'CREATE TABLE t (id int);\nCREATE INDEX idx ON t(id);'
+			const result = cleanupDDLForDBML(sql)
+			expect(result).not.toContain('CREATE INDEX')
+			expect(result).toContain('CREATE TABLE')
+		})
+
+		it('returns null/empty for null/empty input', () => {
+			expect(cleanupDDLForDBML(null)).toBeNull()
+			expect(cleanupDDLForDBML('')).toBe('')
+		})
+	})
+})
+
+describe('Table replacements', () => {
+	describe('buildTableReplacements()', () => {
+		it('builds replacements for tables with schemas', () => {
+			const entities = [
+				{ name: 'config.users', schema: 'config', type: 'table' },
+				{ name: 'public.orders', schema: 'public', type: 'table' }
+			]
+			const replacements = buildTableReplacements(entities)
+			expect(replacements).toHaveLength(2)
+			expect(replacements[0]).toEqual({
+				original: 'Table "users"',
+				replacement: 'Table "config"."users" as "users"'
+			})
+			expect(replacements[1]).toEqual({
+				original: 'Table "orders"',
+				replacement: 'Table "public"."orders"'
+			})
+		})
+
+		it('skips non-table entities', () => {
+			const entities = [
+				{ name: 'config.users', schema: 'config', type: 'table' },
+				{ name: 'config.my_view', schema: 'config', type: 'view' }
+			]
+			const replacements = buildTableReplacements(entities)
+			expect(replacements).toHaveLength(1)
+		})
+
+		it('returns empty array for no tables', () => {
+			expect(buildTableReplacements([])).toEqual([])
+		})
+	})
+
+	describe('applyTableReplacements()', () => {
+		it('replaces table names in DBML output', () => {
+			const dbml = 'Table "users" {\n  "id" int\n}\n'
+			const replacements = [
+				{ original: 'Table "users"', replacement: 'Table "config"."users" as "users"' }
+			]
+			const result = applyTableReplacements(dbml, replacements)
+			expect(result).toContain('Table "config"."users" as "users"')
+			expect(result).not.toContain('Table "users" {')
+		})
+
+		it('replaces all occurrences', () => {
+			const dbml = 'Table "users" {\n}\nRef: Table "users"'
+			const replacements = [{ original: 'Table "users"', replacement: 'Table "public"."users"' }]
+			const result = applyTableReplacements(dbml, replacements)
+			expect(result.match(/Table "public"\."users"/g)).toHaveLength(2)
+		})
+
+		it('returns unchanged DBML with empty replacements', () => {
+			const dbml = 'Table "users" {\n}'
+			expect(applyTableReplacements(dbml, [])).toBe(dbml)
+		})
+	})
+})
+
+describe('buildProjectBlock()', () => {
+	it('generates a DBML Project block', () => {
+		const block = buildProjectBlock('MyProject', 'PostgreSQL', 'A test project')
+		expect(block).toContain('Project "MyProject"')
+		expect(block).toContain("database_type: 'PostgreSQL'")
+		expect(block).toContain('Note: "A test project"')
+	})
+})
+
+describe('convertToDBML()', () => {
+	it('converts SQL to DBML via @dbml/core', () => {
+		const sql = `
+			CREATE TABLE users (
+				id uuid PRIMARY KEY,
+				name varchar NOT NULL
+			);
+		`
+		const result = convertToDBML(sql)
+		expect(result).toContain('Table "users"')
+		expect(result).toContain('"id" uuid [pk]')
+		expect(result).toContain('"name" varchar [not null]')
+	})
+
+	it('converts schema-qualified tables', () => {
+		const sql = `
+			set search_path to config, extensions;
+			CREATE TABLE config.features (
+				id uuid PRIMARY KEY,
+				title varchar
+			);
+		`
+		const result = convertToDBML(sql)
+		expect(result).toContain('Table "config"."features"')
+	})
+})
+
+describe('generateDBML()', () => {
+	const mockEntities = [
+		{ name: 'public.users', schema: 'public', type: 'table', file: 'ddl/public/users.sql' },
+		{ name: 'config.settings', schema: 'config', type: 'table', file: 'ddl/config/settings.sql' },
+		{ name: 'staging.temp', schema: 'staging', type: 'table', file: 'ddl/staging/temp.sql' }
+	]
+
+	const mockDdlFromEntity = (entity) => {
+		const ddls = {
+			'public.users': 'CREATE TABLE public.users (id uuid PRIMARY KEY, name varchar NOT NULL);',
+			'config.settings': 'CREATE TABLE config.settings (key varchar PRIMARY KEY, value text);',
+			'staging.temp': 'CREATE TABLE staging.temp (data text);'
+		}
+		return ddls[entity.name] || ''
+	}
+
+	const mockFilterEntities = (entities, config) => {
+		if (config.exclude && config.exclude.schemas) {
+			return entities.filter((e) => !config.exclude.schemas.includes(e.schema))
+		}
+		if (config.include && config.include.schemas) {
+			return entities.filter((e) => config.include.schemas.includes(e.schema))
+		}
+		return entities
+	}
+
+	it('generates DBML documents for named dbdocs configs', () => {
+		const project = {
+			name: 'TestProject',
+			database: 'PostgreSQL',
+			note: 'Test note',
+			dbdocs: {
+				base: { exclude: { schemas: ['staging'] } },
+				core: { include: { schemas: ['config'] } }
+			}
+		}
+
+		const results = generateDBML({
+			entities: mockEntities,
+			project,
+			ddlFromEntity: mockDdlFromEntity,
+			filterEntities: mockFilterEntities
+		})
+
+		expect(results).toHaveLength(2)
+		expect(results[0].fileName).toBe('TestProject-base-design.dbml')
+		expect(results[1].fileName).toBe('TestProject-core-design.dbml')
+
+		// base excludes staging, should have users + settings
+		expect(results[0].content).toContain('Project "TestProject-base"')
+		expect(results[0].content).toContain('"users"')
+		expect(results[0].content).toContain('"settings"')
+		expect(results[0].content).not.toContain('"temp"')
+
+		// core includes only config schema
+		expect(results[1].content).toContain('Project "TestProject-core"')
+		expect(results[1].content).toContain('"settings"')
+	})
+
+	it('handles top-level exclude/include in dbdocs config', () => {
+		const project = {
+			name: 'TestProject',
+			database: 'PostgreSQL',
+			note: 'Test note',
+			dbdocs: {
+				exclude: { schemas: ['staging'] }
+			}
+		}
+
+		const results = generateDBML({
+			entities: mockEntities,
+			project,
+			ddlFromEntity: mockDdlFromEntity,
+			filterEntities: mockFilterEntities
+		})
+
+		expect(results).toHaveLength(1)
+		expect(results[0].fileName).toBe('TestProject-design.dbml')
+		expect(results[0].content).toContain('Project "TestProject"')
+	})
+
+	it('uses custom file name', () => {
+		const project = {
+			name: 'Test',
+			database: 'PostgreSQL',
+			note: '',
+			dbdocs: {
+				main: { exclude: { schemas: [] } }
+			}
+		}
+
+		const results = generateDBML({
+			entities: mockEntities,
+			project,
+			ddlFromEntity: mockDdlFromEntity,
+			filterEntities: mockFilterEntities,
+			file: 'schema.dbml'
+		})
+
+		expect(results[0].fileName).toBe('Test-main-schema.dbml')
+	})
+
+	it('applies schema qualification to table names', () => {
+		const project = {
+			name: 'Test',
+			database: 'PostgreSQL',
+			note: '',
+			dbdocs: {
+				include: { schemas: ['config'] }
+			}
+		}
+
+		const results = generateDBML({
+			entities: mockEntities,
+			project,
+			ddlFromEntity: mockDdlFromEntity,
+			filterEntities: mockFilterEntities
+		})
+
+		// config.settings → Table "config"."settings" as "settings"
+		expect(results[0].content).toContain('"config"."settings"')
+	})
+})
