@@ -133,6 +133,7 @@ export const entities = [
 			}
 		],
 		searchPaths: ['config', 'extensions'],
+		warnings: [],
 		errors: []
 	},
 	{
@@ -144,12 +145,14 @@ export const entities = [
 		refers: [],
 		references: [],
 		searchPaths: ['staging'],
+		warnings: [],
 		errors: []
 	},
 	{
 		...tblStagingLookupValues,
 		references: [],
 		errors: [],
+		warnings: [],
 		searchPaths: ['staging']
 	},
 	{
@@ -161,6 +164,7 @@ export const entities = [
 		refers: [],
 		schema: 'staging',
 		searchPaths: ['staging'],
+		warnings: [],
 		type: 'table'
 	},
 	{
@@ -177,6 +181,7 @@ export const entities = [
 			}
 		],
 		searchPaths: ['config', 'extensions'],
+		warnings: [],
 		errors: []
 	},
 	{
@@ -194,6 +199,7 @@ export const entities = [
 			}
 		],
 		searchPaths: ['staging'],
+		warnings: [],
 		errors: []
 	},
 	{
@@ -211,6 +217,7 @@ export const entities = [
 			}
 		],
 		searchPaths: ['config'],
+		warnings: [],
 		errors: []
 	},
 	{
@@ -228,6 +235,7 @@ export const entities = [
 			}
 		],
 		searchPaths: ['config'],
+		warnings: [],
 		errors: []
 	},
 	{
@@ -245,6 +253,7 @@ export const entities = [
 			}
 		],
 		searchPaths: ['migrate'],
+		warnings: [],
 		errors: []
 	},
 
@@ -273,6 +282,7 @@ export const entities = [
 		refers: ['config.lookups', 'config.lookup_values', 'staging.lookup_values'],
 		schema: 'staging',
 		searchPaths: ['staging'],
+		warnings: [],
 		type: 'procedure'
 	}
 ]

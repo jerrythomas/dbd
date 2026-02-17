@@ -40,18 +40,26 @@ prog
 	.describe('Inspect the current folder.')
 	.example('dbd-cli inspect')
 	.action((opts) => {
-		const { entity, issues } = using(opts.config, opts.database).validate().report(opts.name)
+		const { entity, issues, warnings } = using(opts.config, opts.database)
+			.validate()
+			.report(opts.name)
 
 		if (entity) console.log(JSON.stringify(entity, null, 2))
 
-		const showDetails = (item, verbose) => {
-			let details = `\n${item.file ? item.file : item.name} =>\n  ${item.errors.join('\n  ')}`
+		const showDetails = (item, key, verbose) => {
+			let details = `\n${item.file ? item.file : item.name} =>\n  ${item[key].join('\n  ')}`
 			if (verbose) details += `\n${JSON.stringify(item, null, 2)}`
 			return details
 		}
 		if (issues.length > 0) {
-			issues.map((entity) => console.log(showDetails(entity, opts.verbose)))
-		} else {
+			console.log('Errors:')
+			issues.map((item) => console.log(showDetails(item, 'errors', opts.verbose)))
+		}
+		if (warnings.length > 0) {
+			console.log('\nWarnings:')
+			warnings.map((item) => console.log(showDetails(item, 'warnings', opts.verbose)))
+		}
+		if (issues.length === 0 && warnings.length === 0) {
 			console.log('Everything looks ok')
 		}
 	})

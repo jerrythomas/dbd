@@ -10,7 +10,11 @@ export const extensions = {
 	pgcrypto: { entities: ['gen_salt', 'crypt', 'md5'] },
 	postgis: { patterns: ['^st_', '^geom_', '^geog'] },
 	pg_trgm: { entities: ['similarity'] },
-	vector: { entities: ['vector', 'gin'] }
+	vector: { entities: ['vector', 'gin', 'hnsw', 'ivfflat'] },
+	pgmq: { patterns: ['^pgmq_', '^pgmq\\.'] },
+	pg_cron: { patterns: ['^cron\\.'] },
+	dblink: { entities: ['dblink', 'dblink_exec', 'dblink_connect', 'dblink_disconnect'] },
+	pg_background: { entities: ['pg_background_launch', 'pg_background_result'] }
 }
 export const internals = {
 	ansii: {
@@ -104,9 +108,12 @@ export const internals = {
 			'date',
 			'round',
 			'when',
-			'record'
-
-			// And many more as needed...
+			'record',
+			'between',
+			'columns',
+			'default',
+			'system',
+			'user'
 		]
 	},
 	postgres: {
@@ -205,6 +212,26 @@ export function isExtension(input, installed = []) {
  * @param {string[]} installed - The list of installed extensions
  * @returns {boolean} - True if the input is a known internal or extension
  */
+
+/**
+ * Check if an input matches ANY known extension (regardless of whether it's installed).
+ * Returns the extension name if matched, null otherwise.
+ */
+export function matchesKnownExtension(input) {
+	const lowerInput = input.toLowerCase()
+	for (const [extName, extension] of Object.entries(extensions)) {
+		if (Array.isArray(extension.entities) && extension.entities.includes(lowerInput)) {
+			return extName
+		}
+		if (Array.isArray(extension.patterns)) {
+			for (const pattern of extension.patterns) {
+				if (new RegExp(pattern).test(lowerInput)) return extName
+			}
+		}
+	}
+	return null
+}
+
 export function isInternal(input, installed = []) {
 	const lowerInput = input.toLowerCase()
 

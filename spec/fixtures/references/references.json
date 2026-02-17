@@ -23,6 +23,7 @@
         "type": "table"
       }
     ],
+    "warnings": [],
     "errors": [],
     "refers": ["config.lookups", "config.lookup_values", "staging.lookup_values"]
   },
@@ -34,6 +35,7 @@
     "schema": "staging",
     "searchPaths": ["staging"],
     "references": [],
+    "warnings": [],
     "errors": ["Entity name in script does not match file name"],
     "refers": []
   },
@@ -45,6 +47,7 @@
     "schema": "staging",
     "searchPaths": ["staging"],
     "references": [],
+    "warnings": [],
     "errors": [],
     "refers": []
   },
@@ -59,7 +62,7 @@
       {
         "name": "uuid_generate_v4",
         "type": null,
-        "error": "Reference uuid_generate_v4 not found in [core, config]"
+        "warning": "Reference uuid_generate_v4 may require undeclared extension 'uuid-ossp'"
       },
       {
         "name": "config.lookup_values",
@@ -67,6 +70,7 @@
         "type": "table"
       }
     ],
+    "warnings": ["Reference uuid_generate_v4 may require undeclared extension 'uuid-ossp'"],
     "errors": [],
     "refers": ["config.lookup_values"]
   },
@@ -81,7 +85,7 @@
       {
         "name": "uuid_generate_v4",
         "type": null,
-        "error": "Reference uuid_generate_v4 not found in [config, extensions]"
+        "warning": "Reference uuid_generate_v4 may require undeclared extension 'uuid-ossp'"
       },
       {
         "name": "config.lookups",
@@ -89,6 +93,7 @@
         "type": "table"
       }
     ],
+    "warnings": ["Reference uuid_generate_v4 may require undeclared extension 'uuid-ossp'"],
     "errors": [],
     "refers": ["config.lookups"]
   },
@@ -103,9 +108,10 @@
       {
         "name": "uuid_generate_v4",
         "type": null,
-        "error": "Reference uuid_generate_v4 not found in [config, extensions]"
+        "warning": "Reference uuid_generate_v4 may require undeclared extension 'uuid-ossp'"
       }
     ],
+    "warnings": ["Reference uuid_generate_v4 may require undeclared extension 'uuid-ossp'"],
     "errors": [],
     "refers": []
   },
@@ -128,6 +134,7 @@
         "type": "table"
       }
     ],
+    "warnings": [],
     "errors": [],
     "refers": ["config.lookups", "config.lookup_values"]
   },
@@ -150,6 +157,7 @@
         "type": "table"
       }
     ],
+    "warnings": [],
     "errors": [],
     "refers": ["config.lookups", "config.lookup_values"]
   }

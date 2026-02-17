@@ -571,7 +571,7 @@ FROM
 			expect(entity).toEqual({
 				name: 'unknown',
 				type: undefined,
-				error: 'Reference unknown not found in [core, config, staging]'
+				warning: 'Reference unknown not found in [core, config, staging]'
 			})
 		})
 
@@ -598,7 +598,7 @@ FROM
 			expect(entity).toEqual({
 				name: 'unknown',
 				type: undefined,
-				error: 'Reference unknown not found in [core, config, staging]'
+				warning: 'Reference unknown not found in [core, config, staging]'
 			})
 		})
 	})

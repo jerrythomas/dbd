@@ -300,7 +300,7 @@ describe('Design class compatibility', () => {
 		const dx = using('design.yaml')
 		const result = dx.report()
 
-		expect(result).toEqual({ entity: undefined, issues: [] })
+		expect(result).toEqual({ entity: undefined, issues: [], warnings: [] })
 	})
 
 	it('report(name) filters to specific entity', () => {

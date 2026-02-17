@@ -23,7 +23,11 @@ export const extensions = {
 	pgcrypto: { entities: ['gen_salt', 'crypt', 'md5'] },
 	postgis: { patterns: ['^st_', '^geom_', '^geog'] },
 	pg_trgm: { entities: ['similarity'] },
-	vector: { entities: ['vector', 'gin'] }
+	vector: { entities: ['vector', 'gin', 'hnsw', 'ivfflat'] },
+	pgmq: { patterns: ['^pgmq_', '^pgmq\\.'] },
+	pg_cron: { patterns: ['^cron\\.'] },
+	dblink: { entities: ['dblink', 'dblink_exec', 'dblink_connect', 'dblink_disconnect'] },
+	pg_background: { entities: ['pg_background_launch', 'pg_background_result'] }
 }
 
 export const internals = {
@@ -117,7 +121,12 @@ export const internals = {
 			'date',
 			'round',
 			'when',
-			'record'
+			'record',
+			'between',
+			'columns',
+			'default',
+			'system',
+			'user'
 		]
 	},
 	postgres: {
@@ -184,6 +193,25 @@ export function isExtension(input, installed = []) {
 		}
 	}
 	return matched ? 'extension' : null
+}
+
+/**
+ * Check if an input matches ANY known extension (regardless of whether it's installed).
+ * Returns the extension name if matched, null otherwise.
+ */
+export function matchesKnownExtension(input) {
+	const lowerInput = input.toLowerCase()
+	for (const [extName, extension] of Object.entries(extensions)) {
+		if (Array.isArray(extension.entities) && extension.entities.includes(lowerInput)) {
+			return extName
+		}
+		if (Array.isArray(extension.patterns)) {
+			for (const pattern of extension.patterns) {
+				if (new RegExp(pattern).test(lowerInput)) return extName
+			}
+		}
+	}
+	return null
 }
 
 export function isInternal(input, installed = []) {
@@ -520,29 +548,57 @@ export function generateLookupTree(entities) {
 	)
 }
 
-export function findEntityByName({ name, type }, searchPaths, lookup, extensions = []) {
+export function findEntityByName({ name, type }, searchPaths, lookup, installed = []) {
 	let matched = null
-	let internalType = isInternal(name, extensions)
+	let internalType = isInternal(name, installed)
 	if (internalType) return { name, type: internalType }
 
 	if (name.indexOf('.') > 0) {
-		internalType = isInternal(name.split('.').pop(), extensions)
+		internalType = isInternal(name.split('.').pop(), installed)
 		if (internalType) return { name, type: internalType }
 
 		matched = lookup[name]
-		return matched ? matched : { name, type, error: `Reference ${name} not found` }
+		if (matched) return matched
+
+		// Check if it matches a known extension (declared or not)
+		const extName = matchesKnownExtension(name) || matchesKnownExtension(name.split('.').pop())
+		if (extName) {
+			if (installed.includes(extName)) {
+				return { name, type: 'extension' }
+			}
+			return {
+				name,
+				type,
+				warning: `Reference ${name} may require undeclared extension '${extName}'`
+			}
+		}
+
+		return { name, type, warning: `Reference ${name} not found` }
 	}
 
 	for (let i = 0; i < searchPaths.length && !matched; i++) {
 		matched = lookup[searchPaths[i] + '.' + name]
 	}
-	return matched
-		? matched
-		: {
-				name,
-				type,
-				error: `Reference ${name} not found in [${searchPaths.join(', ')}]`
-			}
+	if (matched) return matched
+
+	// Check if it matches a known extension
+	const extName = matchesKnownExtension(name)
+	if (extName) {
+		if (installed.includes(extName)) {
+			return { name, type: 'extension' }
+		}
+		return {
+			name,
+			type,
+			warning: `Reference ${name} may require undeclared extension '${extName}'`
+		}
+	}
+
+	return {
+		name,
+		type,
+		warning: `Reference ${name} not found in [${searchPaths.join(', ')}]`
+	}
 }
 
 export function matchReferences(entities, extensions = []) {
@@ -552,11 +608,13 @@ export function matchReferences(entities, extensions = []) {
 		let references = entity.references.map((ref) =>
 			findEntityByName(ref, entity.searchPaths, lookup, extensions)
 		)
+		const warnings = references.filter((r) => r.warning).map((r) => r.warning)
 		return {
 			...entity,
 			references,
+			warnings: [...(entity.warnings || []), ...warnings],
 			refers: references
-				.filter((r) => !r.error)
+				.filter((r) => !r.error && !r.warning)
 				.filter((r) => r.type !== 'extension')
 				.filter((r) => allowedTypes.includes(r.type))
 				.map((r) => r.name)

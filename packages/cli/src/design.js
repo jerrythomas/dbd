@@ -111,8 +111,12 @@ class Design {
 			...this.entities.filter((entity) => entity.errors && entity.errors.length > 0),
 			...this.importTables.filter((table) => table.errors && table.errors.length > 0)
 		].filter((entity) => !name || entity.name === name)
+		const warnings = [
+			...this.entities.filter((entity) => entity.warnings && entity.warnings.length > 0),
+			...this.importTables.filter((table) => table.warnings && table.warnings.length > 0)
+		].filter((entity) => !name || entity.name === name)
 		const entity = this.entities.filter((entity) => entity.name === name).pop()
-		return { entity, issues }
+		return { entity, issues, warnings }
 	}
 
 	async apply(name, dryRun = false) {

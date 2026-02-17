@@ -19,8 +19,10 @@ const stagingLookupValues = {
 const referenceUuid = {
 	name: 'uuid_generate_v4',
 	type: null,
-	error: 'Reference uuid_generate_v4 not found in [config, extensions]'
+	warning: "Reference uuid_generate_v4 may require undeclared extension 'uuid-ossp'"
 }
+
+const warningUuid = "Reference uuid_generate_v4 may require undeclared extension 'uuid-ossp'"
 
 const referenceConfigLookups = {
 	name: 'config.lookups',
@@ -43,6 +45,7 @@ const outputEntityStagingLookupValues = {
 	references: [],
 	schema: 'staging',
 	searchPaths: ['staging'],
+	warnings: [],
 	errors: []
 }
 
@@ -88,6 +91,7 @@ export const output = {
 			references: [referenceUuid],
 			schema: 'config',
 			searchPaths: ['config', 'extensions'],
+			warnings: [warningUuid],
 			errors: []
 		},
 		{
@@ -99,6 +103,7 @@ export const output = {
 			references: [referenceUuid, referenceConfigLookups],
 			schema: 'config',
 			searchPaths: ['config', 'extensions'],
+			warnings: [warningUuid],
 			errors: []
 		},
 		{
@@ -110,6 +115,7 @@ export const output = {
 			references: [referenceConfigLookups, referenceConfigLookupValues],
 			schema: 'config',
 			searchPaths: ['config'],
+			warnings: [],
 			errors: []
 		},
 		outputEntityStagingLookupValues,
@@ -130,6 +136,7 @@ export const output = {
 			],
 			schema: 'staging',
 			searchPaths: ['staging'],
+			warnings: [],
 			errors: []
 		},
 		{
@@ -148,6 +155,7 @@ export const output = {
 			],
 			schema: 'staging',
 			searchPaths: ['staging'],
+			warnings: [],
 			errors: []
 		},
 		{
@@ -159,6 +167,7 @@ export const output = {
 			refers: ['config.lookups', 'config.lookup_values'],
 			schema: 'migrate',
 			searchPaths: ['migrate'],
+			warnings: [],
 			errors: []
 		},
 		,
@@ -171,6 +180,7 @@ export const output = {
 			references: [],
 			schema: 'staging',
 			searchPaths: ['staging'],
+			warnings: [],
 			errors: []
 		},
 		{
@@ -182,6 +192,7 @@ export const output = {
 			refers: ['config.lookups', 'config.lookup_values'],
 			schema: 'config',
 			searchPaths: ['config'],
+			warnings: [],
 			errors: []
 		},
 		{
@@ -193,6 +204,7 @@ export const output = {
 			references: [],
 			schema: 'staging',
 			searchPaths: ['staging'],
+			warnings: [],
 			errors: []
 		}
 	],

@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { pick, uniq } from 'ramda'
 import { allowedTypes } from './constants.js'
-import { isInternal } from './exclusions.js'
+import { isInternal, matchesKnownExtension } from './exclusions.js'
 
 /**
  * Removes SQL comment blocks from a script.
@@ -469,11 +469,13 @@ export function matchReferences(entities, extensions = []) {
 		let references = entity.references.map((ref) =>
 			findEntityByName(ref, entity.searchPaths, lookup, extensions)
 		)
+		const warnings = references.filter((r) => r.warning).map((r) => r.warning)
 		return {
 			...entity,
 			references,
+			warnings: [...(entity.warnings || []), ...warnings],
 			refers: references
-				.filter((r) => !r.error)
+				.filter((r) => !r.error && !r.warning)
 				.filter((r) => r.type !== 'extension')
 				.filter((r) => allowedTypes.includes(r.type))
 				.map((r) => r.name)
@@ -489,29 +491,55 @@ export function matchReferences(entities, extensions = []) {
  * @param {Array} [extensions=[]] - An array of extensions.
  * @returns {Object} The matched entity or an error object if not found.
  */
-export function findEntityByName({ name, type }, searchPaths, lookup, extensions = []) {
+export function findEntityByName({ name, type }, searchPaths, lookup, installed = []) {
 	let matched = null
-	let internalType = isInternal(name, extensions)
+	let internalType = isInternal(name, installed)
 	if (internalType) return { name, type: internalType }
 
 	if (name.indexOf('.') > 0) {
-		internalType = isInternal(name.split('.').pop(), extensions)
+		internalType = isInternal(name.split('.').pop(), installed)
 		if (internalType) return { name, type: internalType }
 
 		matched = lookup[name]
-		return matched ? matched : { name, type, error: `Reference ${name} not found` }
+		if (matched) return matched
+
+		const extName = matchesKnownExtension(name) || matchesKnownExtension(name.split('.').pop())
+		if (extName) {
+			if (installed.includes(extName)) {
+				return { name, type: 'extension' }
+			}
+			return {
+				name,
+				type,
+				warning: `Reference ${name} may require undeclared extension '${extName}'`
+			}
+		}
+
+		return { name, type, warning: `Reference ${name} not found` }
 	}
 
 	for (let i = 0; i < searchPaths.length && !matched; i++) {
 		matched = lookup[searchPaths[i] + '.' + name]
 	}
-	return matched
-		? matched
-		: {
-				name,
-				type,
-				error: `Reference ${name} not found in [${searchPaths.join(', ')}]`
-			}
+	if (matched) return matched
+
+	const extName = matchesKnownExtension(name)
+	if (extName) {
+		if (installed.includes(extName)) {
+			return { name, type: 'extension' }
+		}
+		return {
+			name,
+			type,
+			warning: `Reference ${name} may require undeclared extension '${extName}'`
+		}
+	}
+
+	return {
+		name,
+		type,
+		warning: `Reference ${name} not found in [${searchPaths.join(', ')}]`
+	}
 }
 
 /**
