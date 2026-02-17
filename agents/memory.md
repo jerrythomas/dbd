@@ -75,7 +75,7 @@ cli -> db -> adapters/postgres
 
 ## Current Status
 
-- **v2.0.0 migration:** Stage 0 next (compatibility test suite)
+- **v2.0.0 migration:** Stage 0 complete (136 compat tests), Stage 1 next
 - Parser package: Complete with full test coverage
 - Legacy `src/` active — untouched until Stage 5 switchover
 - Design docs complete: `docs/design/04-v2-architecture.md`, `docs/design/05-v2-migration-stages.md`

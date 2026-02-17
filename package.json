@@ -25,6 +25,7 @@
     "pg-test": "docker run --name pg-test -p 5234:5432 -e POSTGRES_PASSWORD=pg-test -d postgres",
     "test:pg": "bun pg-test && bun test ./spec/collect.spec.js && bun test:clean",
     "test:nopg": "find spec/*.spec.js | grep -v collect | xargs vitest",
+    "test:compat": "vitest run spec/compat/",
     "test:clean": "docker stop pg-test && docker rm pg-test",
     "test": "bun pg-test && bun test:unit && bun test:clean",
     "release:next": "release-it --preRelease=next",

@@ -79,3 +79,19 @@ Wrote detailed design documents for review:
   - Cherry-pick inventory: what to reuse vs what to skip from feature branch
 
 Read full feature branch source: base-adapter.js, entity-processor.js, dependency-processor.js, adapter.js, connection.js, scripts.js — informed the design but interfaces were refined.
+
+### Stage 0: Compatibility Test Suite — COMPLETE
+
+Wrote 136 compatibility tests across 4 files in `spec/compat/`:
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `spec/compat/design.spec.js` | 37 | Design class: init, config loading, entity discovery, dependency order, validation, combine, dbml, dry-run, bad-example errors |
+| `spec/compat/references.spec.js` | 29 | Reference extraction: extractReferences, extractTableReferences, extractTriggerReferences, searchPaths, CTE aliases, parseEntityScript, matchReferences, lookup tree, DDL cleanup |
+| `spec/compat/entity.spec.js` | 42 | Entity transforms: entityFromFile (all patterns), entityFrom*Config factories, ddlFromEntity (all types), validateEntityFile, importScriptForEntity, exportScriptForEntity, entitiesForDBML filtering |
+| `spec/compat/config.spec.js` | 28 | Config loading: scan, read, clean, merge, organize, regroup, fillMissingInfoForEntities, dependency ordering, cycle detection |
+
+Also:
+- Added `test:compat` script to root package.json
+- All 222 tests pass (86 existing + 136 compat)
+- Prettier clean on all new files
