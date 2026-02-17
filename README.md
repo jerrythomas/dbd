@@ -3,17 +3,40 @@
 [![Maintainability](https://api.codeclimate.com/v1/badges/55861d839f6d2c7f0c5e/maintainability)](https://codeclimate.com/github/jerrythomas/dbd/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/55861d839f6d2c7f0c5e/test_coverage)](https://codeclimate.com/github/jerrythomas/dbd/test_coverage)
 
-This is a simple CLI to apply DDL scripts for individual objects for developers who are more comfortable writing SQL scripts.
+A CLI tool for managing SQL database schemas. Apply individual DDL scripts to databases, load staging data, export data, and generate DBML documentation for [dbdocs.io](https://dbdocs.io).
 
 - [x] Apply a set of individual DDL scripts to a database
 - [x] Load staging data with post-process scripts for development/testing
 - [x] Export data from tables & views
 - [x] Generate [dbdocs](https://dbdocs.io) DBML for all (or subset) tables
-- [x] Support for multiple schemas where names are unique across all schemas.
-- [x] Parse files and identify dependencies. (e.g. views depend on tables)
+- [x] Support for multiple schemas where names are unique across all schemas
+- [x] Parse files and identify dependencies (e.g. views depend on tables)
 - [x] Combine all scripts into a single file for deployment
 - [ ] Support for multiple databases (e.g. postgres, mysql, mssql)
-- [ ] Support for multiple schemas with the same names in multiple schemas.
+- [ ] Support for multiple schemas with the same names in multiple schemas
+
+## Architecture
+
+DBD is organized as a monorepo with focused packages:
+
+```
+dbd/
+  packages/
+    parser/    @jerrythomas/dbd-parser   — SQL parsing & schema extraction
+    db/        @jerrythomas/dbd-db       — Database operations abstraction
+    dbml/      @jerrythomas/dbd-dbml     — DBML conversion & documentation
+    cli/       @jerrythomas/dbd-cli      — Command-line interface
+  adapters/
+    postgres/  @jerrythomas/dbd-postgres-adapter — PostgreSQL adapter (psql)
+```
+
+### Dependency Flow
+
+```
+cli -> db -> adapters/postgres
+    -> dbml
+    -> parser
+```
 
 ## [Pre-requisites](docs/pre-requisites.md)
 
@@ -21,28 +44,65 @@ Refer to the pre-requisites document for setting up the dbd cli.
 
 ## Usage
 
-Install the CLI globally using npm (or pnpm/yarn)
+Install the CLI globally using npm (or pnpm/yarn):
 
 ```bash
-npm i --global @jerrythomas/dbd
+npm i --global @jerrythomas/dbd-cli
 ```
 
 ### Folder Structure
 
-Individual ddl scripts are expected to be placed under folders with names of the database object types. Subfolders are used to specify the schema names. Files are expected to have the same name as the object.
+Individual DDL scripts are expected to be placed under folders with names of the database object types. Subfolders are used to specify the schema names. Files are expected to have the same name as the object.
 
 [example](example)
 
-> Node: The cli relies on dependencies mentioned in a yaml file (db.yaml) to execute scripts in a sequence. Refer to example folder.
+> Note: The CLI relies on dependencies mentioned in a YAML file (`design.yaml`) to execute scripts in sequence. Refer to the example folder.
 
 ### Commands
 
 | Command     | Action                         |
 | ----------- | ------------------------------ |
-| dbd init    | create an example repo         |
-| dbd inspect | inspect and report issues      |
-| dbd combine | combine all into single script |
-| dbd apply   | apply the creation scripts     |
-| dbd import  | load seed/staging files        |
-| dbd export  | export tables/views            |
-| dbd dbml    | generate dbml files            |
+| dbd init    | Create an example repo         |
+| dbd inspect | Inspect and report issues      |
+| dbd combine | Combine all into single script |
+| dbd apply   | Apply the creation scripts     |
+| dbd import  | Load seed/staging files        |
+| dbd export  | Export tables/views            |
+| dbd dbml    | Generate DBML files            |
+
+## Development
+
+```bash
+# Install dependencies
+bun install
+
+# Run all unit tests
+bun test:unit
+
+# Run workspace package tests
+bun test:workspaces
+
+# Run specific package tests
+bun test:parser
+bun test:cli
+bun test:db
+bun test:dbml
+bun test:postgres
+
+# Run compatibility tests
+bun test:compat
+
+# Format and lint
+bun run format
+bun run lint
+```
+
+## Packages
+
+| Package                                                | Description                                                            |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [@jerrythomas/dbd-parser](packages/parser)             | SQL parsing with AST-based extraction and regex fallback               |
+| [@jerrythomas/dbd-db](packages/db)                     | Database adapter abstraction, entity processing, dependency resolution |
+| [@jerrythomas/dbd-dbml](packages/dbml)                 | DBML conversion via @dbml/core with schema qualification               |
+| [@jerrythomas/dbd-cli](packages/cli)                   | CLI commands, configuration loading, Design class orchestration        |
+| [@jerrythomas/dbd-postgres-adapter](adapters/postgres) | PostgreSQL adapter using psql CLI with plugin registration             |

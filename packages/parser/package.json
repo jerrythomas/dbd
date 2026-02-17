@@ -1,6 +1,6 @@
 {
   "name": "@jerrythomas/dbd-parser",
-  "version": "2.0.0-alpha.0",
+  "version": "2.0.0",
   "description": "Parse and derive metadata from sql files",
   "private": false,
   "bin": "src/index.js",

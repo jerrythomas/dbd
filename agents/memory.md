@@ -16,16 +16,17 @@ This file is read at the start of every session.
 
 ## Architecture
 
-| Component | Purpose |
-|-----------|---------|
-| `packages/parser` | SQL parsing and schema extraction (functional, AST-based) |
-| `packages/cli` | Command-line interface and orchestration |
-| `packages/dbml` | DBML conversion and dbdocs.io publishing |
-| `packages/db` | Database operations abstraction |
-| `adapters/postgres` | PostgreSQL-specific adapter |
-| `src/` | Legacy monolithic source (being refactored into packages) |
+| Component           | Purpose                                                   |
+| ------------------- | --------------------------------------------------------- |
+| `packages/parser`   | SQL parsing and schema extraction (functional, AST-based) |
+| `packages/cli`      | Command-line interface and orchestration                  |
+| `packages/dbml`     | DBML conversion and dbdocs.io publishing                  |
+| `packages/db`       | Database operations abstraction                           |
+| `adapters/postgres` | PostgreSQL-specific adapter                               |
+| `src/`              | Legacy monolithic source (being refactored into packages) |
 
 ### Dependency Flow
+
 ```
 cli -> db -> adapters/postgres
     -> dbml -> parser
@@ -33,6 +34,7 @@ cli -> db -> adapters/postgres
 ```
 
 ### Package Naming
+
 - Core packages: `@jerrythomas/dbd-{name}` (parser, dbml, db)
 - CLI: `@jerrythomas/dbd-cli` (publishes `dbd` binary)
 - Adapters: `@jerrythomas/dbd-{database}-adapter` in `adapters/{database}/`
@@ -40,21 +42,21 @@ cli -> db -> adapters/postgres
 
 ## Key Decisions
 
-| Decision | Rationale | Date |
-|----------|-----------|------|
-| Functional programming approach | Pure functions, composition over inheritance, predictable behavior | Pre-existing |
-| node-sql-parser for AST | Replaced brittle regex parsing with proper AST | Pre-existing |
-| Workspace refactoring | Monolith -> packages for maintainability | Pre-existing |
-| Vitest for testing | Fast, ES module native, good DX | Pre-existing |
-| Ramda for FP utilities | Consistent functional toolkit | Pre-existing |
-| Coexistence strategy | Old `src/` untouched until switchover; new code alongside, not on top | 2026-02-17 |
-| Dual binary during migration | `dbd` (old) + `dbd-cli` (new) for side-by-side testing | 2026-02-17 |
-| No legacy shim | At switchover: delete `src/` entirely, rename `dbd-cli` to `dbd` | 2026-02-17 |
-| Root becomes workspace-only | Root `package.json` private, no bin — only for workspace mgmt | 2026-02-17 |
-| PsqlAdapter as default plugin | Keep existing psql shelling as default adapter; plugin system for alternatives | 2026-02-17 |
-| registerAdapter() plugin API | Custom adapters registered via `registerAdapter(type, loader)` | 2026-02-17 |
-| Package naming: `@jerrythomas/dbd-*` | No access to `@dbd` npm scope; keep existing `@jerrythomas/dbd-{name}` | 2026-02-17 |
-| Cherry-pick from feature branch | Reuse adapter interface, entity-processor, e2e setup; don't merge branch | 2026-02-17 |
+| Decision                             | Rationale                                                                      | Date         |
+| ------------------------------------ | ------------------------------------------------------------------------------ | ------------ |
+| Functional programming approach      | Pure functions, composition over inheritance, predictable behavior             | Pre-existing |
+| node-sql-parser for AST              | Replaced brittle regex parsing with proper AST                                 | Pre-existing |
+| Workspace refactoring                | Monolith -> packages for maintainability                                       | Pre-existing |
+| Vitest for testing                   | Fast, ES module native, good DX                                                | Pre-existing |
+| Ramda for FP utilities               | Consistent functional toolkit                                                  | Pre-existing |
+| Coexistence strategy                 | Old `src/` untouched until switchover; new code alongside, not on top          | 2026-02-17   |
+| Dual binary during migration         | `dbd` (old) + `dbd-cli` (new) for side-by-side testing                         | 2026-02-17   |
+| No legacy shim                       | At switchover: delete `src/` entirely, rename `dbd-cli` to `dbd`               | 2026-02-17   |
+| Root becomes workspace-only          | Root `package.json` private, no bin — only for workspace mgmt                  | 2026-02-17   |
+| PsqlAdapter as default plugin        | Keep existing psql shelling as default adapter; plugin system for alternatives | 2026-02-17   |
+| registerAdapter() plugin API         | Custom adapters registered via `registerAdapter(type, loader)`                 | 2026-02-17   |
+| Package naming: `@jerrythomas/dbd-*` | No access to `@dbd` npm scope; keep existing `@jerrythomas/dbd-{name}`         | 2026-02-17   |
+| Cherry-pick from feature branch      | Reuse adapter interface, entity-processor, e2e setup; don't merge branch       | 2026-02-17   |
 
 ## Technical Notes
 
@@ -76,17 +78,28 @@ cli -> db -> adapters/postgres
 
 ## Current Status
 
-- **v2.0.0 migration:** Stages 0-3 complete; next: Stage 4 (Extract CLI Package)
-- Parser package: Complete with full test coverage
-- Legacy `src/` active — untouched until Stage 5 switchover
-- Design docs complete: `docs/design/04-v2-architecture.md`, `docs/design/05-v2-migration-stages.md`
-- Plan: `agents/plan.md` has full 7-stage batch plan
+- **v2.0.0 migration: COMPLETE** — all 7 stages (0–6) done
+- All packages at v2.0.0: parser, db, dbml, cli, postgres-adapter
+- Root package: v2.0.0, private (workspace-only)
+- Legacy `src/` retained — compat tests still import from it; can be removed in a future cleanup
+- Test counts: 222 legacy/compat + 99 db + 29 postgres + 45 cli + 22 dbml = 417 total
+
+### Package Summary
+
+| Package             | Tests | Key Modules                                                  |
+| ------------------- | ----- | ------------------------------------------------------------ |
+| `packages/db`       | 99    | base-adapter, entity-processor, dependency-resolver, factory |
+| `packages/cli`      | 45    | config, references, design, index (sade CLI)                 |
+| `packages/dbml`     | 22    | converter (cleanup, conversion, generateDBML)                |
+| `adapters/postgres` | 29    | psql-adapter (wraps execSync psql)                           |
+| `packages/parser`   | 118   | SQL parsing, AST extraction, functional API                  |
 
 ## Key Files for Resuming
 
-| File | What to read |
-|------|-------------|
-| `agents/plan.md` | Current batch plan — Stage 0 is next |
-| `docs/design/04-v2-architecture.md` | Target architecture, interfaces, patterns |
-| `docs/design/05-v2-migration-stages.md` | Detailed steps for each stage |
-| `agents/backlog.md` | Cherry-pick inventory, DB library evaluation, future work |
+| File                                    | What to read                                       |
+| --------------------------------------- | -------------------------------------------------- |
+| `agents/plan.md`                        | Full batch plan — all stages complete              |
+| `agents/journal.md`                     | Chronological progress with commit hashes          |
+| `docs/design/04-v2-architecture.md`     | Target architecture, interfaces, patterns          |
+| `docs/design/05-v2-migration-stages.md` | Detailed steps for each stage                      |
+| `agents/backlog.md`                     | Future work: programmatic DB adapter, src/ removal |
