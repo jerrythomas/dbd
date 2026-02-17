@@ -54,3 +54,28 @@ Created 7-batch migration plan (agents/plan.md):
 - Batch 6: v2.0.0 release prep
 
 Updated backlog with cherry-pick inventory, library evaluation criteria, and future work items.
+
+### v2.0.0 Architecture & Migration Design Docs
+
+Wrote detailed design documents for review:
+
+- `docs/design/04-v2-architecture.md` — target architecture:
+  - Package dependency diagram (cli → parser, db, dbml; db → no deps; adapters → db)
+  - Full API specifications for each package (BaseDatabaseAdapter, entity-processor, dependency-resolver, factory)
+  - Entity object shape (unchanged from v1)
+  - PostgreSQLAdapter with connection.js wrapping chosen DB library
+  - 5 design patterns: Adapter, Entity Pipeline, Structured Error Collection, Dry Run/Verbose, Script Generation as Pure Functions
+  - Target file structure
+  - User-facing breaking changes summary
+
+- `docs/design/05-v2-migration-stages.md` — detailed 7-stage plan:
+  - Stage 0: Compatibility test suite with ~50 tests (example code for each test file)
+  - Stage 1: Monorepo infrastructure (package.json specs for each package)
+  - Stage 2: packages/db with entity-processor and dependency-resolver
+  - Stage 3: adapters/postgres with DB library evaluation criteria
+  - Stage 4: packages/cli extraction (copy-then-move approach)
+  - Stage 5: DBML extraction + src/ cleanup
+  - Stage 6: Release prep with migration guide
+  - Cherry-pick inventory: what to reuse vs what to skip from feature branch
+
+Read full feature branch source: base-adapter.js, entity-processor.js, dependency-processor.js, adapter.js, connection.js, scripts.js — informed the design but interfaces were refined.

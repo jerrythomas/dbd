@@ -40,8 +40,11 @@ Use numbered files: `01-parser.md`, `02-cli.md`, `03-dbml.md`, etc.
 | 01 | [01-parser.md](01-parser.md) | Parser — three-layer pipeline, extractors, error handling | Complete |
 | 02 | [02-cli.md](02-cli.md) | CLI & orchestration — Design class, metadata, entity, execution | Active (legacy) |
 | 03 | [03-configuration.md](03-configuration.md) | Configuration — design.yaml schema, project layout, entity lifecycle | Active |
+| 04 | [04-v2-architecture.md](04-v2-architecture.md) | v2.0.0 target architecture — packages, adapters, interfaces, patterns | Proposed |
+| 05 | [05-v2-migration-stages.md](05-v2-migration-stages.md) | v2.0.0 migration stages — 7 stages with detailed steps | Proposed |
 
 ## Architecture
 
-Reference: `.rules/architecture.md` contains the original architecture documentation.
-The design docs above supersede it with more detailed, code-derived documentation.
+- **Current (v1.3.2):** Monolithic `src/` — see docs 01-03
+- **Target (v2.0.0):** Monorepo with packages/adapters — see docs 04-05
+- **Legacy reference:** `.rules/architecture.md`
