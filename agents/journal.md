@@ -158,6 +158,24 @@ Implemented `packages/db/` with 4 modules and 96 unit tests. Commit `a643b18`.
 
 All 222 existing tests remain green. New code is purely additive — `src/` untouched.
 
+### Fix Console Noise in Parser Tests
+
+Replaced hardcoded `console.warn`/`console.error` calls in `parser-utils.js` (the OOP `SQLParser` class) with `errorHandler.handleParsingError()`. These were bypassing the error handler configured as silent in tests, causing stderr output during test runs. Zero stderr blocks in test output now.
+
+### DB-Backed Reference Validation Cache
+
+Added optional database catalog verification for unresolved references in `dbd inspect`.
+
+**Architecture:**
+- `BaseDatabaseAdapter.resolveEntity(name, searchPaths)` — new method, returns null by default
+- `PsqlAdapter.resolveEntity()` — queries `pg_catalog.pg_class` (tables/views) and `pg_catalog.pg_proc` (functions/procedures)
+- `DbReferenceCache` (`packages/cli/src/db-cache.js`) — in-memory + file cache (`~/.config/dbd/cache/`) keyed by SHA-256 of connection URL
+- `resolveWarnings(entities, dbResolver)` — async function that re-resolves references with warnings against the database
+- `Design.updateEntities()` — updates config entities after async DB resolution
+- CLI `inspect` command: when `-d` option provided, resolves warnings against DB, `--no-cache` flag to bypass cache
+
+**Tests:** `spec/db-cache.spec.js` — 10 tests (cache hit/miss, null caching, resolveWarnings with mock adapter)
+
 ### Classify Unresolved References as Warnings
 
 Changed `findEntityByName()` to return `warning` instead of `error` for unresolved references. Added `matchesKnownExtension()` for extension detection without requiring them to be declared. Updated `matchReferences()` and `report()` to collect and display warnings separately. Added missing extensions (pgmq, pg_cron, dblink, pg_background, hnsw/ivfflat). Updated legacy `src/` code in sync. Commit `7bc837e`.
@@ -167,6 +185,7 @@ Changed `findEntityByName()` to return `warning` instead of `error` for unresolv
 Major migration: replaced regex-based `parseEntityScript()` with AST-based extraction using `extractDependencies()` from `@jerrythomas/dbd-parser`.
 
 **Parser changes (`packages/parser/`):**
+
 - Extended `procedures.js` to handle `CREATE FUNCTION` — different AST shape (`stmt.name.name[0].value`, `stmt.args`, `stmt.options`)
 - Added `extractBodyReferencesFromAst()` for functions with AST-parsed bodies
 - Improved `extractTableReferencesFromBody()` regex fallback: removed bare `INTO` (PL/pgSQL variable assignments), added comment/string stripping, expanded non-table-word filter
@@ -176,6 +195,7 @@ Major migration: replaced regex-based `parseEntityScript()` with AST-based extra
 - Added `extractDependencies()`, `identifyEntity()`, `collectReferences()` to functional API
 
 **CLI changes (`packages/cli/`):**
+
 - `parseEntityScript()` now calls AST-based `parseEntityScriptAST()` first, falls back to `parseEntityScriptRegex()` on failure
 - Marked regex extraction functions as `@deprecated`
 - No changes to `matchReferences()`, `sortByDependencies()`, or `config.js`

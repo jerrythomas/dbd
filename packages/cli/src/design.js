@@ -69,6 +69,22 @@ class Design {
 		return this.#importTables
 	}
 
+	/**
+	 * Update entities after async DB resolution.
+	 * Replaces the config entities and rebuilds the full entity list.
+	 */
+	updateEntities(resolvedEntities) {
+		this.#config.entities = resolvedEntities
+		this.#entities = [
+			...this.#config.schemas.map((schema) => entityFromSchemaName(schema)),
+			...this.#config.extensions.map((item) =>
+				entityFromExtensionConfig(item, this.#config.project.extensionSchema)
+			),
+			...this.#config.roles,
+			...this.#config.entities
+		]
+	}
+
 	organizeImports(importTables) {
 		const tables = this.#config.entities.filter((entity) => entity.type === 'table')
 

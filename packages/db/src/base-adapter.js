@@ -92,6 +92,18 @@ export class BaseDatabaseAdapter {
 		throw new Error('not implemented')
 	}
 
+	/**
+	 * Resolve an entity name against the database catalog.
+	 * Returns the entity's metadata if found, null otherwise.
+	 *
+	 * @param {string} name - Entity name (qualified or unqualified)
+	 * @param {string[]} searchPaths - Schema search paths
+	 * @returns {Promise<{name: string, schema: string, type: string}|null>}
+	 */
+	async resolveEntity(name, searchPaths = ['public']) {
+		return null // Default: not implemented
+	}
+
 	// --- Utility ---
 
 	log(message, level = 'info') {

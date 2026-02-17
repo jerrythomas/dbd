@@ -1,4 +1,5 @@
 import pkg from 'node-sql-parser'
+import errorHandler from './utils/error-handler.js'
 const { Parser } = pkg
 
 /**
@@ -66,8 +67,7 @@ export class SQLParser {
 						results.push(parsed)
 					}
 				} catch (err) {
-					console.warn(`Warning: Could not parse statement: ${stmt.slice(0, 100)}...`)
-					console.warn(`Error: ${err.message}`)
+					errorHandler.handleParsingError(err, stmt, 'statement parsing')
 					// Continue with the next statement rather than failing completely
 				}
 			}
@@ -77,7 +77,7 @@ export class SQLParser {
 
 			return results
 		} catch (err) {
-			console.error(`Error parsing SQL: ${err.message}`)
+			errorHandler.handleParsingError(err, sql, 'SQL parsing')
 			throw err
 		}
 	}
