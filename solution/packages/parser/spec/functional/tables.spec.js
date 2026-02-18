@@ -229,6 +229,83 @@ describe('Table Extractor - Functional API', () => {
 		})
 	})
 
+	describe('extractTableName', () => {
+		it('handles string table name', () => {
+			expect(extractTableName({ table: 'public.users' })).toBe('users')
+		})
+
+		it('handles simple string table name without schema', () => {
+			expect(extractTableName({ table: 'users' })).toBe('users')
+		})
+
+		it('handles object table name', () => {
+			expect(extractTableName({ table: { table: 'orders' } })).toBe('orders')
+		})
+
+		it('returns empty string for missing table', () => {
+			expect(extractTableName({})).toBe('')
+		})
+	})
+
+	describe('extractTableSchema', () => {
+		it('handles string table with schema', () => {
+			expect(extractTableSchema({ table: 'myschema.users' })).toBe('myschema')
+		})
+
+		it('returns null for string table without schema', () => {
+			expect(extractTableSchema({ table: 'users' })).toBeNull()
+		})
+
+		it('handles object table with schema', () => {
+			expect(extractTableSchema({ table: { schema: 'config' } })).toBe('config')
+		})
+
+		it('handles object table with db as schema', () => {
+			expect(extractTableSchema({ table: { db: 'staging' } })).toBe('staging')
+		})
+
+		it('returns null for missing table', () => {
+			expect(extractTableSchema({})).toBeNull()
+		})
+	})
+
+	describe('extractColumnsFromStatement', () => {
+		it('returns empty for no create_definitions', () => {
+			expect(extractColumnsFromStatement({})).toEqual([])
+		})
+
+		it('handles ColumnDef format', () => {
+			const stmt = {
+				create_definitions: [
+					{
+						column: true,
+						ColumnDef: {
+							colname: 'age',
+							definition: { dataType: 'INT' }
+						}
+					}
+				]
+			}
+			const cols = extractColumnsFromStatement(stmt)
+			expect(cols).toHaveLength(1)
+			expect(cols[0].name).toBe('age')
+		})
+
+		it('handles column.column string format', () => {
+			const stmt = {
+				create_definitions: [
+					{
+						column: { column: 'status' },
+						definition: { dataType: 'TEXT' }
+					}
+				]
+			}
+			const cols = extractColumnsFromStatement(stmt)
+			expect(cols).toHaveLength(1)
+			expect(cols[0].name).toBe('status')
+		})
+	})
+
 	describe('Column extraction utilities', () => {
 		it('should extract column data types correctly', () => {
 			const columnDef = {
@@ -305,6 +382,169 @@ describe('Table Extractor - Functional API', () => {
 			expect(fkConstraints[0].type).toBe('FOREIGN KEY')
 			expect(fkConstraints[0].table).toBe('users')
 			expect(fkConstraints[0].column).toBe('id')
+		})
+
+		it('extracts PK from constraints array (CONSTR_PRIMARY)', () => {
+			const col = {
+				constraints: [{ Constraint: { contype: 'CONSTR_PRIMARY' } }]
+			}
+			const result = extractColumnConstraints(col)
+			expect(result).toEqual([{ type: 'PRIMARY KEY' }])
+		})
+
+		it('extracts PK from constraints array (type string)', () => {
+			const col = {
+				constraints: [{ type: 'primary key' }]
+			}
+			const result = extractColumnConstraints(col)
+			expect(result).toEqual([{ type: 'PRIMARY KEY' }])
+		})
+
+		it('extracts FK from constraints array (CONSTR_FOREIGN)', () => {
+			const col = {
+				constraints: [
+					{
+						Constraint: {
+							contype: 'CONSTR_FOREIGN',
+							pktable: { relname: 'orders', schemaname: 'public' },
+							pk_attrs: [{ String: { str: 'order_id' } }]
+						}
+					}
+				]
+			}
+			const result = extractColumnConstraints(col)
+			expect(result).toHaveLength(1)
+			expect(result[0]).toEqual({
+				type: 'FOREIGN KEY',
+				table: 'orders',
+				schema: 'public',
+				column: 'order_id'
+			})
+		})
+
+		it('extracts FK with column string fallback in reference_definition', () => {
+			const col = {
+				reference_definition: {
+					table: [{ table: 'roles' }],
+					definition: [{ column: 'role_id' }]
+				}
+			}
+			const result = extractColumnConstraints(col)
+			expect(result[0].column).toBe('role_id')
+		})
+
+		it('isNullable returns false for CONSTR_NOTNULL constraint', () => {
+			const col = {
+				constraints: [{ Constraint: { contype: 'CONSTR_NOTNULL' } }]
+			}
+			expect(isNullable(col)).toBe(false)
+		})
+
+		it('isNullable returns false for "not null" type constraint', () => {
+			const col = {
+				constraints: [{ type: 'not null' }]
+			}
+			expect(isNullable(col)).toBe(false)
+		})
+
+		it('isNullable returns false for nullable.not', () => {
+			expect(isNullable({ nullable: { not: true } })).toBe(false)
+		})
+
+		it('extractDataType handles typeName with typmods', () => {
+			const col = {
+				typeName: {
+					names: [{ String: { str: 'numeric' } }],
+					typmods: [
+						{ A_Const: { val: { Integer: { ival: 10 } } } },
+						{ A_Const: { val: { Integer: { ival: 2 } } } }
+					]
+				}
+			}
+			expect(extractDataType(col)).toBe('numeric(10, 2)')
+		})
+
+		it('extractDataType returns null for missing definition', () => {
+			expect(extractDataType({})).toBeNull()
+		})
+
+		it('extractDataType handles length as object with value', () => {
+			const col = {
+				definition: { dataType: 'VARCHAR', length: { value: 255 } }
+			}
+			expect(extractDataType(col)).toBe('varchar(255)')
+		})
+
+		it('extractDefaultValue handles direct string default_val', () => {
+			expect(extractDefaultValue({ default_val: 'hello' })).toBe('hello')
+		})
+
+		it('extractDefaultValue returns null for null input', () => {
+			expect(extractDefaultValue(null)).toBeNull()
+		})
+	})
+
+	describe('extractComments edge cases', () => {
+		it('handles string target names for table comments', () => {
+			const ast = [
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'table', name: 'config.lookups' },
+					expr: { value: 'Lookup values' }
+				}
+			]
+			const tables = extractTables(ast)
+			// No tables to match, but extractComments should parse without error
+			expect(tables).toEqual([])
+		})
+
+		it('handles string target names for column comments with schema', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ db: 'hr', table: 'employees' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'name' } } },
+							definition: { dataType: 'TEXT' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'column', name: 'hr.employees.name' },
+					expr: { value: 'Employee full name' }
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].columns[0].comment).toBe('Employee full name')
+		})
+
+		it('handles expr as plain string', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ table: 'items' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'id' } } },
+							definition: { dataType: 'INT' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'table', name: { table: 'items' } },
+					expr: 'A simple items table'
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].comments.table).toBe('A simple items table')
 		})
 	})
 })

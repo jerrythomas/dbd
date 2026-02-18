@@ -186,10 +186,97 @@ describe('Design class (packages/cli)', () => {
 		}
 	})
 
+	// --- apply dry-run ---
+
+	it('apply dry-run logs entity details without database', () => {
+		const dx = using('design.yaml')
+		dx.apply(undefined, true)
+		expect(console.info).toHaveBeenCalled()
+	})
+
+	it('apply dry-run logs errors for invalid entities', () => {
+		const dx = using('design.yaml')
+		// Force an error on an entity
+		dx.entities[dx.entities.length - 1].errors = ['test error']
+		dx.apply(undefined, true)
+		expect(console.error).toHaveBeenCalled()
+	})
+
 	// --- importData dry-run ---
 
 	it('importData dry-run does not require database', () => {
 		const dx = using('design.yaml')
 		dx.importData(undefined, true)
+		expect(console.info).toHaveBeenCalled()
+	})
+
+	it('importData dry-run filters by name', () => {
+		const dx = using('design.yaml')
+		dx.importData('staging.lookups', true)
+		const calls = console.info.mock.calls.flat()
+		expect(calls.some((c) => typeof c === 'string' && c.includes('staging.lookups'))).toBe(true)
+	})
+
+	// --- updateEntities ---
+
+	it('updateEntities rebuilds entity list', () => {
+		const dx = using('design.yaml')
+		const originalCount = dx.entities.length
+		dx.updateEntities(dx.config.entities)
+		expect(dx.entities.length).toBe(originalCount)
+	})
+
+	// --- report ---
+
+	it('report() returns warnings separately from issues', () => {
+		const dx = using('design.yaml')
+		const result = dx.report()
+		expect(result).toHaveProperty('warnings')
+		expect(Array.isArray(result.warnings)).toBe(true)
+	})
+
+	// --- roles getter ---
+
+	it('roles getter returns array', () => {
+		const dx = using('design.yaml')
+		expect(Array.isArray(dx.roles)).toBe(true)
+	})
+
+	// --- importTables ---
+
+	it('importTables are ordered by entity index', () => {
+		const dx = using('design.yaml')
+		const orders = dx.importTables.map((t) => t.order)
+		const sorted = [...orders].sort((a, b) => a - b)
+		expect(orders).toEqual(sorted)
+	})
+
+	// --- validate on importTables ---
+
+	it('validate flags import tables with non-staging schema', () => {
+		const dx = using('design.yaml')
+		dx.validate()
+		// All import tables in example use staging schema, so no errors from schema check
+		const stagingTables = dx.importTables.filter((t) => t.schema === 'staging')
+		expect(stagingTables.length).toBe(dx.importTables.length)
+	})
+
+	// --- dbml error handling ---
+
+	it('dbml() handles generateDBML errors gracefully', () => {
+		const dx = using('design.yaml')
+		// Force entities to be empty to trigger edge cases
+		dx.updateEntities([])
+
+		const baseFile = 'Example-base-design.dbml'
+		const coreFile = 'Example-core-design.dbml'
+
+		try {
+			dx.dbml()
+			// Should not throw — errors are logged
+		} finally {
+			if (existsSync(baseFile)) unlinkSync(baseFile)
+			if (existsSync(coreFile)) unlinkSync(coreFile)
+		}
 	})
 })

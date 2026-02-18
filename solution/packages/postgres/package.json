@@ -19,7 +19,8 @@
   "author": "Jerry Thomas <me@jerrythomas.name>",
   "license": "MIT",
   "dependencies": {
-    "@jerrythomas/dbd-db": "workspace:*"
+    "@jerrythomas/dbd-db": "workspace:*",
+    "csvtojson": "^2.0.10"
   },
   "devDependencies": {},
   "publishConfig": {

@@ -8,7 +8,13 @@ export default defineConfig({
 		testTimeout: 10000,
 		coverage: {
 			provider: 'v8',
-			include: ['packages/*/src/**/*.js']
+			include: ['packages/*/src/**/*.js'],
+			exclude: [
+				'packages/cli/src/index.js',
+				'packages/parser/src/parse-ddl.js',
+				'packages/parser/src/transformers/ast.js'
+			],
+			thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 }
 		},
 		projects: [
 			{

@@ -234,6 +234,90 @@ describe('PsqlAdapter', () => {
 		})
 	})
 
+	describe('resolveEntity()', () => {
+		it('resolves a qualified table name via pg_class', async () => {
+			execSync.mockReturnValueOnce('users|public|r')
+			const result = await adapter.resolveEntity('public.users')
+			expect(result).toEqual({ name: 'public.users', schema: 'public', type: 'table' })
+		})
+
+		it('resolves a qualified view name via pg_class', async () => {
+			execSync.mockReturnValueOnce('active_users|reporting|v')
+			const result = await adapter.resolveEntity('reporting.active_users')
+			expect(result).toEqual({ name: 'reporting.active_users', schema: 'reporting', type: 'view' })
+		})
+
+		it('resolves a materialized view via pg_class', async () => {
+			execSync.mockReturnValueOnce('summary|analytics|m')
+			const result = await adapter.resolveEntity('analytics.summary')
+			expect(result).toEqual({ name: 'analytics.summary', schema: 'analytics', type: 'view' })
+		})
+
+		it('falls back to pg_proc when pg_class finds nothing', async () => {
+			// First call (pg_class) returns empty, second call (pg_proc) returns function
+			execSync.mockReturnValueOnce('').mockReturnValueOnce('do_stuff|public|f')
+			const result = await adapter.resolveEntity('public.do_stuff')
+			expect(result).toEqual({ name: 'public.do_stuff', schema: 'public', type: 'function' })
+		})
+
+		it('resolves procedure via pg_proc', async () => {
+			execSync.mockReturnValueOnce('').mockReturnValueOnce('run_job|batch|p')
+			const result = await adapter.resolveEntity('batch.run_job')
+			expect(result).toEqual({ name: 'batch.run_job', schema: 'batch', type: 'procedure' })
+		})
+
+		it('returns null when entity not found in any catalog', async () => {
+			execSync.mockReturnValue('')
+			const result = await adapter.resolveEntity('public.nonexistent')
+			expect(result).toBeNull()
+		})
+
+		it('uses searchPaths for unqualified names', async () => {
+			execSync.mockReturnValueOnce('items|staging|r')
+			const result = await adapter.resolveEntity('items', ['staging', 'public'])
+			expect(result).toEqual({ name: 'staging.items', schema: 'staging', type: 'table' })
+		})
+
+		it('tries multiple searchPaths until found', async () => {
+			// First schema (staging) — pg_class empty, pg_proc empty
+			execSync
+				.mockReturnValueOnce('')
+				.mockReturnValueOnce('')
+				// Second schema (public) — pg_class returns table
+				.mockReturnValueOnce('items|public|r')
+			const result = await adapter.resolveEntity('items', ['staging', 'public'])
+			expect(result).toEqual({ name: 'public.items', schema: 'public', type: 'table' })
+		})
+
+		it('handles pg_class query failure gracefully', async () => {
+			execSync
+				.mockImplementationOnce(() => {
+					throw new Error('connection refused')
+				})
+				.mockReturnValueOnce('do_stuff|public|f')
+			const result = await adapter.resolveEntity('public.do_stuff')
+			expect(result).toEqual({ name: 'public.do_stuff', schema: 'public', type: 'function' })
+		})
+
+		it('handles both queries failing gracefully', async () => {
+			execSync.mockImplementation(() => {
+				throw new Error('connection refused')
+			})
+			const result = await adapter.resolveEntity('public.anything')
+			expect(result).toBeNull()
+		})
+
+		it('defaults searchPaths to public', async () => {
+			execSync.mockReturnValueOnce('users|public|r')
+			const result = await adapter.resolveEntity('users')
+			expect(result).toEqual({ name: 'public.users', schema: 'public', type: 'table' })
+			expect(execSync).toHaveBeenCalledWith(
+				expect.stringContaining("nspname = 'public'"),
+				expect.any(Object)
+			)
+		})
+	})
+
 	describe('batch operations (inherited)', () => {
 		it('applyEntities calls applyEntity for each', async () => {
 			const entities = [

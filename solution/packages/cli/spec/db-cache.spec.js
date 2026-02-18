@@ -1,6 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { DbReferenceCache } from '../src/db-cache.js'
 import { resolveWarnings, matchReferences } from '../src/references.js'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
+
+vi.mock('fs', async () => {
+	const actual = await vi.importActual('fs')
+	return {
+		...actual,
+		existsSync: vi.fn(() => false),
+		readFileSync: vi.fn(),
+		writeFileSync: vi.fn(),
+		mkdirSync: vi.fn()
+	}
+})
 
 // Mock adapter that simulates database catalog queries
 function mockAdapter(knownEntities = {}) {
@@ -20,6 +32,11 @@ function mockAdapter(knownEntities = {}) {
 }
 
 describe('DbReferenceCache', () => {
+	beforeEach(() => {
+		vi.resetAllMocks()
+		existsSync.mockReturnValue(false)
+	})
+
 	it('resolves entity from adapter on cache miss', async () => {
 		const adapter = mockAdapter({
 			'public.uuid_generate_v4': {
@@ -89,6 +106,74 @@ describe('DbReferenceCache', () => {
 
 		cache.clear()
 		expect(cache.size).toBe(0)
+	})
+
+	describe('load()', () => {
+		it('loads entities from cache file', () => {
+			existsSync.mockReturnValue(true)
+			readFileSync.mockReturnValue(
+				JSON.stringify({
+					entities: {
+						'public.users': { name: 'public.users', schema: 'public', type: 'table' }
+					}
+				})
+			)
+
+			const cache = new DbReferenceCache(mockAdapter(), 'postgres://localhost/test')
+			cache.load()
+			expect(cache.size).toBe(1)
+		})
+
+		it('handles missing cache file gracefully', () => {
+			existsSync.mockReturnValue(false)
+
+			const cache = new DbReferenceCache(mockAdapter(), 'postgres://localhost/test')
+			cache.load()
+			expect(cache.size).toBe(0)
+		})
+
+		it('handles corrupt cache file gracefully', () => {
+			existsSync.mockReturnValue(true)
+			readFileSync.mockReturnValue('not json')
+
+			const cache = new DbReferenceCache(mockAdapter(), 'postgres://localhost/test')
+			cache.load()
+			expect(cache.size).toBe(0)
+		})
+	})
+
+	describe('save()', () => {
+		it('writes cache to disk after resolve', async () => {
+			const cache = new DbReferenceCache(
+				mockAdapter({ 'public.a': { name: 'public.a', schema: 'public', type: 'table' } }),
+				'postgres://localhost/test'
+			)
+			await cache.resolve('a', ['public'])
+			cache.save()
+
+			expect(mkdirSync).toHaveBeenCalled()
+			expect(writeFileSync).toHaveBeenCalled()
+		})
+
+		it('skips write when cache is not dirty', () => {
+			const cache = new DbReferenceCache(mockAdapter(), 'postgres://localhost/test')
+			cache.save()
+			expect(writeFileSync).not.toHaveBeenCalled()
+		})
+
+		it('handles write errors gracefully', async () => {
+			writeFileSync.mockImplementation(() => {
+				throw new Error('Permission denied')
+			})
+
+			const cache = new DbReferenceCache(
+				mockAdapter({ 'public.a': { name: 'public.a', schema: 'public', type: 'table' } }),
+				'postgres://localhost/test'
+			)
+			await cache.resolve('a', ['public'])
+			// Should not throw
+			expect(() => cache.save()).not.toThrow()
+		})
 	})
 })
 
