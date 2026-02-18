@@ -145,6 +145,24 @@ $$ LANGUAGE plpgsql;`
 			expect(result.type).toBe('function')
 			expect(result.searchPaths).toContain('staging')
 		})
+
+		it('should fall back to regex when AST returns no entity identity', () => {
+			// An INSERT statement — AST parses but identifyEntity returns null
+			const sql = `set search_path to staging;
+INSERT INTO staging.data (id) VALUES (1);`
+			const file = writeTmpFile('no_entity.sql', sql)
+			const entity = {
+				file,
+				schema: 'staging',
+				type: 'function',
+				name: 'staging.no_entity'
+			}
+
+			const result = adapter.parseEntityScript(entity)
+			// Regex fallback returns the entity enriched with whatever it can extract
+			expect(result).toBeDefined()
+			expect(result.file).toBe(file)
+		})
 	})
 
 	describe('classifyReference', () => {

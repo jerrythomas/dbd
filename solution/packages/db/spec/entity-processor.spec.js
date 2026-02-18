@@ -324,6 +324,40 @@ describe('entity-processor', () => {
 				expect(validateEntity(input.entity, input.ddl)).toEqual(output)
 			})
 		}
+
+		it('reports error when entity name is null', () => {
+			const entity = { type: null, name: null, file: 'ddl/bad.ddl' }
+			const result = validateEntity(entity, false)
+			expect(result.errors).toContain('Location of the file is incorrect')
+		})
+
+		it('collects errors from references with error property', () => {
+			const entity = {
+				type: 'table',
+				name: 'public.users',
+				file: join(fixtureDir, 'ddl', 'test', 'test.ddl'),
+				references: [{ name: 'bad_ref', error: 'Parse error in bad_ref' }, { name: 'ok_ref' }]
+			}
+			process.chdir(fixtureDir)
+			const result = validateEntity(entity)
+			expect(result.errors).toContain('Parse error in bad_ref')
+		})
+
+		it('skips ignored references when collecting errors', () => {
+			const entity = {
+				type: 'table',
+				name: 'public.test',
+				file: join(fixtureDir, 'ddl', 'test', 'test.ddl'),
+				references: [
+					{ name: 'bad_ref', error: 'Parse error in bad_ref' },
+					{ name: 'ignored_ref', error: 'Should be ignored' }
+				]
+			}
+			process.chdir(fixtureDir)
+			const result = validateEntity(entity, true, ['ignored_ref'])
+			expect(result.errors).toContain('Parse error in bad_ref')
+			expect(result.errors).not.toContain('Should be ignored')
+		})
 	})
 
 	describe('getValidEntities()', () => {
@@ -360,6 +394,14 @@ describe('entity-processor', () => {
 
 		it('handles empty input', () => {
 			expect(organizeEntities([])).toEqual({})
+		})
+
+		it('uses unknown for entities without type', () => {
+			const entities = [{ name: 'a' }, { type: 'table', name: 'b' }]
+			const groups = organizeEntities(entities)
+			expect(groups.unknown.length).toBe(1)
+			expect(groups.unknown[0].name).toBe('a')
+			expect(groups.table.length).toBe(1)
 		})
 	})
 })

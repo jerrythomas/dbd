@@ -129,6 +129,17 @@ describe('references (dialect-agnostic)', () => {
 			)
 			expect(result.warning).toContain('not found')
 		})
+
+		it('classifies qualified name whose unqualified part is a builtin', () => {
+			const result = findEntityByName(
+				{ name: 'schema.count', type: 'function' },
+				['public'],
+				lookup,
+				mockClassifier
+			)
+			expect(result.type).toBe('internal')
+			expect(result.name).toBe('schema.count')
+		})
 	})
 
 	describe('matchReferences()', () => {
@@ -211,6 +222,31 @@ describe('references (dialect-agnostic)', () => {
 			expect(result[0].warnings).toEqual([])
 			expect(result[0].references[0].name).toBe('other.foo')
 			expect(result[0].references[0]).not.toHaveProperty('warning')
+			expect(result[0].refers).toContain('other.foo')
+		})
+
+		it('preserves non-warning references alongside resolved ones', async () => {
+			const entities = [
+				{
+					name: 'public.a',
+					warnings: ['Reference missing not found'],
+					searchPaths: ['public'],
+					references: [
+						{ name: 'public.b', type: 'table', schema: 'public' },
+						{ name: 'missing', type: 'table', warning: 'Reference missing not found' }
+					]
+				}
+			]
+			const mockResolver = {
+				resolve: async (name) => {
+					if (name === 'missing') return { name: 'public.missing', schema: 'public', type: 'table' }
+					return null
+				}
+			}
+			const result = await resolveWarnings(entities, mockResolver)
+			expect(result[0].warnings).toEqual([])
+			expect(result[0].refers).toContain('public.b')
+			expect(result[0].refers).toContain('public.missing')
 		})
 
 		it('keeps warnings when db resolution fails', async () => {

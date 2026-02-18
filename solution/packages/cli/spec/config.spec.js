@@ -6,7 +6,15 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { scan, read, fillMissingInfoForEntities, merge } from '../src/config.js'
+import { writeFileSync, unlinkSync } from 'fs'
+import {
+	scan,
+	read,
+	fillMissingInfoForEntities,
+	merge,
+	clean,
+	cleanDDLEntities
+} from '../src/config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..', '..', '..')
@@ -57,6 +65,21 @@ describe('config', () => {
 				data.tables.length + data.views.length + data.functions.length + data.procedures.length
 			)
 		})
+
+		it('defaults schemas to empty array when not in config', () => {
+			const tmpFile = join(exampleDir, '_test_no_schemas.yaml')
+			writeFileSync(
+				tmpFile,
+				'project:\n  name: Test\n  database: PostgreSQL\nimport:\n  options: {}\n'
+			)
+			try {
+				process.chdir(exampleDir)
+				const data = read('_test_no_schemas.yaml')
+				expect(data.schemas).toEqual([])
+			} finally {
+				unlinkSync(tmpFile)
+			}
+		})
 	})
 
 	describe('fillMissingInfoForEntities()', () => {
@@ -94,6 +117,126 @@ describe('config', () => {
 			expect(result.length).toBe(2)
 			expect(result.find((r) => r.name === 'a').value).toBe(1)
 			expect(result.find((r) => r.name === 'b').value).toBe(2)
+		})
+
+		it('merges x properties into matching y entries', () => {
+			const x = [{ name: 'a', x: 1, shared: 'from_x' }]
+			const y = [{ name: 'a', y: 2, shared: 'from_y' }]
+			const result = merge(x, y)
+			expect(result).toEqual([{ name: 'a', x: 1, y: 2, shared: 'from_y' }])
+		})
+	})
+
+	describe('clean()', () => {
+		it('processes DDL entities with extensions from config', () => {
+			process.chdir(exampleDir)
+			const data = read('design.yaml')
+			const parseEntity = (entity) => ({
+				...entity,
+				searchPaths: ['public'],
+				references: [],
+				errors: []
+			})
+			const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+
+			const result = clean(data, parseEntity, matchRefs)
+			expect(result.schemas.length).toBeGreaterThan(0)
+			expect(result.entities.length).toBeGreaterThan(0)
+			expect(Array.isArray(result.importTables)).toBe(true)
+			expect(Array.isArray(result.roles)).toBe(true)
+		})
+
+		it('processes import tables when present in config', () => {
+			process.chdir(exampleDir)
+			const data = read('design.yaml')
+			const parseEntity = (entity) => ({
+				...entity,
+				searchPaths: ['public'],
+				references: [],
+				errors: []
+			})
+			const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+
+			const result = clean(data, parseEntity, matchRefs)
+			// example config has import.tables with staging.lookup_values
+			expect(result.importTables.length).toBeGreaterThan(0)
+		})
+
+		it('handles config without import tables', () => {
+			process.chdir(exampleDir)
+			const data = read('design.yaml')
+			// Remove import.tables to hit the nullish coalescing fallback
+			delete data.import.tables
+			const parseEntity = (entity) => ({
+				...entity,
+				searchPaths: ['public'],
+				references: [],
+				errors: []
+			})
+			const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+
+			const result = clean(data, parseEntity, matchRefs)
+			expect(Array.isArray(result.importTables)).toBe(true)
+		})
+
+		it('handles config without schemas', () => {
+			process.chdir(exampleDir)
+			const data = read('design.yaml')
+			delete data.schemas
+			data.schemas = undefined
+
+			const parseEntity = (entity) => ({
+				...entity,
+				searchPaths: ['public'],
+				references: [],
+				errors: []
+			})
+			const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+
+			// clean derives schemas from entity names
+			const result = clean({ ...data, schemas: [] }, parseEntity, matchRefs)
+			expect(Array.isArray(result.schemas)).toBe(true)
+		})
+	})
+
+	describe('cleanDDLEntities()', () => {
+		it('scans ddl folder with extensions', () => {
+			process.chdir(exampleDir)
+			const data = {
+				extensions: ['uuid-ossp'],
+				entities: []
+			}
+			const parseEntity = (entity) => ({
+				...entity,
+				searchPaths: ['public'],
+				references: [],
+				errors: []
+			})
+			const matchRefs = (entities, exts) => {
+				expect(exts).toEqual(['uuid-ossp'])
+				return entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+			}
+
+			const result = cleanDDLEntities(data, parseEntity, matchRefs)
+			expect(result.length).toBeGreaterThan(0)
+		})
+
+		it('handles missing extensions (nullish)', () => {
+			process.chdir(exampleDir)
+			const data = { entities: [] }
+			const parseEntity = (entity) => ({
+				...entity,
+				searchPaths: ['public'],
+				references: [],
+				errors: []
+			})
+			const matchRefs = (entities, exts) => {
+				expect(exts).toEqual([])
+				return entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+			}
+
+			const result = cleanDDLEntities(data, parseEntity, matchRefs)
+			expect(result.length).toBeGreaterThan(0)
 		})
 	})
 })

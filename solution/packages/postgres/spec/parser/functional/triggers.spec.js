@@ -91,5 +91,17 @@ describe('Trigger Extraction', () => {
 			expect(extractTriggers(null, null)).toEqual([])
 			expect(extractTriggers([], '')).toEqual([])
 		})
+
+		it('uses null searchPath when ast is not an array', () => {
+			const sql = `
+				CREATE TRIGGER my_trigger
+				  BEFORE INSERT ON users
+				  FOR EACH ROW EXECUTE FUNCTION validate_user();
+			`
+			const result = extractTriggers('not-an-array', sql)
+			expect(result).toHaveLength(1)
+			expect(result[0].name).toBe('my_trigger')
+			expect(result[0].tableSchema).toBeNull()
+		})
 	})
 })

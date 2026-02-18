@@ -523,6 +523,169 @@ describe('Table Extractor - Functional API', () => {
 			expect(tables[0].columns[0].comment).toBe('Employee full name')
 		})
 
+		it('handles object-structured table comment name with schema', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ db: 'config', table: 'lookups' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'id' } } },
+							definition: { dataType: 'INT' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'table', name: { table: 'lookups', schema: 'config' } },
+					expr: { value: 'Lookup definitions' }
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].comments.table).toBe('Lookup definitions')
+		})
+
+		it('handles object-structured column comment name with schema', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ db: 'hr', table: 'employees' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'name' } } },
+							definition: { dataType: 'TEXT' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: {
+						type: 'column',
+						name: { table: 'employees', schema: 'hr', column: { expr: { value: 'name' } } }
+					},
+					expr: { value: 'Employee full name (object)' }
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].columns[0].comment).toBe('Employee full name (object)')
+		})
+
+		it('handles column comment with string column name (not expr object)', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ table: 'items' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'status' } } },
+							definition: { dataType: 'TEXT' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: {
+						type: 'column',
+						name: { table: 'items', column: 'status' }
+					},
+					expr: { value: 'Item status' }
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].columns[0].comment).toBe('Item status')
+		})
+
+		it('handles column comment with two-part string name (table.column)', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ table: 'orders' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'total' } } },
+							definition: { dataType: 'NUMERIC' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'column', name: 'orders.total' },
+					expr: { value: 'Order total amount' }
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].columns[0].comment).toBe('Order total amount')
+		})
+
+		it('handles column comment with plain string expr', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ table: 'items' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'code' } } },
+							definition: { dataType: 'TEXT' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'column', name: 'items.code' },
+					expr: 'Item code identifier'
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].columns[0].comment).toBe('Item code identifier')
+		})
+
+		it('handles column comment with single-part string name', () => {
+			const ast = [
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'column', name: 'justcolumn' },
+					expr: { value: 'Orphan column comment' }
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables).toEqual([])
+		})
+
+		it('handles table comment with db property instead of schema', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ db: 'myschema', table: 'mytable' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'id' } } },
+							definition: { dataType: 'INT' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'table', name: { table: 'mytable', db: 'myschema' } },
+					expr: { expr: { value: 'Table with db qualifier' } }
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].comments.table).toBe('Table with db qualifier')
+		})
+
 		it('handles expr as plain string', () => {
 			const ast = [
 				{

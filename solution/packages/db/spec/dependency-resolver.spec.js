@@ -90,6 +90,17 @@ describe('dependency-resolver', () => {
 			expect(result.warnings).toEqual(['Missing dependency: b'])
 		})
 
+		it('returns no warnings when all dependencies exist', () => {
+			const entities = [
+				{ name: 'a', refers: [] },
+				{ name: 'b', refers: ['a'] }
+			]
+			const result = validateDependencies(entities)
+			expect(result.isValid).toBe(true)
+			expect(result.warnings).toEqual([])
+			expect(result.cycles).toEqual([])
+		})
+
 		it('reports cycles', () => {
 			const entities = [
 				{ name: 'a', refers: ['b'] },
@@ -137,6 +148,15 @@ describe('dependency-resolver', () => {
 				{ name: 'b', refers: ['a'] }
 			]
 			const sorted = sortByDependencies(entities)
+			expect(sorted.every((e) => e.errors.length === 0)).toBe(true)
+		})
+
+		it('handles entities with undefined refers', () => {
+			const entities = [{ name: 'a' }, { name: 'b' }]
+			const sorted = sortByDependencies(entities)
+			const names = sorted.map((e) => e.name)
+			expect(names).toContain('a')
+			expect(names).toContain('b')
 			expect(sorted.every((e) => e.errors.length === 0)).toBe(true)
 		})
 

@@ -156,6 +156,13 @@ describe('scripts', () => {
 			const result = exportScriptForEntity(entity)
 			expect(result).toContain("delimiter E'\\t'")
 		})
+
+		it('defaults format to csv when not specified', () => {
+			const entity = { name: 'config.lookups' }
+			const result = exportScriptForEntity(entity)
+			expect(result).toContain('.csv')
+			expect(result).toContain('select * from config.lookups')
+		})
 	})
 
 	describe('dataFromEntity', () => {
@@ -163,6 +170,22 @@ describe('scripts', () => {
 			readFileSync.mockReturnValue('[{"id":1},{"id":2}]')
 			const result = await dataFromEntity({ file: 'data.json' })
 			expect(result).toEqual([{ id: 1 }, { id: 2 }])
+		})
+
+		it('reads CSV files', async () => {
+			const { writeFileSync: realWriteFileSync, unlinkSync: realUnlinkSync } =
+				await vi.importActual('fs')
+			const tmpFile = '/tmp/dbd-test-data.csv'
+			realWriteFileSync(tmpFile, 'id,name\n1,Alice\n2,Bob\n')
+			try {
+				const result = await dataFromEntity({ file: tmpFile })
+				expect(result).toEqual([
+					{ id: '1', name: 'Alice' },
+					{ id: '2', name: 'Bob' }
+				])
+			} finally {
+				realUnlinkSync(tmpFile)
+			}
 		})
 
 		it('returns empty array for unsupported format', async () => {

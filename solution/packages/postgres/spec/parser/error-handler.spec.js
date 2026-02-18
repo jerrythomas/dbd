@@ -69,6 +69,36 @@ describe('Error Handler', () => {
 			expect(errorHandler.getErrors()).toHaveLength(0)
 		})
 
+		it('should truncate long statements in preview', () => {
+			const longSQL = 'SELECT ' + 'x'.repeat(200)
+			errorHandler.handleParsingError('Error', longSQL)
+			const errors = errorHandler.getErrors()
+			expect(errors[0].preview).toContain('...')
+			expect(errors[0].preview.length).toBeLessThanOrEqual(103)
+		})
+
+		it('should handle null/empty statement', () => {
+			errorHandler.handleParsingError('Error', null)
+			const errors = errorHandler.getErrors()
+			expect(errors[0].preview).toBe('')
+		})
+
+		it('should include context in console output', () => {
+			const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			errorHandler.configure({ logToConsole: true })
+			errorHandler.handleParsingError('Error', 'SQL', 'table extraction')
+			expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('in table extraction'))
+			consoleSpy.mockRestore()
+		})
+
+		it('should omit context from console when not provided', () => {
+			const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			errorHandler.configure({ logToConsole: true })
+			errorHandler.handleParsingError('Error', 'SQL')
+			expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Could not parse statement:'))
+			consoleSpy.mockRestore()
+		})
+
 		it('should throw errors when configured', () => {
 			errorHandler.configure({ throwOnError: true })
 
@@ -111,6 +141,26 @@ describe('Error Handler', () => {
 		})
 	})
 
+	describe('Silent/Enable helpers', () => {
+		it('silentForTests disables console output', () => {
+			errorHandler.enableConsoleOutput()
+			const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			errorHandler.silentForTests()
+			errorHandler.handleParsingError('test', 'SQL')
+			expect(consoleSpy).not.toHaveBeenCalled()
+			consoleSpy.mockRestore()
+		})
+
+		it('enableConsoleOutput enables console output', () => {
+			errorHandler.silentForTests()
+			errorHandler.enableConsoleOutput()
+			const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+			errorHandler.handleParsingError('test', 'SQL')
+			expect(consoleSpy).toHaveBeenCalled()
+			consoleSpy.mockRestore()
+		})
+	})
+
 	describe('Utility Functions', () => {
 		it('should wrap functions with error handling', () => {
 			const throwingFunction = () => {
@@ -130,6 +180,16 @@ describe('Error Handler', () => {
 			expect(errors[0].context).toBe('test context')
 		})
 
+		it('should return result from wrapped function on success', () => {
+			const successFunction = (input) => `parsed: ${input}`
+
+			const wrappedFunction = errorHandler.withErrorHandling(successFunction, 'test context')
+			const result = wrappedFunction('SELECT 1')
+
+			expect(result).toBe('parsed: SELECT 1')
+			expect(errorHandler.getErrors()).toHaveLength(0)
+		})
+
 		it('should run with temporary config', () => {
 			const result = errorHandler.withConfig(
 				() => {
@@ -144,6 +204,21 @@ describe('Error Handler', () => {
 
 			// No errors should be collected
 			expect(errorHandler.getErrors()).toHaveLength(0)
+		})
+
+		it('should restore config even when function throws', () => {
+			expect(() => {
+				errorHandler.withConfig(
+					() => {
+						throw new Error('boom')
+					},
+					{ collectErrors: false }
+				)
+			}).toThrow('boom')
+
+			// Config should be restored — errors should be collected again
+			errorHandler.handleParsingError('After restore', 'SQL')
+			expect(errorHandler.getErrors()).toHaveLength(1)
 		})
 	})
 })

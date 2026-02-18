@@ -7,6 +7,34 @@ import {
 
 describe('Dependency Extraction', () => {
 	describe('identifyEntity()', () => {
+		it('identifies procedure with string procInfo (non-object)', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'procedure',
+					procedure: 'my_proc'
+				}
+			]
+			const result = identifyEntity(ast, '')
+			expect(result.name).toBe('my_proc')
+			expect(result.type).toBe('procedure')
+		})
+
+		it('falls back to regex for CREATE FUNCTION in raw SQL', () => {
+			// AST has no CREATE statement but raw SQL does
+			const ast = [{ type: 'set' }]
+			const sql = 'CREATE OR REPLACE FUNCTION staging.do_import() RETURNS void AS $$ BEGIN END; $$'
+			const result = identifyEntity(ast, sql)
+			expect(result).toEqual({ name: 'do_import', schema: 'staging', type: 'function' })
+		})
+
+		it('falls back to regex for CREATE PROCEDURE in raw SQL', () => {
+			const ast = [{ type: 'set' }]
+			const sql = 'CREATE OR REPLACE PROCEDURE my_proc() LANGUAGE plpgsql AS $$ BEGIN END; $$'
+			const result = identifyEntity(ast, sql)
+			expect(result).toEqual({ name: 'my_proc', schema: null, type: 'procedure' })
+		})
+
 		it('identifies a CREATE TABLE entity', () => {
 			const sql = 'SET search_path to config;\nCREATE TABLE lookups (id uuid PRIMARY KEY);'
 			const { entity } = extractDependencies(sql)
@@ -197,6 +225,85 @@ describe('Dependency Extraction', () => {
 						]
 					}
 				],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs).toHaveLength(1)
+			expect(refs[0].name).toBe('public.users')
+		})
+
+		it('collects view dependencies without schema', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [
+					{
+						dependencies: [{ table: 'orders' }, { table: 'products' }]
+					}
+				],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs).toHaveLength(2)
+			expect(refs.map((r) => r.name)).toEqual(['orders', 'products'])
+			expect(refs.every((r) => r.type === 'table/view')).toBe(true)
+		})
+
+		it('skips subquery dependencies from views', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [
+					{
+						dependencies: [{ type: 'subquery' }, { table: 'users' }]
+					}
+				],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs).toHaveLength(1)
+			expect(refs[0].name).toBe('users')
+		})
+
+		it('collects trigger table and function references', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [],
+				procedures: [],
+				triggers: [
+					{
+						table: 'users',
+						tableSchema: 'public',
+						executeFunction: 'validate_email'
+					}
+				]
+			})
+			expect(refs).toHaveLength(2)
+			expect(refs.find((r) => r.name === 'public.users')).toBeDefined()
+			expect(refs.find((r) => r.name === 'validate_email')).toBeDefined()
+		})
+
+		it('collects procedure table references', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [],
+				procedures: [{ tableReferences: ['config.lookups', 'staging.data'] }],
+				triggers: []
+			})
+			expect(refs).toHaveLength(2)
+			expect(refs.map((r) => r.name)).toEqual(['config.lookups', 'staging.data'])
+		})
+
+		it('deduplicates across different source types', () => {
+			const refs = collectReferences({
+				tables: [
+					{
+						columns: [
+							{
+								constraints: [{ type: 'FOREIGN KEY', table: 'users', schema: 'public' }]
+							}
+						]
+					}
+				],
+				views: [{ dependencies: [{ table: 'users', schema: 'public' }] }],
 				procedures: [],
 				triggers: []
 			})
