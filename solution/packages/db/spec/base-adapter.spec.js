@@ -58,6 +58,14 @@ describe('BaseDatabaseAdapter', () => {
 		it('inspect()', async () => {
 			await expect(adapter.inspect()).rejects.toThrow('not implemented')
 		})
+
+		it('parseScript()', () => {
+			expect(() => adapter.parseScript('CREATE TABLE t (id int);')).toThrow('not implemented')
+		})
+
+		it('parseEntityScript()', () => {
+			expect(() => adapter.parseEntityScript({ file: 'test.ddl' })).toThrow('not implemented')
+		})
 	})
 
 	describe('testConnection()', () => {
@@ -118,6 +126,23 @@ describe('BaseDatabaseAdapter', () => {
 
 			await adapter.batchExport([{ name: 'p' }, { name: 'q' }])
 			expect(calls).toEqual(['p', 'q'])
+		})
+	})
+
+	describe('default implementations', () => {
+		const adapter = new BaseDatabaseAdapter('postgres://localhost/test')
+
+		it('resolveEntity() returns null', async () => {
+			expect(await adapter.resolveEntity('public.users')).toBeNull()
+		})
+
+		it('initParser() resolves without error', async () => {
+			await expect(adapter.initParser()).resolves.toBeUndefined()
+		})
+
+		it('classifyReference() returns null', () => {
+			expect(adapter.classifyReference('count')).toBeNull()
+			expect(adapter.classifyReference('my_func', ['uuid-ossp'])).toBeNull()
 		})
 	})
 

@@ -104,6 +104,49 @@ export class BaseDatabaseAdapter {
 		return null // Default: not implemented
 	}
 
+	// --- Parsing operations ---
+
+	/**
+	 * One-time parser initialization (e.g., load WASM modules).
+	 * Called once before parsing begins.
+	 * @returns {Promise<void>}
+	 */
+	async initParser() {
+		// Default: no initialization needed
+	}
+
+	/**
+	 * Parse SQL DDL and extract entity identity, search paths, and references.
+	 *
+	 * @param {string} sql - SQL DDL content
+	 * @param {Object} [options] - Parser options
+	 * @returns {{ entity: Object, searchPaths: string[], references: Array }}
+	 */
+	parseScript(sql, options = {}) {
+		throw new Error('not implemented')
+	}
+
+	/**
+	 * Read an entity's DDL file, identify entity, extract dependencies.
+	 *
+	 * @param {Object} entity - Entity with { file, schema, type, name }
+	 * @returns {Object} Enriched entity with { ...entity, searchPaths, references, errors }
+	 */
+	parseEntityScript(entity) {
+		throw new Error('not implemented')
+	}
+
+	/**
+	 * Classify a reference name as internal builtin, extension, or unknown.
+	 *
+	 * @param {string} name - Reference name
+	 * @param {string[]} [installedExtensions] - List of installed extensions
+	 * @returns {string|null} 'internal', 'extension', or null
+	 */
+	classifyReference(name, installedExtensions = []) {
+		return null
+	}
+
 	// --- Utility ---
 
 	log(message, level = 'info') {
