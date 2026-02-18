@@ -41,13 +41,13 @@ dbd/
     to-do.md                    <-- Legacy todo (parser improvements)
   packages/
     parser/                     <-- @dbd/parser — SQL parsing & schema extraction
-    cli/                        <-- dbd — Command-line interface
+    cli/                        <-- dbd — CLI, config, design orchestrator, references
     dbml/                       <-- @dbd/dbml — DBML conversion
-    db/                         <-- @dbd/db — Database abstraction
+    db/                         <-- @dbd/db — Database abstraction, entity processing
   adapters/
     postgres/                   <-- @dbd/db-postgres — PostgreSQL adapter
-  src/                          <-- Legacy monolithic source (being refactored)
-  spec/                         <-- Legacy test suite
+  spec/
+    fixtures/                   <-- Test fixtures shared across packages
   example/                      <-- Example project structure
 ```
 
@@ -61,15 +61,18 @@ dbd/
 ## Commands
 
 ```bash
-# Root-level tests (legacy + integration, requires PostgreSQL)
-bun test                          # Full suite (pg setup, vitest, pg teardown)
-bun test:unit                     # Unit tests only (vitest)
-bun test:nopg                     # Tests without PostgreSQL dependency
-
 # Workspace package tests
-bun test:parser                   # packages/parser tests
-bun test:cli                      # packages/cli tests
-bun test:workspaces               # All workspace tests
+bun test:parser                   # packages/parser tests (114 tests)
+bun test:cli                      # packages/cli tests (55 tests)
+bun test:db                       # packages/db tests (99 tests)
+bun test:dbml                     # packages/dbml tests (35 tests)
+bun test:postgres                 # adapters/postgres tests (29 tests)
+bun test:unit                     # All workspace tests
+bun test:nopg                     # All workspace tests (no PG needed)
+
+# E2E tests (requires PostgreSQL via Docker)
+bun test:e2e                      # packages/cli e2e tests
+bun test                          # Full suite (pg setup, unit, e2e, pg teardown)
 
 # Code quality
 bun run lint                      # prettier + eslint (0 errors expected)
@@ -130,11 +133,10 @@ Design documents capture the "how" — extract them from implementation:
 
 1. **Read the source** — trace data flow through each module
 2. **Read `agents/design-patterns.md`** — established patterns are already documented
-3. **Read `.rules/architecture.md`** — the existing architecture documentation (retained for reference)
-4. **Write design docs** as numbered files (`01-parser.md`, `02-cli.md`, etc.)
-5. **Include**: module boundaries, data flow, key functions, error handling approach
-6. **Include diagrams** where helpful (text-based: mermaid or ascii)
-7. **Flag technical debt** — where implementation diverges from ideal design
+3. **Write design docs** as numbered files (`01-parser.md`, `02-cli.md`, etc.)
+4. **Include**: module boundaries, data flow, key functions, error handling approach
+5. **Include diagrams** where helpful (text-based: mermaid or ascii)
+6. **Flag technical debt** — where implementation diverges from ideal design
 
 ### Documentation is not a prerequisite for work
 
@@ -144,15 +146,19 @@ Design documents capture the "how" — extract them from implementation:
 
 ## Key Files Quick Reference
 
-| File                        | Purpose                                                           |
-| --------------------------- | ----------------------------------------------------------------- |
-| `agents/workflow.md`        | Methodology and session lifecycle                                 |
-| `agents/memory.md`          | Shared project knowledge                                          |
-| `agents/plan.md`            | Active plan/checklist                                             |
-| `agents/journal.md`         | Chronological progress log                                        |
-| `agents/backlog.md`         | Deferred items for future phases                                  |
-| `agents/design-patterns.md` | Established patterns cookbook                                     |
-| `packages/parser/src/`      | SQL parsing — the most mature package                             |
-| `src/collect.js`            | Legacy: design class orchestration                                |
-| `src/entity.js`             | Legacy: DDL execution (to be split into cli + adapter)            |
-| `.rules/`                   | Legacy guidelines (retained for reference, superseded by agents/) |
+| File                             | Purpose                                         |
+| -------------------------------- | ----------------------------------------------- |
+| `agents/workflow.md`             | Methodology and session lifecycle               |
+| `agents/memory.md`               | Shared project knowledge                        |
+| `agents/plan.md`                 | Active plan/checklist                           |
+| `agents/journal.md`              | Chronological progress log                      |
+| `agents/backlog.md`              | Deferred items for future phases                |
+| `agents/design-patterns.md`      | Established patterns cookbook                   |
+| `packages/parser/src/`           | SQL parsing & schema extraction                 |
+| `packages/cli/src/design.js`     | Design class — main orchestrator                |
+| `packages/cli/src/config.js`     | YAML config loading & entity discovery          |
+| `packages/cli/src/references.js` | AST-based reference extraction & exclusions     |
+| `packages/cli/src/index.js`      | CLI entry point (sade commands)                 |
+| `packages/db/src/`               | Entity processing, dependency resolver, adapter |
+| `packages/dbml/src/`             | DBML generation from DDL entities               |
+| `adapters/postgres/src/`         | PostgreSQL adapter implementation               |

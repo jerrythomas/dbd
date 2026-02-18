@@ -1,6 +1,6 @@
 # 02 — CLI Requirements
 
-**Package:** Legacy `src/` (target: `packages/cli/`)
+**Package:** `packages/cli/` (`dbd`)
 
 ## Purpose
 
@@ -26,12 +26,14 @@ Validate and report on database structure.
 | ---------------- | ------- | ----------------------- |
 | `-n, --name`     | all     | Inspect specific entity |
 | `-vv, --verbose` | false   | Detailed error output   |
+| `--no-cache`     | false   | Skip DB reference cache |
 
 **Behavior:**
 
 - Loads configuration, discovers files, resolves references
 - Validates entity files, naming, and dependencies
-- Reports valid entities as JSON, errors as structured messages
+- If a database URL is provided, resolves warnings against the DB catalog (caches results locally)
+- Reports valid entities as JSON, errors and warnings as structured messages
 
 ### `dbd apply`
 
@@ -47,7 +49,7 @@ Execute DDL scripts against the database.
 - Validates all entities first
 - Filters out entities with errors
 - Executes in dependency order (schemas -> extensions -> roles -> tables -> views -> functions -> procedures)
-- Uses `psql` for execution
+- Uses database adapter for execution (programmatic, no `psql` dependency)
 
 ### `dbd combine`
 
@@ -74,7 +76,7 @@ Load CSV/JSON data files into database tables.
 - Supports CSV, TSV, JSON, JSONL formats
 - Optionally truncates target table before import
 - Executes post-import scripts (`import.after` in config)
-- Uses `\copy` for CSV/TSV, temp table + procedure for JSON
+- Uses database adapter for data loading (streaming COPY)
 
 ### `dbd export`
 
@@ -88,7 +90,7 @@ Extract data from tables/views as files.
 
 - Creates export directory structure matching schema layout
 - Supports CSV, TSV, JSON, JSONL formats
-- Uses `\copy` via `psql`
+- Uses database adapter for data extraction
 
 ### `dbd dbml`
 
@@ -162,8 +164,45 @@ project/
 
 Entities declare dependencies via `refers` arrays. The CLI:
 
-1. Discovers references by parsing SQL scripts (function calls, table references, trigger targets)
+1. Discovers references by parsing SQL scripts using AST-based extraction (`@dbd/parser`), with regex fallback for unsupported SQL
 2. Filters out built-in functions (ANSI SQL, PostgreSQL internals, installed extensions)
 3. Resolves references across search paths
 4. Orders entities topologically for execution
 5. Detects and flags cyclic dependencies
+6. Optionally validates unresolved references against the database catalog (DB reference cache)
+
+## Planned Commands
+
+### `dbd snapshot` (Planned)
+
+Capture the current schema state as a versioned JSON snapshot.
+
+| Option   | Default | Description              |
+| -------- | ------- | ------------------------ |
+| `--name` | none    | Description for snapshot |
+| `--list` | false   | List existing snapshots  |
+
+**Behavior:**
+
+- Parses all DDL files, builds entity classes with full structured metadata
+- Serializes to `snapshots/{version}.json` (sequential integer versioning)
+- Captures columns, constraints, indexes, dependencies, function bodies
+
+### `dbd migrate` (Planned)
+
+Generate and apply migration scripts by diffing snapshots.
+
+| Option     | Default | Description                    |
+| ---------- | ------- | ------------------------------ |
+| `--apply`  | false   | Apply pending migrations to DB |
+| `--status` | false   | Show current DB version        |
+| `--to`     | latest  | Apply migrations up to version |
+
+**Behavior:**
+
+- Diffs last snapshot against current DDL state
+- Generates `migrations/{from}-to-{to}.sql` with ALTER/CREATE/DROP statements
+- Tracks applied migrations in `_dbd_migrations` database table
+- Each migration runs in a transaction with checksum verification
+
+See `docs/design/07-snapshots-migrations.md` for full design.

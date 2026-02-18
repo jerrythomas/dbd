@@ -167,6 +167,7 @@ Replaced hardcoded `console.warn`/`console.error` calls in `parser-utils.js` (th
 Added optional database catalog verification for unresolved references in `dbd inspect`.
 
 **Architecture:**
+
 - `BaseDatabaseAdapter.resolveEntity(name, searchPaths)` — new method, returns null by default
 - `PsqlAdapter.resolveEntity()` — queries `pg_catalog.pg_class` (tables/views) and `pg_catalog.pg_proc` (functions/procedures)
 - `DbReferenceCache` (`packages/cli/src/db-cache.js`) — in-memory + file cache (`~/.config/dbd/cache/`) keyed by SHA-256 of connection URL

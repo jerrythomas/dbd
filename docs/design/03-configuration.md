@@ -1,6 +1,6 @@
 # 03 — Configuration & Project Structure Design
 
-**Source:** `design.yaml` format, `src/metadata.js`, `src/filler.js`, `src/constants.js`
+**Source:** `design.yaml` format, `packages/cli/src/config.js`, `packages/db/src/entity-processor.js`
 
 ## Configuration File (`design.yaml`)
 
@@ -100,7 +100,7 @@ project/
 
 ## Entity Type System
 
-### Constants (`constants.js`)
+### Constants (`packages/db/src/entity-processor.js`)
 
 ```javascript
 typesWithSchema = ['table', 'view', 'function', 'procedure', 'import']
@@ -115,15 +115,15 @@ defaultExportOptions = { format: 'csv' }
 
 ```
 File discovery (scan ddl/)
-  → entityFromFile(path)          # Parse path → entity stub
-  → parseEntityScript(entity)     # Read file, extract refs + search paths
-  → matchReferences(entities)     # Resolve refs to known entities
-  → merge(scanned, config)        # Config overrides discovered
-  → organize(entities)            # Topological sort by dependencies
-  → validateEntityFile(entity)    # Check naming, files, schemas
+  → entityFromFile(path)          # Parse path → entity stub (@dbd/db)
+  → parseEntityScript(entity)     # AST-based ref extraction (cli/references.js)
+  → matchReferences(entities)     # Resolve refs to known entities (cli/references.js)
+  → merge(scanned, config)        # Config overrides discovered (cli/config.js)
+  → sortByDependencies(entities)  # Topological sort (@dbd/db)
+  → validateEntity(entity)        # Check naming, files, schemas (@dbd/db)
 ```
 
-## Configuration Normalization (`filler.js`)
+## Configuration Normalization (`packages/cli/src/config.js`)
 
 `fillMissingInfoForEntities(data)` ensures:
 
@@ -131,7 +131,7 @@ File discovery (scan ddl/)
 - Each entity has `refers: []` default
 - Each entity has `type` property matching its category
 
-This runs before `metadata.clean()` to guarantee array access is safe.
+This runs inside `config.read()` to guarantee array access is safe.
 
 ## Staging Schema Restriction
 
@@ -143,17 +143,17 @@ The `project.staging` array defines which schemas accept data imports. Import op
 design.yaml import config
   │
   ▼
-Scan import/ folder
-  → entityFromImportConfig() per file
+Scan import/ folder (config.cleanImportTables)
+  → entityFromImportConfig() per file (@dbd/db)
   → merge with config tables list
   → apply schema-specific options (import.schemas.{name})
   → apply global options (import.options)
   │
   ▼
-Execution order:
+Execution via adapter:
   1. Truncate target table (if configured)
-  2. \copy data file into table
-  3. Execute post-import scripts (import.after[])
+  2. Stream data file into table (adapter.importData)
+  3. Execute post-import scripts (import.after[] via adapter.executeFile)
 ```
 
 ## DBML Document Configuration

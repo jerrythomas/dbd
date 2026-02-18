@@ -39,22 +39,41 @@ The parser must handle a single SQL string containing multiple statements separa
 - Parse `COMMENT ON COLUMN schema.table.column IS '...'` statements
 - Associate comments with the corresponding table/column in the extraction result
 
-### FR-5: Fallback Extraction
+### FR-5: Trigger Extraction (Planned)
 
-When `node-sql-parser` fails to parse a statement (e.g., complex procedures, non-standard syntax):
+Given a SQL string containing CREATE TRIGGER statements, extract:
+
+| Property  | Description                                    |
+| --------- | ---------------------------------------------- |
+| name      | Trigger name                                   |
+| table     | Table the trigger is attached to               |
+| function  | Function executed by the trigger               |
+| timing    | BEFORE / AFTER / INSTEAD OF                    |
+| events    | INSERT, UPDATE, DELETE, TRUNCATE (one or more) |
+| level     | ROW or STATEMENT                               |
+| columns   | For UPDATE OF — specific columns               |
+| condition | WHEN clause expression                         |
+
+> **Note:** Currently extracted via regex only. Will have full AST support after parser switch to `pgsql-parser` (see `docs/design/08-parser-switch.md`).
+
+### FR-6: Fallback Extraction (Deprecated)
+
+When the AST parser fails to parse a statement:
 
 - Fall back to regex-based extraction
 - Collect the parse error without throwing
 - Return partial results from the fallback
 
-### FR-6: Validation
+> **Note:** This fallback exists because `node-sql-parser` doesn't support all PostgreSQL syntax. After the switch to `pgsql-parser` (which uses the real PostgreSQL parser), the fallback path will be removed.
+
+### FR-7: Validation
 
 Given a SQL string, report whether it is valid DDL:
 
 - Return `{ valid: true/false, message, errors? }`
 - Errors include message, preview (first 100 chars), and context
 
-### FR-7: Dual API
+### FR-8: Dual API
 
 Provide both:
 
@@ -96,3 +115,10 @@ Provide both:
 - Table-level constraint names not extracted
 - `COMMENT ON FUNCTION/VIEW` not supported — only TABLE and COLUMN
 - Partitioning directives not captured
+
+## Planned Changes
+
+- **Parser switch:** Replace `node-sql-parser` with `pgsql-parser` (real PostgreSQL parser via WASM). See `docs/design/08-parser-switch.md`.
+- **Trigger AST support:** Full AST-based trigger extraction (currently regex-only).
+- **Remove regex fallbacks:** All extraction paths become AST-based.
+- **Deparse capability:** Round-trip SQL → AST → SQL for entity class support. See `docs/design/06-entity-classes.md`.

@@ -1,6 +1,6 @@
 # 03 — DBML Generation Requirements
 
-**Package:** Legacy `src/collect.js` (target: `packages/dbml/`)
+**Package:** `packages/dbml/` (`@dbd/dbml`)
 
 ## Purpose
 

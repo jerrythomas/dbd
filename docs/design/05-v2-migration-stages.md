@@ -1,4 +1,6 @@
-# 05 — v2.0.0 Migration Stages
+# 05 — v2.0.0 Migration Stages (ARCHIVED)
+
+> **Status: COMPLETE.** All stages executed. Legacy `src/` and `spec/` removed. All code lives in workspace packages. 332 workspace tests passing, 0 lint errors. This document is retained for historical reference.
 
 Detailed stage-by-stage plan for migrating from v1.3.2 monolith to v2.0.0 monorepo. Each stage is an independently committable, test-passing state.
 

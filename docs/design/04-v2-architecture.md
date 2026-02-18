@@ -1,8 +1,8 @@
-# 04 — v2.0.0 Target Architecture
+# 04 — v2.0.0 Architecture
 
 ## Overview
 
-Migrate from monolithic `src/` to a monorepo with clear package boundaries. Each package has a single responsibility, communicates through well-defined interfaces, and can be tested independently.
+Monorepo with clear package boundaries. Each package has a single responsibility, communicates through well-defined interfaces, and can be tested independently. Migration from the legacy monolithic `src/` is complete — all code lives in workspace packages.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -47,7 +47,7 @@ adapters/postgres → db (implements BaseDatabaseAdapter)
 
 ### packages/parser (`@dbd/parser`)
 
-**Status:** Already mature on develop. Minimal changes needed.
+**Status:** Complete. 114 tests passing.
 
 **Responsibility:** Parse SQL DDL → extract structured metadata.
 
@@ -286,19 +286,13 @@ Small package. May stay as part of `packages/db` or `packages/cli` if not worth 
 
 ---
 
-### packages/cli (`@dbd/cli`)
+### packages/cli (`dbd`)
+
+**Status:** Complete. 55 tests passing + e2e suite.
 
 **Responsibility:** CLI interface, configuration loading, orchestration.
 
-**Binary:** `dbd-cli` during migration, renamed to `dbd` at switchover.
-
-```json
-{
-  "bin": { "dbd-cli": "src/index.js" }
-}
-```
-
-After Stage 5 switchover:
+**Binary:** `dbd`
 
 ```json
 {
@@ -326,18 +320,20 @@ class Design {
 
   // Lifecycle
   validate()                   // → this (chainable)
-  report(name?)                // → { entity, issues }
+  report(name?)                // → { entity, issues, warnings }
+  updateEntities(entities)     // → replaces entities after DB resolution
 
   // Operations
   async apply(name?, dryRun?)  // uses adapter.applyEntities()
-  combine(file)                // uses combineEntityScripts()
-  async importData(name?, dryRun?) // uses adapter.batchImport()
+  combine(file)                // uses ddlFromEntity() + fs.writeFileSync()
+  async importData(name?, dryRun?) // uses adapter.importData() per table
   async exportData(name?)      // uses adapter.batchExport()
-  dbml(file?)                  // uses @dbd/dbml
+  dbml(file?)                  // uses @dbd/dbml generateDBML()
+  async getAdapter()           // lazy-creates adapter via createAdapter()
 }
 ```
 
-**Key change from v1:** `Design` uses `createAdapter()` from `@dbd/db` instead of shelling out to `psql`. The adapter handles connection, execution, and data transfer.
+`Design` uses `createAdapter()` from `@dbd/db` instead of shelling out to `psql`. The adapter handles connection, execution, and data transfer.
 
 #### Module: `config.js` — Configuration Loading
 
@@ -352,14 +348,27 @@ export function normalizeConfig(data)            // → config with defaults fil
 
 #### Module: `references.js` — Reference Extraction
 
-Extracted from current `src/parser.js` + `src/exclusions.js`:
+AST-based extraction (primary) via `@dbd/parser` + regex fallback:
 
 ```javascript
 export function parseEntityScript(entity)        // → entity with refs, searchPaths, errors
-export function matchReferences(entities, exts)  // → entities with resolved refs
+export function matchReferences(entities, exts)  // → entities with resolved refs + warnings
+export async function resolveWarnings(entities, dbResolver) // → entities with DB-verified refs
+export function isInternal(name, extensions)     // → 'internal' | 'extension' | null
+// Regex fallback (deprecated, used when AST fails):
 export function extractReferences(sql)           // → [{ name, type }]
 export function extractTableReferences(sql)      // → [{ name, type }]
-export function isInternal(name, extensions)     // → 'internal' | 'extension' | null
+```
+
+#### Module: `db-cache.js` — Database Reference Cache
+
+```javascript
+export class DbReferenceCache {
+  constructor(adapter, connectionUrl)
+  load()                                         // → load from ~/.config/dbd/cache/
+  save()                                         // → persist to disk
+  async resolve(name, searchPaths)               // → {name, schema, type} | null
+}
 ```
 
 ---
@@ -430,7 +439,7 @@ The adapter calls these functions, then executes the result. This separates "wha
 
 ---
 
-## File Structure (Target)
+## File Structure
 
 ```
 dbd/
@@ -440,130 +449,105 @@ dbd/
 │   ├── requirements/
 │   └── design/
 ├── packages/
-│   ├── parser/                    # @dbd/parser (existing, unchanged)
+│   ├── parser/                    # @dbd/parser — SQL parsing & schema extraction
 │   │   ├── src/
-│   │   │   ├── index.js
-│   │   │   ├── index-functional.js
-│   │   │   ├── parsers/sql.js
-│   │   │   ├── transformers/ast.js
-│   │   │   ├── extractors/{tables,views,procedures,db-indexes}.js
-│   │   │   └── utils/error-handler.js
-│   │   ├── spec/
+│   │   ├── spec/                  # 114 tests
 │   │   └── package.json
 │   │
-│   ├── db/                        # @dbd/db (NEW)
+│   ├── db/                        # @dbd/db — adapter interface, entity processing
 │   │   ├── src/
 │   │   │   ├── index.js           # re-exports
 │   │   │   ├── factory.js         # createAdapter()
 │   │   │   ├── base-adapter.js    # BaseDatabaseAdapter
 │   │   │   ├── entity-processor.js
 │   │   │   └── dependency-resolver.js
-│   │   ├── spec/
+│   │   ├── spec/                  # 99 tests
 │   │   └── package.json
 │   │
-│   ├── dbml/                      # @dbd/dbml (NEW, small)
+│   ├── dbml/                      # @dbd/dbml — DBML generation
 │   │   ├── src/
-│   │   │   └── index.js           # generateDBML(), generateMultipleDBML()
-│   │   ├── spec/
+│   │   │   └── converter.js       # generateDBML()
+│   │   ├── spec/                  # 35 tests
 │   │   └── package.json
 │   │
-│   └── cli/                       # @dbd/cli (NEW)
+│   └── cli/                       # dbd — CLI + orchestration
 │       ├── src/
 │       │   ├── index.js           # sade commands
 │       │   ├── design.js          # Design orchestrator
 │       │   ├── config.js          # YAML config + file discovery
-│       │   └── references.js      # SQL reference extraction
-│       ├── spec/
+│       │   ├── references.js      # AST-based + regex reference extraction
+│       │   └── db-cache.js        # DB reference cache
+│       ├── spec/                  # 55 tests
+│       ├── e2e/                   # E2E tests (requires PostgreSQL)
 │       └── package.json
 │
 ├── adapters/
-│   └── postgres/                  # @dbd/db-postgres (NEW)
+│   └── postgres/                  # @dbd/db-postgres — PostgreSQL adapter
 │       ├── src/
 │       │   ├── index.js           # re-exports
 │       │   ├── adapter.js         # PostgreSQLAdapter
 │       │   ├── connection.js      # PostgreSQLConnection
 │       │   └── scripts.js         # PG-specific script generators
-│       ├── spec/
-│       ├── e2e/                   # Docker-based integration tests
+│       ├── spec/                  # 29 tests
 │       └── package.json
 │
-├── example/                       # Unchanged
-├── package.json                   # Root workspace config
-└── vitest.config.js
+├── spec/
+│   └── fixtures/                  # Test fixtures shared across packages
+├── example/                       # Example project structure
+├── eslint.config.js               # ESLint v9 flat config
+└── package.json                   # Root workspace config (private)
 ```
 
 ---
 
-## Migration Coexistence Strategy
+## Root Package
 
-During migration, `src/` (old) and `packages/` (new) coexist. The rules:
-
-### Old code stays untouched until final removal
-
-- `src/` continues to work and serve the CLI throughout Stages 0–5
-- The root `package.json` `bin` entry still points to `src/index.js`
-- Existing tests in `spec/` continue to import from `src/`
-- **No shims, no re-exports, no bridge code** — old and new are independent
-
-### New code is built alongside, not on top of
-
-- `packages/` code is additive — it doesn't modify `src/`
-- New packages copy logic from `src/` (not import from it)
-- New packages have their own tests in `packages/*/spec/`
-- Both old and new tests must pass at every commit
-
-### Two binaries coexist during migration
-
-- `packages/cli` gets its own binary: `dbd-cli` (temporary name)
-- Root `package.json` keeps `bin: "dbd"` pointing to `src/index.js`
-- Both binaries are available — `dbd` (old) and `dbd-cli` (new)
-- This allows side-by-side testing of identical commands
-
-### Switchover happens once, at the end (Stage 5)
-
-- When `dbd-cli` is fully verified and feature-compatible:
-  1. Rename `packages/cli` binary from `dbd-cli` to `dbd`
-  2. Remove `bin` from root `package.json` (root is no longer a CLI package)
-  3. Delete `src/` entirely — no shim, no re-exports
-  4. Move/update `spec/` tests to reference `packages/` imports
-- This is a single commit: the old code is removed, the new binary takes over
-
-### Root package becomes workspace-only
-
-After switchover, root `package.json` is used exclusively for:
+Root `package.json` is workspace-only (`"private": true`). Used for:
 
 - Workspace management (`"workspaces": ["packages/*", "adapters/*"]`)
-- Cross-workspace test scripts (`test:workspaces`, `test:compat`, etc.)
-- Versioning and release orchestration
+- Cross-workspace test scripts (`test:unit`, `test:e2e`, etc.)
 - Lint/format across all packages
-- It is **not published** — only `packages/cli` (as `dbd`) is published
-
-### Why this approach?
-
-- No half-migrated states where `src/` imports from `packages/` or vice versa
-- Both CLIs work identically at every commit — users never see breakage
-- Side-by-side comparison: run same command with `dbd` and `dbd-cli`, diff output
-- Easy to abandon a batch if something goes wrong — just revert, `src/` is untouched
-- Clear "done" moment: `src/` deleted, `dbd-cli` renamed to `dbd` = migration complete
+- Binary entry point (`"bin": { "dbd": "packages/cli/src/index.js" }`)
 
 ---
 
-## What Changes for Users
+## What Changed from v1
 
-| Aspect            | v1.3.2                        | v2.0.0                                                                      |
-| ----------------- | ----------------------------- | --------------------------------------------------------------------------- |
-| CLI commands      | Same                          | Same (no breaking CLI changes)                                              |
-| Config format     | `design.yaml`                 | Same (no breaking config changes)                                           |
-| Project structure | `ddl/`, `import/`             | Same                                                                        |
-| `psql` dependency | Required                      | Optional (programmatic by default)                                          |
-| Install           | `npm i -g @jerrythomas/dbd`   | `npm i -g @dbd/cli` (publishes as `dbd` binary)                             |
-| Published package | `@jerrythomas/dbd` (monolith) | `@dbd/cli` (CLI), `@dbd/parser`, `@dbd/db`, `@dbd/dbml`, `@dbd/db-postgres` |
-| Root package      | Published with CLI + library  | Workspace-only, not published                                               |
-| Node.js           | Any recent                    | Same                                                                        |
+| Aspect            | v1.3.2                       | v2.0.0                                         |
+| ----------------- | ---------------------------- | ---------------------------------------------- |
+| CLI commands      | Same                         | Same (no breaking CLI changes)                 |
+| Config format     | `design.yaml`                | Same (no breaking config changes)              |
+| Project structure | `ddl/`, `import/`            | Same                                           |
+| `psql` dependency | Required                     | Not required (programmatic via adapter)        |
+| Code structure    | Monolithic `src/` (8 files)  | Workspace packages + adapters                  |
+| Reference parsing | Regex-only                   | AST-based (primary) + regex (fallback)         |
+| DB resolution     | None                         | Optional DB catalog lookup for unresolved refs |
+| Root package      | Published with CLI + library | Workspace-only, not published                  |
 
-**Breaking changes** (justifying major version):
+---
 
-- Install package changes from `@jerrythomas/dbd` to `@dbd/cli`
-- Internal package restructure (affects anyone importing from `src/`)
-- `psql` no longer required for basic operations
-- Minimum Node.js version may increase if using modern DB library features
+## Roadmap
+
+Three objectives planned for the next phase of development:
+
+### Prerequisite: Parser Switch
+
+Replace `node-sql-parser` with `pgsql-parser` (real PostgreSQL parser via WASM). Eliminates regex fallback paths, adds trigger support, enables SQL round-tripping.
+
+See `docs/design/08-parser-switch.md`.
+
+### Objective 1: Entity Classes
+
+Replace plain entity objects with typed classes (`TableEntity`, `ViewEntity`, etc.) that hold structured parse results — columns, constraints, indexes, FK relationships. Enables parse-once-use-everywhere, direct DBML generation, and schema diffing.
+
+See `docs/design/06-entity-classes.md`.
+
+### Objective 2: Snapshots
+
+`dbd snapshot` command to serialize the full schema state as versioned JSON (`snapshots/{version}.json`). Provides a persistence format for entity classes and the baseline for migration generation.
+
+### Objective 3: Migrations
+
+`dbd migrate` command to diff two snapshots, generate ordered ALTER/CREATE/DROP SQL, and apply pending migrations with transaction safety and version tracking (`_dbd_migrations` table).
+
+See `docs/design/07-snapshots-migrations.md` for Objectives 2 and 3.

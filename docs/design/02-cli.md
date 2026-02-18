@@ -1,7 +1,7 @@
-# 02 — CLI & Core Orchestration Design
+# 02 — CLI & Design Orchestration
 
-**Package:** Legacy `src/` (target: `packages/cli/`)  
-**Status:** Active — monolithic, pending workspace refactoring
+**Package:** `packages/cli/` (`dbd`)
+**Status:** Active — v2.0.0 workspace package
 
 ## Architecture
 
@@ -10,45 +10,49 @@ CLI Entry (index.js)
   │  sade command parser
   │
   ▼
-Design Class (collect.js)
+Design Class (design.js)
   │  using(file, databaseURL) factory
   │
   ├──→ Configuration Loading
-  │      metadata.read(file)     → parse YAML
-  │      filler.fillMissing()    → ensure defaults
-  │      metadata.clean(data)    → discover files + merge + organize
+  │      config.read(file)          → parse YAML + fill defaults
+  │      config.clean(data, ...)    → discover files + parse refs + merge
   │
-  ├──→ Entity Management
-  │      entity.entityFromFile()     → file path → entity object
-  │      entity.validateEntityFile() → validate structure + refs
-  │      entity.ddlFromEntity()      → entity → SQL string
+  ├──→ Reference Extraction
+  │      references.parseEntityScript()  → AST-based (primary) + regex (fallback)
+  │      references.matchReferences()    → resolve refs to known entities
+  │      references.isInternal()         → filter built-in functions
   │
-  ├──→ Reference Resolution
-  │      parser.parseEntityScript()  → extract refs from SQL
-  │      parser.matchReferences()    → resolve refs to entities
-  │      exclusions.isInternal()     → filter built-in functions
+  ├──→ Entity Processing (from @dbd/db)
+  │      entityFromSchemaName()          → schema entities
+  │      entityFromExtensionConfig()     → extension entities
+  │      entityFromFile()                → file path → entity object
+  │      validateEntity()                → validate structure + refs
+  │      ddlFromEntity()                 → entity → SQL string
+  │      sortByDependencies()            → topological ordering
   │
-  └──→ Execution
-         psql via child_process      → execute SQL against database
+  ├──→ DB Reference Cache (db-cache.js)
+  │      DbReferenceCache                → lazy DB lookup for unresolved refs
+  │      resolveWarnings()               → verify warnings against DB catalog
+  │
+  └──→ Execution (via @dbd/db adapter)
+         createAdapter('postgres', url)  → PostgreSQLAdapter
+         adapter.applyEntities()         → execute DDL
+         adapter.importData()            → load data
+         adapter.batchExport()           → export data
 ```
 
 ## Module Map
 
 ```
-src/
+packages/cli/src/
 ├── index.js          # CLI entry point (sade commands)
-├── collect.js        # Design class — main orchestrator
-├── metadata.js       # YAML config + file discovery + dependency ordering
-├── parser.js         # SQL reference extraction (legacy, NOT packages/parser)
-├── entity.js         # Entity creation, validation, DDL/import/export generation
-├── constants.js      # Entity type constants, default options
-├── exclusions.js     # Built-in function filtering (ANSI, PostgreSQL, extensions)
-└── filler.js         # Config normalization (ensure arrays + types exist)
+├── design.js         # Design class — main orchestrator
+├── config.js         # YAML config + file discovery + entity merging
+├── references.js     # AST-based + regex reference extraction & exclusions
+└── db-cache.js       # Database reference cache for unresolved references
 ```
 
-**Important:** `src/parser.js` is the legacy reference extractor (regex-based, finds function calls and table references in SQL scripts). It is distinct from `packages/parser/` which is the AST-based DDL parser.
-
-## Design Class (`collect.js`)
+## Design Class (`design.js`)
 
 Central orchestrator. Constructed via `using(file, databaseURL)` factory.
 
@@ -57,13 +61,15 @@ Central orchestrator. Constructed via `using(file, databaseURL)` factory.
 ```
 using(file, url)
   → constructor
-    → metadata.read(file)          # Parse YAML
-    → filler.fillMissing(data)     # Normalize
-    → metadata.clean(data)         # Discover + merge + organize
-    → build entity list            # Schemas + extensions + roles + entities
-    → organizeImports()            # Order import tables by dependency
-  → validate()                     # Check files, naming, references, cycles
-  → command method                 # apply/combine/dbml/import/export/report
+    → config.read(file)                # Parse YAML + fill defaults
+    → config.clean(data, parseEntityScript, matchReferences)
+                                       # Discover DDL files + parse refs + merge
+    → sortByDependencies(roles)        # Order roles
+    → sortByDependencies(entities)     # Order entities
+    → build entity list                # Schemas + extensions + roles + entities
+    → organizeImports()                # Order import tables by dependency
+  → validate()                         # Check files, naming, references
+  → command method                     # apply/combine/dbml/import/export/report
 ```
 
 ### Entity Construction Order
@@ -72,62 +78,94 @@ The Design class builds its entity list in execution order:
 
 1. **Schemas** — `entityFromSchemaName()` for each `config.schemas[]`
 2. **Extensions** — `entityFromExtensionConfig()` for each `config.extensions[]`
-3. **Roles** — `entityFromRoleName()` for each `config.roles[]`
-4. **DDL entities** — tables, views, functions, procedures from `metadata.clean()`
+3. **Roles** — sorted by dependencies from `config.roles[]`
+4. **DDL entities** — tables, views, functions, procedures from `config.clean()`
 
-This order ensures schemas exist before extensions, extensions before tables, etc.
+### Key Methods
 
-## Configuration Pipeline (`metadata.js`)
+| Method                       | Sync/Async | Description                                      |
+| ---------------------------- | ---------- | ------------------------------------------------ |
+| `validate()`                 | sync       | Validates all entities, roles, and import tables |
+| `report(name?)`              | sync       | Returns `{ entity, issues, warnings }`           |
+| `apply(name?, dryRun?)`      | async      | Executes DDL via adapter                         |
+| `combine(file)`              | sync       | Writes combined DDL to file                      |
+| `dbml(file?)`                | sync       | Generates DBML via `@dbd/dbml`                   |
+| `importData(name?, dryRun?)` | async      | Loads data via adapter                           |
+| `exportData(name?)`          | async      | Exports data via adapter                         |
+| `getAdapter()`               | async      | Lazy-creates database adapter                    |
+| `updateEntities(entities)`   | sync       | Replaces entities after DB resolution            |
 
-### `read(file)` → `clean(data)` → `organize(data)`
+### Adapter Integration
+
+The Design class uses `@dbd/db`'s `createAdapter()` factory for database operations:
+
+```javascript
+async getAdapter() {
+  const { createAdapter } = await import('@jerrythomas/dbd-db')
+  this.#adapter = await createAdapter('postgres', this.databaseURL)
+}
+```
+
+This replaces the legacy `psql` via `child_process` approach. The adapter is created lazily — only when a database operation is needed.
+
+## Configuration Pipeline (`config.js`)
+
+### `read(file)` → `clean(data, parseEntityScript, matchReferences)`
 
 ```
 design.yaml
   │
   ▼ read()
-YAML parsed → filler.fillMissing()
+YAML parsed → fillMissingInfoForEntities()
+  → ensure roles/tables/views/functions/procedures arrays exist
+  → add type property to each entity
   │
   ▼ clean()
 Scan ddl/ folder → entityFromFile() per file
-  → parseEntityScript() → extract references
-  → matchReferences() → resolve to entities
+  → parseEntityScript() → extract references (AST primary, regex fallback)
+  → matchReferences() → resolve to known entities
   → merge(scanned, configured) → config overrides scanned
-  → organize() → topological sort by dependencies
   │
-  ▼
 Scan import/ folder → entityFromImportConfig() per file
   → merge with config import tables
   → apply schema-specific options
   │
   ▼
-Final config with organized entities + import tables
+Final config with entities, importTables, schemas, roles
 ```
 
-### Dependency Resolution (`metadata.organize()`)
+### Key Functions
 
-Uses topological grouping:
+| Function                                          | Description                                                |
+| ------------------------------------------------- | ---------------------------------------------------------- |
+| `read(file)`                                      | Parses YAML, fills defaults, normalizes entity arrays      |
+| `clean(data, parseEntityScript, matchReferences)` | Discovers files, parses refs, merges with config           |
+| `cleanDDLEntities(data, ...)`                     | Scans `ddl/` folder, creates entities, resolves references |
+| `fillMissingInfoForEntities(data)`                | Ensures all entity type arrays exist with defaults         |
+| `scan(root)`                                      | Recursive directory listing                                |
+| `merge(x, y)`                                     | Merges two entity arrays by name (y overrides x)           |
 
-1. Build adjacency list from `refers` arrays
-2. Group entities into layers (no deps → depends on layer 0 → depends on layer 1 → ...)
-3. Entities in cycles get `errors: ['cyclic dependency']`
-4. Returns `{ groups, errors }` — groups are arrays of arrays
+## Reference Extraction (`references.js`)
 
-## Reference Extraction (`parser.js`)
+### Dual-Path Strategy
+
+**Primary:** AST-based extraction via `@dbd/parser`'s `extractDependencies()`. Analyzes SQL via proper AST parsing, naturally excluding comments and string content.
+
+**Fallback:** Regex-based extraction (legacy). Used when AST parsing fails for unsupported SQL syntax.
 
 ### `parseEntityScript(entity)`
 
 1. Read file content
-2. Extract entity type/name/schema from `CREATE` statement
-3. Extract `search_path` from `SET search_path TO ...`
-4. Extract references:
-   - `extractReferences()` — function/procedure calls (regex: `schema.name(` or `name(`)
+2. Try AST path: `extractDependencies(content)` from `@dbd/parser`
+   - Returns structured `{ entity, searchPaths, references }`
+   - Self-references filtered out
+   - Schema/type validation against file path
+3. On AST failure, fall back to regex path:
+   - `extractSearchPaths()` — `SET search_path TO ...`
+   - `extractReferences()` — function/procedure calls
    - `extractTableReferences()` — FROM/JOIN targets
    - `extractTriggerReferences()` — `ON table_name` in triggers
-5. Filter out:
-   - CTE aliases (`WITH x AS (...)`)
-   - SQL expressions mistaken for functions
-   - Self-references
-6. Return entity with `refers[]`, `searchPaths[]`, `errors[]`
+   - Filter CTE aliases, SQL expressions, self-references
 
 ### `matchReferences(entities, extensions)`
 
@@ -135,80 +173,46 @@ Uses topological grouping:
 2. For each entity's unresolved references:
    - Try qualified name first (`schema.name`)
    - Try each search path (`searchPath.name`)
-   - Check `exclusions.isInternal()` — skip built-in functions
-3. Unresolved refs become errors on the entity
+   - Check `isInternal()` — skip built-in functions
+   - Check `matchesKnownExtension()` — warn if extension may be undeclared
+3. Unresolved refs become warnings (not errors) on the entity
+4. Populates `entity.refers[]` with resolved dependency names
 
-## Built-in Function Filtering (`exclusions.js`)
+### Built-in Function Filtering
 
-Three layers of filtering with caching:
+Three layers with caching:
 
 1. **ANSI SQL** — ~100+ standard functions (COUNT, SUM, COALESCE, TRIM, etc.)
 2. **PostgreSQL** — internal functions + patterns (`pg_*`, `array_*`, `now`, `unnest`, etc.)
-3. **Extensions** — configurable per installed extension:
-   - `uuid-ossp` → `uuid_*`
-   - `postgis` → `st_*`, `geom_*`
-   - `pgcrypto` → `gen_salt`, `crypt`
-   - `timescaledb` → `create_hypertable`, `time_bucket`
-   - etc.
+3. **Extensions** — configurable per installed extension (uuid-ossp, postgis, pgcrypto, timescaledb, etc.)
 
-Cache stores results to avoid redundant regex matching.
+## DB Reference Cache (`db-cache.js`)
 
-## Entity Module (`entity.js`)
+When `dbd inspect` finds unresolved references (warnings), it can optionally query the database to verify whether they actually exist.
 
-### Entity Object Shape
+### `DbReferenceCache`
 
-```javascript
-{
-  type: 'table'|'view'|'function'|'procedure'|'role'|'schema'|'extension'|'import'|'export',
-  name: string,           // 'schema.object' or 'object'
-  schema: string|null,    // Extracted schema
-  file: string|null,      // Path to DDL/data file
-  format: string|null,    // 'ddl'|'csv'|'tsv'|'json'|'jsonl'
-  refers: string[],       // Names of referenced entities
-  errors: string[],       // Validation errors
-  // Import-specific:
-  nullValue: string,
-  truncate: boolean,
-  listed: boolean
-}
-```
+- Lazy-loaded: only queries DB when a reference is not in cache
+- Persists to `~/.config/dbd/cache/<hash>.json` keyed by connection URL
+- Used by `inspect` command when `--database` is provided
+- Skipped with `--no-cache` flag
 
-### DDL Generation
+### `resolveWarnings(entities, dbResolver)`
 
-`ddlFromEntity(entity)` dispatches by type:
+For each entity with warnings, re-resolves references against the DB catalog. If found in the DB, the warning is removed and the reference is added to `refers[]`.
 
-- **File-backed** (table, view, function, procedure) → read file content
-- **Schema** → `CREATE SCHEMA IF NOT EXISTS {name};`
-- **Extension** → `CREATE EXTENSION IF NOT EXISTS "{name}" WITH SCHEMA {schema};`
-- **Role** → idempotent `DO $do$ BEGIN ... CREATE ROLE ... END $do$;` + `GRANT` statements
+## CLI Entry Point (`index.js`)
 
-### Import Script Generation
+Uses `sade` for command parsing. Seven commands:
 
-`importScriptForEntity(entity)`:
+| Command   | Action                                          | Sync/Async |
+| --------- | ----------------------------------------------- | ---------- |
+| `init`    | Clone example template via `degit`              | sync       |
+| `inspect` | Validate + report (with optional DB resolution) | async      |
+| `apply`   | Execute DDL against database                    | async      |
+| `combine` | Merge DDL into single file                      | sync       |
+| `import`  | Load data files into database                   | async      |
+| `export`  | Extract data from database                      | async      |
+| `dbml`    | Generate DBML documentation                     | sync       |
 
-- CSV/TSV: `\copy {table} FROM '{file}' WITH DELIMITER ... CSV HEADER;`
-- JSON/JSONL: Create temp table → `\copy` into temp → call `staging.import_jsonb_to_table()`
-- Optional `TRUNCATE TABLE` prefix (with exception fallback to `DELETE`)
-
-### Export Script Generation
-
-`exportScriptForEntity(entity)`:
-
-- CSV/TSV: `\copy (SELECT * FROM {table}) TO '{file}' WITH DELIMITER ... CSV HEADER;`
-- JSON/JSONL: `\copy (SELECT row_to_json(t) FROM {table} t) TO '{file}';`
-
-## Execution
-
-All database operations use `psql` via child process:
-
-- Temporary `.sql` files written, executed via `psql -f`, then cleaned up
-- `DATABASE_URL` environment variable or explicit connection string
-- No programmatic database connection in the CLI layer
-
-## Technical Debt
-
-- **Monolithic `collect.js`** — Design class does too much (validation, execution, DBML, import, export)
-- **Two parser modules** — `src/parser.js` (reference extraction) and `packages/parser/` (DDL parsing) overlap in purpose
-- **psql dependency** — execution requires `psql` installed; no programmatic DB connection
-- **No streaming** — entire DDL loaded into memory for combine/DBML operations
-- **Entity validation scattered** — validation logic split across `entity.js`, `metadata.js`, and `collect.js`
+Global options: `--config`, `--database`, `--environment`, `--preview`.
