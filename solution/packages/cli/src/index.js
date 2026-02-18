@@ -43,7 +43,7 @@ prog
 	.describe('Inspect the current folder.')
 	.example('dbd inspect')
 	.action(async (opts) => {
-		const design = using(opts.config, opts.database).validate()
+		const design = (await using(opts.config, opts.database)).validate()
 
 		// If a database URL is available, resolve warnings against the DB catalog
 		if (opts.database) {
@@ -93,7 +93,7 @@ prog
 	.example('dbd apply -c database.yaml')
 	.example('dbd apply -d postgres://localhost:5432')
 	.action(async (opts) => {
-		await using(opts.config, opts.database).apply(opts.name, opts['dry-run'])
+		await (await using(opts.config, opts.database)).apply(opts.name, opts['dry-run'])
 	})
 
 prog
@@ -102,8 +102,8 @@ prog
 	.describe('Combine all ddl scripts into one script.')
 	.example('dbd combine')
 	.example('dbd combine -f init.sql')
-	.action((opts) => {
-		using(opts.config, opts.database).combine(opts.file)
+	.action(async (opts) => {
+		;(await using(opts.config, opts.database)).combine(opts.file)
 		console.log(`Generated ${opts.file}`)
 	})
 
@@ -116,7 +116,7 @@ prog
 	.example('dbd import -n staging.lookups')
 	.example('dbd import -n import/staging/lookups.csv')
 	.action(async (opts) => {
-		await using(opts.config, opts.database).importData(opts.name, opts['dry-run'])
+		await (await using(opts.config, opts.database)).importData(opts.name, opts['dry-run'])
 		console.log('Import complete.')
 	})
 
@@ -127,7 +127,7 @@ prog
 	.example('dbd export')
 	.example('dbd export -n staging.lookups')
 	.action(async (opts) => {
-		await using(opts.config, opts.database).exportData(opts.name)
+		await (await using(opts.config, opts.database)).exportData(opts.name)
 		console.log('Export complete.')
 	})
 
@@ -137,8 +137,8 @@ prog
 	.describe('Combine table ddl scripts and generate dbml.')
 	.example('dbd dbml')
 	.example('dbd dbml -f design.dbml')
-	.action((opts) => {
-		using(opts.config, opts.database).dbml(opts.file)
+	.action(async (opts) => {
+		;(await using(opts.config, opts.database)).dbml(opts.file)
 	})
 
 prog.parse(process.argv)

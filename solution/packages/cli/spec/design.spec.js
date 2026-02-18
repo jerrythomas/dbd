@@ -8,7 +8,6 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vite
 import { existsSync, readFileSync, unlinkSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { resetCache } from '../src/references.js'
 import { using } from '../src/design.js'
 import { entities as expectedEntities } from './fixtures/design/config.js'
 
@@ -24,7 +23,6 @@ describe('Design class (packages/cli)', () => {
 	})
 
 	beforeEach(() => {
-		resetCache()
 		process.chdir(exampleDir)
 		vi.spyOn(console, 'log').mockImplementation(() => {})
 		vi.spyOn(console, 'info').mockImplementation(() => {})
@@ -39,8 +37,8 @@ describe('Design class (packages/cli)', () => {
 
 	// --- Initialization ---
 
-	it('using() returns a Design instance with expected properties', () => {
-		const dx = using('design.yaml')
+	it('using() returns a Design instance with expected properties', async () => {
+		const dx = await using('design.yaml')
 
 		expect(dx).toBeDefined()
 		expect(dx.config).toBeDefined()
@@ -49,14 +47,14 @@ describe('Design class (packages/cli)', () => {
 		expect(dx.databaseURL).toBeUndefined()
 	})
 
-	it('using() with databaseURL stores the URL', () => {
+	it('using() with databaseURL stores the URL', async () => {
 		const url = 'postgresql://localhost/test'
-		const dx = using('design.yaml', url)
+		const dx = await using('design.yaml', url)
 		expect(dx.databaseURL).toBe(url)
 	})
 
-	it('loads project config from example/design.yaml', () => {
-		const dx = using('design.yaml')
+	it('loads project config from example/design.yaml', async () => {
+		const dx = await using('design.yaml')
 
 		expect(dx.config.project.name).toBe('Example')
 		expect(dx.config.project.database).toBe('PostgreSQL')
@@ -64,8 +62,8 @@ describe('Design class (packages/cli)', () => {
 		expect(dx.config.project.staging).toEqual(['staging'])
 	})
 
-	it('loads schemas from config', () => {
-		const dx = using('design.yaml')
+	it('loads schemas from config', async () => {
+		const dx = await using('design.yaml')
 
 		expect(dx.config.schemas).toContain('config')
 		expect(dx.config.schemas).toContain('extensions')
@@ -73,21 +71,21 @@ describe('Design class (packages/cli)', () => {
 		expect(dx.config.schemas).toContain('migrate')
 	})
 
-	it('loads extensions from config', () => {
-		const dx = using('design.yaml')
+	it('loads extensions from config', async () => {
+		const dx = await using('design.yaml')
 
 		expect(dx.config.extensions).toEqual(['uuid-ossp'])
 	})
 
 	// --- Entities ---
 
-	it('discovers correct number of entities', () => {
-		const dx = using('design.yaml')
+	it('discovers correct number of entities', async () => {
+		const dx = await using('design.yaml')
 		expect(dx.entities.length).toBe(expectedEntities.length)
 	})
 
-	it('entities include schemas first, then extensions, then roles, then DDL', () => {
-		const dx = using('design.yaml')
+	it('entities include schemas first, then extensions, then roles, then DDL', async () => {
+		const dx = await using('design.yaml')
 		const types = dx.entities.map((e) => e.type)
 
 		const firstSchema = types.indexOf('schema')
@@ -100,8 +98,8 @@ describe('Design class (packages/cli)', () => {
 		expect(firstRole).toBeLessThan(firstTable)
 	})
 
-	it('entity names match expected list', () => {
-		const dx = using('design.yaml')
+	it('entity names match expected list', async () => {
+		const dx = await using('design.yaml')
 		const names = dx.entities.map((e) => e.name)
 		const expectedNames = expectedEntities.map((e) => e.name)
 		expect(names).toEqual(expectedNames)
@@ -109,36 +107,36 @@ describe('Design class (packages/cli)', () => {
 
 	// --- Validation ---
 
-	it('validate() sets isValidated flag', () => {
-		const dx = using('design.yaml')
+	it('validate() sets isValidated flag', async () => {
+		const dx = await using('design.yaml')
 		expect(dx.isValidated).toBe(false)
 		dx.validate()
 		expect(dx.isValidated).toBe(true)
 	})
 
-	it('validate() returns this (chainable)', () => {
-		const dx = using('design.yaml')
+	it('validate() returns this (chainable)', async () => {
+		const dx = await using('design.yaml')
 		const result = dx.validate()
 		expect(result).toBe(dx)
 	})
 
-	it('report() returns { entity, issues }', () => {
-		const dx = using('design.yaml')
+	it('report() returns { entity, issues }', async () => {
+		const dx = await using('design.yaml')
 		const result = dx.report()
 		expect(result).toHaveProperty('entity')
 		expect(result).toHaveProperty('issues')
 	})
 
-	it('report(name) returns specific entity', () => {
-		const dx = using('design.yaml')
+	it('report(name) returns specific entity', async () => {
+		const dx = await using('design.yaml')
 		const result = dx.report('config.lookups')
 		expect(result.entity.name).toBe('config.lookups')
 	})
 
 	// --- combine ---
 
-	it('combine() generates DDL file', () => {
-		const dx = using('design.yaml')
+	it('combine() generates DDL file', async () => {
+		const dx = await using('design.yaml')
 		const file = '_test_combined.ddl'
 
 		try {
@@ -155,8 +153,8 @@ describe('Design class (packages/cli)', () => {
 
 	// --- DBML ---
 
-	it('dbml() generates DBML files and logs each filename', () => {
-		const dx = using('design.yaml')
+	it('dbml() generates DBML files and logs each filename', async () => {
+		const dx = await using('design.yaml')
 
 		const baseFile = 'Example-base-design.dbml'
 		const coreFile = 'Example-core-design.dbml'
@@ -175,8 +173,8 @@ describe('Design class (packages/cli)', () => {
 		}
 	})
 
-	it('dbml() returns this (chainable)', () => {
-		const dx = using('design.yaml')
+	it('dbml() returns this (chainable)', async () => {
+		const dx = await using('design.yaml')
 
 		const baseFile = 'Example-base-design.dbml'
 		const coreFile = 'Example-core-design.dbml'
@@ -192,8 +190,8 @@ describe('Design class (packages/cli)', () => {
 
 	// --- apply dry-run ---
 
-	it('apply dry-run logs entity type, name, and file for each entity', () => {
-		const dx = using('design.yaml')
+	it('apply dry-run logs entity type, name, and file for each entity', async () => {
+		const dx = await using('design.yaml')
 		dx.apply(undefined, true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
@@ -205,8 +203,8 @@ describe('Design class (packages/cli)', () => {
 		expect(infoCalls.some((c) => /using ".*\.ddl"/.test(c))).toBe(true)
 	})
 
-	it('apply dry-run logs errors for invalid entities with entity details', () => {
-		const dx = using('design.yaml')
+	it('apply dry-run logs errors for invalid entities with entity details', async () => {
+		const dx = await using('design.yaml')
 		const lastEntity = dx.entities[dx.entities.length - 1]
 		lastEntity.errors = ['test error']
 		dx.apply(undefined, true)
@@ -218,8 +216,8 @@ describe('Design class (packages/cli)', () => {
 
 	// --- importData dry-run ---
 
-	it('importData dry-run logs "Importing <name>" for each table', () => {
-		const dx = using('design.yaml')
+	it('importData dry-run logs "Importing <name>" for each table', async () => {
+		const dx = await using('design.yaml')
 		dx.importData(undefined, true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
@@ -233,8 +231,8 @@ describe('Design class (packages/cli)', () => {
 		})
 	})
 
-	it('importData dry-run filters by name and logs matching table', () => {
-		const dx = using('design.yaml')
+	it('importData dry-run filters by name and logs matching table', async () => {
+		const dx = await using('design.yaml')
 		dx.importData('staging.lookups', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
@@ -244,8 +242,8 @@ describe('Design class (packages/cli)', () => {
 		expect(importMessages).toEqual(['Importing staging.lookups'])
 	})
 
-	it('importData dry-run also logs the table object', () => {
-		const dx = using('design.yaml')
+	it('importData dry-run also logs the table object', async () => {
+		const dx = await using('design.yaml')
 		dx.importData('staging.lookups', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
@@ -257,8 +255,8 @@ describe('Design class (packages/cli)', () => {
 
 	// --- updateEntities ---
 
-	it('updateEntities rebuilds entity list', () => {
-		const dx = using('design.yaml')
+	it('updateEntities rebuilds entity list', async () => {
+		const dx = await using('design.yaml')
 		const originalCount = dx.entities.length
 		dx.updateEntities(dx.config.entities)
 		expect(dx.entities.length).toBe(originalCount)
@@ -266,8 +264,8 @@ describe('Design class (packages/cli)', () => {
 
 	// --- report ---
 
-	it('report() returns warnings separately from issues', () => {
-		const dx = using('design.yaml')
+	it('report() returns warnings separately from issues', async () => {
+		const dx = await using('design.yaml')
 		const result = dx.report()
 		expect(result).toHaveProperty('warnings')
 		expect(Array.isArray(result.warnings)).toBe(true)
@@ -275,15 +273,15 @@ describe('Design class (packages/cli)', () => {
 
 	// --- roles getter ---
 
-	it('roles getter returns array', () => {
-		const dx = using('design.yaml')
+	it('roles getter returns array', async () => {
+		const dx = await using('design.yaml')
 		expect(Array.isArray(dx.roles)).toBe(true)
 	})
 
 	// --- importTables ---
 
-	it('importTables are ordered by entity index', () => {
-		const dx = using('design.yaml')
+	it('importTables are ordered by entity index', async () => {
+		const dx = await using('design.yaml')
 		const orders = dx.importTables.map((t) => t.order)
 		const sorted = [...orders].sort((a, b) => a - b)
 		expect(orders).toEqual(sorted)
@@ -291,8 +289,8 @@ describe('Design class (packages/cli)', () => {
 
 	// --- validate on importTables ---
 
-	it('validate flags import tables with non-staging schema', () => {
-		const dx = using('design.yaml')
+	it('validate flags import tables with non-staging schema', async () => {
+		const dx = await using('design.yaml')
 		dx.validate()
 		// All import tables in example use staging schema, so no errors from schema check
 		const stagingTables = dx.importTables.filter((t) => t.schema === 'staging')
@@ -301,8 +299,8 @@ describe('Design class (packages/cli)', () => {
 
 	// --- dbml error handling ---
 
-	it('dbml() handles generateDBML errors gracefully', () => {
-		const dx = using('design.yaml')
+	it('dbml() handles generateDBML errors gracefully', async () => {
+		const dx = await using('design.yaml')
 		// Force entities to be empty to trigger edge cases
 		dx.updateEntities([])
 

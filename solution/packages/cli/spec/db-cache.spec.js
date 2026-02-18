@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { DbReferenceCache } from '../src/db-cache.js'
-import { resolveWarnings, matchReferences } from '../src/references.js'
+import { resolveWarnings } from '../src/references.js'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 
 vi.mock('fs', async () => {

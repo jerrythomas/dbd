@@ -2,6 +2,7 @@
  * Design class — orchestrates configuration, validation, and operations.
  *
  * Refactored from src/collect.js to use @jerrythomas/dbd-db packages.
+ * The adapter provides all dialect-specific behavior (parsing, classification).
  */
 import fs from 'fs'
 import path from 'path'
@@ -19,7 +20,7 @@ import {
 } from '@jerrythomas/dbd-db'
 import { generateDBML } from '@jerrythomas/dbd-dbml'
 import { read, clean } from './config.js'
-import { parseEntityScript, matchReferences } from './references.js'
+import { matchReferences } from './references.js'
 
 class Design {
 	#config = {}
@@ -30,11 +31,18 @@ class Design {
 	#importTables
 	#adapter = null
 
-	constructor(file, databaseURL) {
-		let config = clean(read(file), parseEntityScript, matchReferences)
+	constructor(rawConfig, adapter, databaseURL) {
+		const parseEntity = (entity) => adapter.parseEntityScript(entity)
+		const matchRefs = (entities, exts) =>
+			matchReferences(entities, exts, (name, installed) =>
+				adapter.classifyReference(name, installed)
+			)
+
+		let config = clean(rawConfig, parseEntity, matchRefs)
 
 		let extensionSchema = config.project.extensionSchema
 		this.#databaseURL = databaseURL
+		this.#adapter = adapter
 		this.#config = omit(['importTables'], config)
 		this.#config.extensions = this.#config.extensions ?? []
 		this.#config.roles = sortByDependencies(config.roles)
@@ -250,21 +258,23 @@ class Design {
 	}
 
 	async getAdapter() {
-		if (!this.#adapter) {
-			const { createAdapter } = await import('@jerrythomas/dbd-db')
-			this.#adapter = await createAdapter('postgres', this.databaseURL)
-		}
 		return this.#adapter
 	}
 }
 
 /**
- * Factory function for creating a Design instance.
+ * Async factory function for creating a Design instance.
+ * Loads the adapter based on the project's configured database dialect.
  *
  * @param {string} file - path to configuration file
  * @param {string} databaseURL - database connection URL
- * @returns {Design}
+ * @returns {Promise<Design>}
  */
-export function using(file, databaseURL) {
-	return new Design(file, databaseURL)
+export async function using(file, databaseURL) {
+	const rawConfig = read(file)
+	const dbType = rawConfig.project?.database || 'PostgreSQL'
+	const { createAdapter } = await import('@jerrythomas/dbd-db')
+	const adapter = await createAdapter(dbType.toLowerCase(), databaseURL)
+	await adapter.initParser()
+	return new Design(rawConfig, adapter, databaseURL)
 }

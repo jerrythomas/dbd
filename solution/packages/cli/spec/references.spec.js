@@ -1,165 +1,37 @@
 /**
  * Tests for packages/cli/src/references.js
  *
- * Mirrors spec/compat/references.spec.js but imports from the new package.
+ * Dialect-agnostic reference resolution tests.
+ * Postgres-specific tests (isInternal, extractReferences, etc.) are in
+ * packages/postgres/spec/adapter-parse.spec.js.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
-	isInternal,
-	isAnsiiSQL,
-	isPostgres,
-	isExtension,
-	resetCache,
-	extractReferences,
-	extractTableReferences,
-	extractTriggerReferences,
-	extractSearchPaths,
-	extractWithAliases,
-	extractEntity,
-	removeCommentBlocks,
-	removeIndexCreationStatements,
-	normalizeComment,
-	cleanupDDLForDBML,
 	matchReferences,
 	findEntityByName,
-	parseEntityScript,
 	generateLookupTree,
-	matchesKnownExtension
+	resolveWarnings
 } from '../src/references.js'
-import fs from 'fs'
 
-describe('references', () => {
-	beforeEach(() => {
-		resetCache()
-	})
+/**
+ * Mock classifier that simulates adapter.classifyReference().
+ * Knows a few builtins and one extension.
+ */
+function mockClassifier(name, installed = []) {
+	const builtins = ['count', 'avg', 'sum', 'now', 'coalesce']
+	const extensionFuncs = { 'uuid-ossp': ['uuid_generate_v4'] }
+	const lower = name.toLowerCase()
 
-	describe('isInternal()', () => {
-		it('recognizes ANSI SQL functions', () => {
-			expect(isAnsiiSQL('count')).toBe('internal')
-			expect(isAnsiiSQL('avg')).toBe('internal')
-			expect(isAnsiiSQL('sum')).toBe('internal')
-		})
+	if (builtins.includes(lower)) return 'internal'
+	for (const ext of installed) {
+		if (extensionFuncs[ext]?.includes(lower)) return 'extension'
+	}
+	return null
+}
 
-		it('recognizes PostgreSQL functions', () => {
-			expect(isPostgres('now')).toBe('internal')
-			expect(isPostgres('unnest')).toBe('internal')
-		})
-
-		it('recognizes PostgreSQL pattern-matched functions', () => {
-			expect(isPostgres('pg_catalog')).toBe('internal')
-			expect(isPostgres('array_agg')).toBe('internal')
-			expect(isPostgres('to_char')).toBe('internal')
-		})
-
-		it('recognizes extension functions', () => {
-			expect(isExtension('uuid_generate_v4', ['uuid-ossp'])).toBe('extension')
-			expect(isExtension('gen_salt', ['pgcrypto'])).toBe('extension')
-		})
-
-		it('returns null for unknown functions', () => {
-			expect(isInternal('my_custom_function')).toBeNull()
-		})
-
-		it('caches results', () => {
-			isInternal('count')
-			isInternal('count')
-			// Should not error — cache should handle this
-			expect(isInternal('count')).toBe('internal')
-		})
-	})
-
-	describe('extractSearchPaths()', () => {
-		it('returns default public when no SET search_path', () => {
-			expect(extractSearchPaths('SELECT 1;')).toEqual(['public'])
-		})
-
-		it('extracts single search path', () => {
-			expect(extractSearchPaths('SET search_path to staging;')).toEqual(['staging'])
-		})
-
-		it('extracts multiple search paths', () => {
-			expect(extractSearchPaths('SET search_path to staging, public;')).toEqual([
-				'staging',
-				'public'
-			])
-		})
-
-		it('last SET wins', () => {
-			const sql = 'SET search_path to staging;\nSET search_path to config;'
-			expect(extractSearchPaths(sql)).toEqual(['config'])
-		})
-	})
-
-	describe('extractWithAliases()', () => {
-		it('extracts CTE aliases', () => {
-			const sql = 'WITH foo AS (SELECT 1), bar AS (SELECT 2) SELECT * FROM foo;'
-			const aliases = extractWithAliases(sql)
-			expect(aliases).toContain('foo')
-			expect(aliases).toContain('bar')
-		})
-
-		it('extracts recursive CTE aliases', () => {
-			const sql = 'WITH RECURSIVE tree AS (SELECT 1) SELECT * FROM tree;'
-			const aliases = extractWithAliases(sql)
-			expect(aliases).toContain('tree')
-		})
-	})
-
-	describe('removeCommentBlocks()', () => {
-		it('removes COMMENT ON statements', () => {
-			const sql = "COMMENT ON TABLE foo IS 'some comment';\nSELECT 1;"
-			const result = removeCommentBlocks(sql)
-			expect(result).not.toContain("IS 'some comment'")
-			expect(result).toContain('SELECT 1;')
-		})
-
-		it('removes line comments', () => {
-			const sql = '-- this is a comment\nSELECT 1;'
-			const result = removeCommentBlocks(sql)
-			expect(result).not.toContain('this is a comment')
-		})
-
-		it('removes block comments', () => {
-			const sql = '/* block comment */ SELECT 1;'
-			const result = removeCommentBlocks(sql)
-			expect(result).not.toContain('block comment')
-		})
-	})
-
-	describe('removeIndexCreationStatements()', () => {
-		it('removes CREATE INDEX statements', () => {
-			const sql = 'CREATE TABLE foo (id int);\nCREATE INDEX idx_foo ON foo(id);'
-			const result = removeIndexCreationStatements(sql)
-			expect(result).toContain('CREATE TABLE foo')
-			expect(result).not.toContain('CREATE INDEX')
-		})
-	})
-
-	describe('normalizeComment()', () => {
-		it('collapses multiline comments to single line', () => {
-			const input = "comment on table foo IS 'line1\nline2';"
-			const result = normalizeComment(input)
-			expect(result).not.toContain('\n')
-			expect(result).toContain('line1')
-			expect(result).toContain('line2')
-		})
-	})
-
-	describe('cleanupDDLForDBML()', () => {
-		it('removes index statements', () => {
-			const sql = 'CREATE TABLE foo (id int);\nCREATE INDEX idx ON foo(id);'
-			const result = cleanupDDLForDBML(sql)
-			expect(result).not.toContain('CREATE INDEX')
-		})
-
-		it('returns falsy input as-is', () => {
-			expect(cleanupDDLForDBML(null)).toBeNull()
-			expect(cleanupDDLForDBML('')).toBe('')
-		})
-	})
-
+describe('references (dialect-agnostic)', () => {
 	describe('generateLookupTree()', () => {
-		it('builds name→entity lookup', () => {
+		it('builds name->entity lookup', () => {
 			const entities = [
 				{ name: 'public.users', schema: 'public', type: 'table', extra: 'ignored' },
 				{ name: 'public.orders', schema: 'public', type: 'table' }
@@ -178,102 +50,6 @@ describe('references', () => {
 		})
 	})
 
-	describe('extractEntity()', () => {
-		it('extracts CREATE TABLE entity', () => {
-			const result = extractEntity('CREATE TABLE config.lookups (id int);')
-			expect(result.type).toBe('table')
-			expect(result.name).toBe('lookups')
-			expect(result.schema).toBe('config')
-		})
-
-		it('extracts CREATE VIEW entity', () => {
-			const result = extractEntity('CREATE OR REPLACE VIEW staging.active AS SELECT 1;')
-			expect(result.type).toBe('view')
-			expect(result.name).toBe('active')
-		})
-
-		it('extracts CREATE FUNCTION entity', () => {
-			const result = extractEntity(
-				'CREATE FUNCTION staging.do_stuff() RETURNS void LANGUAGE plpgsql AS $$ BEGIN END; $$;'
-			)
-			expect(result.type).toBe('function')
-			expect(result.name).toBe('do_stuff')
-		})
-
-		it('returns undefined for non-DDL', () => {
-			const result = extractEntity('SELECT 1;')
-			expect(result.name).toBeUndefined()
-		})
-	})
-
-	describe('extractReferences()', () => {
-		it('extracts function call references', () => {
-			const sql = `PERFORM staging.import_lookups('config');`
-			const refs = extractReferences(sql)
-			const names = refs.map((r) => r.name)
-			expect(names).toContain('staging.import_lookups')
-		})
-
-		it('excludes internal functions', () => {
-			const sql = `SELECT count(*), now();`
-			const refs = extractReferences(sql)
-			const names = refs.map((r) => r.name)
-			expect(names).not.toContain('count')
-			expect(names).not.toContain('now')
-		})
-
-		it('returns empty for SQL without function calls', () => {
-			const refs = extractReferences('SELECT 1;')
-			expect(refs).toEqual([])
-		})
-	})
-
-	describe('extractTableReferences()', () => {
-		it('extracts FROM clause table references', () => {
-			const sql = 'SELECT * FROM staging.data;'
-			const refs = extractTableReferences(sql)
-			const names = refs.map((r) => r.name)
-			expect(names).toContain('staging.data')
-		})
-
-		it('excludes CTE aliases', () => {
-			const sql = 'WITH cte AS (SELECT 1) SELECT * FROM cte;'
-			const refs = extractTableReferences(sql)
-			const names = refs.map((r) => r.name)
-			expect(names).not.toContain('cte')
-		})
-	})
-
-	describe('extractTriggerReferences()', () => {
-		it('extracts trigger table references', () => {
-			const sql = `CREATE TRIGGER trg_audit
-				AFTER INSERT ON config.lookups
-				FOR EACH ROW EXECUTE FUNCTION audit_fn();`
-			const refs = extractTriggerReferences(sql)
-			const names = refs.map((r) => r.name)
-			expect(names).toContain('config.lookups')
-		})
-
-		it('returns empty for non-trigger SQL', () => {
-			const refs = extractTriggerReferences('SELECT 1;')
-			expect(refs).toEqual([])
-		})
-	})
-
-	describe('matchesKnownExtension()', () => {
-		it('matches uuid-ossp pattern', () => {
-			expect(matchesKnownExtension('uuid_generate_v4')).toBe('uuid-ossp')
-		})
-
-		it('matches pgmq pattern', () => {
-			expect(matchesKnownExtension('pgmq_send')).toBe('pgmq')
-		})
-
-		it('returns null for unknown', () => {
-			expect(matchesKnownExtension('my_custom_func')).toBeNull()
-		})
-	})
-
 	describe('findEntityByName()', () => {
 		const lookup = {
 			'public.users': { name: 'public.users', schema: 'public', type: 'table' },
@@ -284,7 +60,8 @@ describe('references', () => {
 			const result = findEntityByName(
 				{ name: 'public.users', type: 'table/view' },
 				['public'],
-				lookup
+				lookup,
+				mockClassifier
 			)
 			expect(result.name).toBe('public.users')
 			expect(result.type).toBe('table')
@@ -294,7 +71,8 @@ describe('references', () => {
 			const result = findEntityByName(
 				{ name: 'lookups', type: 'table/view' },
 				['config', 'public'],
-				lookup
+				lookup,
+				mockClassifier
 			)
 			expect(result.name).toBe('config.lookups')
 		})
@@ -303,7 +81,8 @@ describe('references', () => {
 			const result = findEntityByName(
 				{ name: 'other.missing_table', type: 'table/view' },
 				['public'],
-				lookup
+				lookup,
+				mockClassifier
 			)
 			expect(result).toHaveProperty('warning')
 			expect(result.warning).toContain('not found')
@@ -313,63 +92,42 @@ describe('references', () => {
 			const result = findEntityByName(
 				{ name: 'nonexistent', type: 'table/view' },
 				['public'],
-				lookup
+				lookup,
+				mockClassifier
 			)
 			expect(result.warning).toContain('not found')
 		})
 
-		it('identifies extension references', () => {
+		it('identifies internal builtins via classifier', () => {
+			const result = findEntityByName(
+				{ name: 'count', type: 'function' },
+				['public'],
+				lookup,
+				mockClassifier
+			)
+			expect(result.type).toBe('internal')
+		})
+
+		it('identifies extension references via classifier', () => {
 			const result = findEntityByName(
 				{ name: 'uuid_generate_v4', type: 'function' },
 				['public'],
 				lookup,
+				mockClassifier,
 				['uuid-ossp']
 			)
 			expect(result.type).toBe('extension')
 		})
 
-		it('warns about undeclared extensions', () => {
+		it('returns warning for unknown references', () => {
 			const result = findEntityByName(
-				{ name: 'uuid_generate_v4', type: 'function' },
+				{ name: 'my_custom_func', type: 'function' },
 				['public'],
 				lookup,
+				mockClassifier,
 				[]
 			)
-			expect(result.warning).toContain('undeclared extension')
-		})
-	})
-
-	describe('parseEntityScript()', () => {
-		it('parses entity from DDL file', () => {
-			vi.spyOn(fs, 'readFileSync').mockReturnValue(
-				'SET search_path to config;\nCREATE TABLE config.lookups (id int);'
-			)
-			const entity = {
-				name: 'config.lookups',
-				schema: 'config',
-				type: 'table',
-				file: 'ddl/table/config/lookups.ddl'
-			}
-			const result = parseEntityScript(entity)
-			expect(result.name).toBe('config.lookups')
-			expect(result.schema).toBe('config')
-			expect(result.searchPaths).toBeDefined()
-			vi.restoreAllMocks()
-		})
-
-		it('reports schema mismatch errors', () => {
-			vi.spyOn(fs, 'readFileSync').mockReturnValue(
-				'SET search_path to wrong;\nCREATE TABLE wrong.lookups (id int);'
-			)
-			const entity = {
-				name: 'config.lookups',
-				schema: 'config',
-				type: 'table',
-				file: 'ddl/table/config/lookups.ddl'
-			}
-			const result = parseEntityScript(entity)
-			expect(result.errors.some((e) => e.includes('Schema'))).toBe(true)
-			vi.restoreAllMocks()
+			expect(result.warning).toContain('not found')
 		})
 	})
 
@@ -391,7 +149,7 @@ describe('references', () => {
 					references: []
 				}
 			]
-			const result = matchReferences(entities)
+			const result = matchReferences(entities, [], mockClassifier)
 			const a = result.find((e) => e.name === 'public.a')
 			expect(a.refers).toContain('public.b')
 		})
@@ -406,8 +164,75 @@ describe('references', () => {
 					references: [{ name: 'missing_table', type: 'table/view' }]
 				}
 			]
-			const result = matchReferences(entities)
+			const result = matchReferences(entities, [], mockClassifier)
 			expect(result[0].warnings.length).toBeGreaterThan(0)
+		})
+
+		it('classifies internal builtins and excludes from refers', () => {
+			const entities = [
+				{
+					name: 'public.a',
+					schema: 'public',
+					type: 'table',
+					searchPaths: ['public'],
+					references: [{ name: 'count', type: 'function' }]
+				}
+			]
+			const result = matchReferences(entities, [], mockClassifier)
+			expect(result[0].refers).toEqual([])
+			expect(result[0].warnings).toEqual([])
+		})
+	})
+
+	describe('resolveWarnings()', () => {
+		it('returns entities unchanged when no dbResolver', async () => {
+			const entities = [{ name: 'a', warnings: ['something'] }]
+			const result = await resolveWarnings(entities, null)
+			expect(result).toBe(entities)
+		})
+
+		it('resolves warnings against db catalog', async () => {
+			const entities = [
+				{
+					name: 'public.a',
+					warnings: ['Reference other.foo not found'],
+					references: [
+						{ name: 'other.foo', type: 'table', warning: 'Reference other.foo not found' }
+					]
+				}
+			]
+			const mockResolver = {
+				resolve: async (name) => {
+					if (name === 'other.foo') return { name: 'other.foo', schema: 'other', type: 'table' }
+					return null
+				}
+			}
+			const result = await resolveWarnings(entities, mockResolver)
+			expect(result[0].warnings).toEqual([])
+			expect(result[0].references[0].name).toBe('other.foo')
+			expect(result[0].references[0]).not.toHaveProperty('warning')
+		})
+
+		it('keeps warnings when db resolution fails', async () => {
+			const entities = [
+				{
+					name: 'public.a',
+					warnings: ['Reference missing not found'],
+					references: [{ name: 'missing', type: 'table', warning: 'Reference missing not found' }]
+				}
+			]
+			const mockResolver = {
+				resolve: async () => null
+			}
+			const result = await resolveWarnings(entities, mockResolver)
+			expect(result[0].warnings.length).toBe(1)
+		})
+
+		it('skips entities without warnings', async () => {
+			const entities = [{ name: 'public.a', warnings: [], references: [] }]
+			const mockResolver = { resolve: async () => null }
+			const result = await resolveWarnings(entities, mockResolver)
+			expect(result[0]).toBe(entities[0])
 		})
 	})
 })
