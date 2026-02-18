@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
 	test: {
-		name: 'db',
+		name: 'postgres',
 		globals: true,
 		pool: 'forks',
 		include: ['spec/**/*.spec.js'],

@@ -10,7 +10,7 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { resetCache } from '../src/references.js'
 import { using } from '../src/design.js'
-import { entities as expectedEntities } from '../../spec/fixtures/design/config.js'
+import { entities as expectedEntities } from './fixtures/design/config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..', '..', '..')

@@ -22,18 +22,12 @@ import {
 	defaultExportOptions,
 	defaultImportOptions
 } from '../src/entity-processor.js'
-import {
-	ddlScripts,
-	validations,
-	importScripts,
-	exportScripts
-} from '../../spec/fixtures/entities/index.js'
+import { ddlScripts, validations, importScripts, exportScripts } from './fixtures/entities/index.js'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const repoRoot = join(__dirname, '..', '..', '..')
-const fixtureDir = join(repoRoot, 'spec', 'fixtures', 'alternate')
+const fixtureDir = join(__dirname, 'fixtures', 'alternate')
 
 describe('entity-processor', () => {
 	let originalPath

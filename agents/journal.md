@@ -187,6 +187,23 @@ Replaced `node-sql-parser` with `pgsql-parser` (PostgreSQL C parser via WASM, li
 
 **Test results:** 115 parser tests passing (was 114 + 1 new), 333 total workspace tests, 0 lint errors.
 
+### Workspace Restructure: Strategos-Style Configuration
+
+Reorganized the monorepo to use a single `packages/*` workspace with workspace-aware vitest.
+
+**Changes:**
+- Moved `adapters/postgres` → `packages/postgres` — single workspace root
+- Relocated root `spec/fixtures/` into owning packages (`db`, `cli`) — each package self-contained
+- Deleted orphaned fixtures: `references/`, `metadata/`, loose YAML files
+- Added `vitest.config.ts` with `projects: ['packages/*']` — workspace-aware test discovery
+- Added `name` field to each per-package vitest config — enables `--project parser` shorthand
+- Added 80% coverage thresholds to all per-package vitest configs
+- Simplified root scripts: `test` → `vitest run`, `coverage` → `vitest run --coverage`
+- Removed per-package devDeps (vitest, eslint, prettier) — all test infra root-only
+- Updated `CLAUDE.md` docs (structure, commands, file table)
+
+**Result:** 333 tests passing via single `bun test` command, 0 lint errors, clean workspace layout.
+
 ### Fix Console Noise in Parser Tests
 
 Replaced hardcoded `console.warn`/`console.error` calls in `parser-utils.js` (the OOP `SQLParser` class) with `errorHandler.handleParsingError()`. These were bypassing the error handler configured as silent in tests, causing stderr output during test runs. Zero stderr blocks in test output now.

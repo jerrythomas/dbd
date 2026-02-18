@@ -44,35 +44,37 @@ dbd/
     cli/                        <-- dbd — CLI, config, design orchestrator, references
     dbml/                       <-- @dbd/dbml — DBML conversion
     db/                         <-- @dbd/db — Database abstraction, entity processing
-  adapters/
     postgres/                   <-- @dbd/db-postgres — PostgreSQL adapter
-  spec/
-    fixtures/                   <-- Test fixtures shared across packages
   example/                      <-- Example project structure
 ```
 
 ## Key Design Principles
 
 - **Functional Programming** — pure functions, composition over inheritance, Ramda for FP utilities
-- **AST-First Parsing** — `node-sql-parser` for proper AST, regex fallback for unsupported SQL
+- **AST-First Parsing** — `pgsql-parser` (PostgreSQL C parser via WASM) for accurate AST, regex fallback for unsupported SQL
 - **Graceful Degradation** — always return partial results, collect errors don't throw them
 - **Separation of Concerns** — parser, CLI, adapters, and DBML are independent packages
 
 ## Commands
 
 ```bash
-# Workspace package tests
-bun test:parser                   # packages/parser tests (114 tests)
+# All tests (workspace-aware vitest)
+bun test                          # All workspace tests (vitest run)
+bun test:watch                    # Watch mode
+
+# Individual package tests (via --project)
+bun test:parser                   # packages/parser tests (115 tests)
 bun test:cli                      # packages/cli tests (55 tests)
 bun test:db                       # packages/db tests (99 tests)
 bun test:dbml                     # packages/dbml tests (35 tests)
-bun test:postgres                 # adapters/postgres tests (29 tests)
-bun test:unit                     # All workspace tests
-bun test:nopg                     # All workspace tests (no PG needed)
+bun test:postgres                 # packages/postgres tests (29 tests)
+
+# Coverage
+bun run coverage                  # All packages with 80% thresholds
 
 # E2E tests (requires PostgreSQL via Docker)
 bun test:e2e                      # packages/cli e2e tests
-bun test                          # Full suite (pg setup, unit, e2e, pg teardown)
+bun test:pg                       # Full suite (pg setup, e2e, pg teardown)
 
 # Code quality
 bun run lint                      # prettier + eslint (0 errors expected)
@@ -161,4 +163,4 @@ Design documents capture the "how" — extract them from implementation:
 | `packages/cli/src/index.js`      | CLI entry point (sade commands)                 |
 | `packages/db/src/`               | Entity processing, dependency resolver, adapter |
 | `packages/dbml/src/`             | DBML generation from DDL entities               |
-| `adapters/postgres/src/`         | PostgreSQL adapter implementation               |
+| `packages/postgres/src/`         | PostgreSQL adapter implementation               |

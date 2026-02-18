@@ -5,31 +5,30 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "adapters/*"
+    "packages/*"
   ],
   "bin": {
     "dbd": "packages/cli/src/index.js"
   },
   "scripts": {
-    "lint": "prettier --check . && eslint .",
-    "format": "prettier --write .",
-    "build": "npm run build --workspaces",
-    "test:parser": "npm test --workspace=packages/parser",
-    "test:cli": "npm test --workspace=packages/cli",
-    "test:db": "npm test --workspace=packages/db",
-    "test:dbml": "npm test --workspace=packages/dbml",
-    "test:postgres": "npm test --workspace=adapters/postgres",
-    "test:workspaces": "npm test --workspaces",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:parser": "vitest run --project parser",
+    "test:cli": "vitest run --project cli",
+    "test:db": "vitest run --project db",
+    "test:dbml": "vitest run --project dbml",
+    "test:postgres": "vitest run --project postgres",
+    "test:unit": "vitest run",
+    "test:nopg": "vitest run",
+    "coverage": "vitest run --coverage",
+    "test:e2e": "vitest run --config packages/cli/vitest.e2e.config.js",
     "pg-test": "docker run --name pg-test -p 5234:5432 -e POSTGRES_PASSWORD=pg-test -d postgres",
-    "test:e2e": "npm run test:e2e --workspace=packages/cli",
     "test:pg": "bun pg-test && bun test:e2e && bun test:clean",
     "test:clean": "docker stop pg-test && docker rm pg-test",
-    "test": "bun pg-test && bun test:unit && bun test:e2e && bun test:clean",
+    "lint": "prettier --check . && eslint .",
+    "format": "prettier --write .",
     "release:next": "release-it --preRelease=next",
-    "release": "release-it",
-    "test:unit": "npm test --workspaces",
-    "test:nopg": "npm test --workspaces"
+    "release": "release-it"
   },
   "author": "Jerry Thomas <me@jerrythomas.name>",
   "license": "MIT",

@@ -49,7 +49,7 @@ export default [
 		}
 	},
 	{
-		files: ['spec/fixtures/**/*.js'],
+		files: ['**/spec/fixtures/**/*.js'],
 		rules: {
 			'no-dupe-keys': 'off',
 			'no-sparse-arrays': 'off'

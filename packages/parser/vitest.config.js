@@ -2,15 +2,16 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
 	test: {
+		name: 'parser',
 		globals: true,
-		environment: 'node',
+		pool: 'forks',
 		include: ['spec/**/*.spec.js'],
 		setupFiles: ['spec/setup.js'],
+		testTimeout: 10000,
 		coverage: {
-			reporter: ['text', 'json', 'html'],
-			exclude: ['**/node_modules/**', '**/spec/**']
-		},
-		silent: false,
-		testTimeout: 10000
+			provider: 'v8',
+			include: ['src/**/*.js'],
+			thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 }
+		}
 	}
 })

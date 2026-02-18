@@ -8,12 +8,12 @@ import createConnectionPool, { sql } from '@databases/pg'
 import { MockConsole } from '@vanillaes/mock-console'
 import { using } from '../src/design.js'
 import { resetCache } from '../src/references.js'
-import { config, exports, validations } from '../../../spec/fixtures/design'
+import { config, exports, validations } from '../spec/fixtures/design'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..', '..', '..')
 const exampleDir = join(repoRoot, 'example')
-const badExampleDir = join(repoRoot, 'spec', 'fixtures', 'bad-example')
+const badExampleDir = join(__dirname, '..', 'spec', 'fixtures', 'bad-example')
 
 describe('collect', async () => {
 	let context = {}
