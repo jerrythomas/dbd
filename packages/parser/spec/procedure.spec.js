@@ -85,10 +85,10 @@ describe('SQL Parser - Procedure Definitions', () => {
         BEGIN
           BEGIN
             INSERT INTO audit_log(action) VALUES ('start');
-            
+
             -- Do something that might fail
             UPDATE accounts SET balance = balance - 100 WHERE id = 1;
-            
+
             COMMIT;
           EXCEPTION
             WHEN OTHERS THEN
@@ -207,7 +207,7 @@ describe('SQL Parser - Procedure Definitions', () => {
 		it.skip('should include procedures in schema extraction', () => {
 			const sql = `
         CREATE TABLE test_table (id INT PRIMARY KEY);
-        
+
         CREATE PROCEDURE test_proc()
         LANGUAGE plpgsql
         AS $$
@@ -233,16 +233,10 @@ describe('SQL Parser - Procedure Definitions', () => {
 
 	describe('Error Handling', () => {
 		it('should handle procedures with syntax errors gracefully', () => {
-			const sql = `
-        CREATE PROCEDURE broken_proc()
-        LANGUAGE plpgsql
-        AS $$
-        BEGIN
-          -- Missing semicolon
-          INSERT INTO log VALUES (1)
-        END;
-        $$;
-      `
+			// Note: pgsql-parser treats dollar-quoted body as opaque text,
+			// so PL/pgSQL body errors are NOT detected at DDL level.
+			// Use actual DDL-level syntax errors instead.
+			const sql = `CREATE PROCEDURE broken_proc( LANGUAGE plpgsql;`
 
 			// Parser should return an array even with syntax errors
 			const ast = parser.parse(sql)
@@ -252,6 +246,23 @@ describe('SQL Parser - Procedure Definitions', () => {
 			const validation = parser.validateDDL(sql)
 			expect(validation.valid).toBe(false)
 			expect(validation.message).toBeDefined()
+		})
+
+		it('should parse procedures with body errors as valid DDL', () => {
+			// Dollar-quoted body is opaque — missing semicolon inside body is not a DDL error
+			const sql = `
+        CREATE PROCEDURE body_error_proc()
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+          INSERT INTO log VALUES (1)
+        END;
+        $$;
+      `
+			const ast = parser.parse(sql)
+			expect(ast).toBeInstanceOf(Array)
+			expect(ast.length).toBe(1)
+			expect(ast[0].keyword).toBe('procedure')
 		})
 	})
 })

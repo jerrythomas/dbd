@@ -1,5 +1,5 @@
 /**
- * Trigger extractor module — regex-based (node-sql-parser does not support CREATE TRIGGER)
+ * Trigger extractor module — regex-based (supplements AST-based trigger extraction)
  * @module extractors/triggers
  */
 

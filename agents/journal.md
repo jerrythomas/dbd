@@ -158,6 +158,35 @@ Implemented `packages/db/` with 4 modules and 96 unit tests. Commit `a643b18`.
 
 All 222 existing tests remain green. New code is purely additive — `src/` untouched.
 
+## 2026-02-18
+
+### Parser Switch: node-sql-parser → pgsql-parser — COMPLETE
+
+Replaced `node-sql-parser` with `pgsql-parser` (PostgreSQL C parser via WASM, libpg_query v17). This gives accurate, real PostgreSQL parsing instead of a permissive multi-dialect parser.
+
+**Strategy:** Translation layer in `parsers/sql.js` — pgsql-parser AST is translated into the same normalized shape the existing extractors expect, minimizing downstream changes.
+
+**Key changes:**
+
+- `packages/parser/src/parsers/sql.js` — Complete rewrite (~1000 lines). Translates pgsql-parser AST nodes (CreateStmt, ViewStmt, CreateFunctionStmt, IndexStmt, CreateTrigStmt, VariableSetStmt, CommentStmt) into normalized shapes. Statement-level error isolation: tries full parse first, falls back to statement-by-statement on failure.
+- `packages/parser/src/parser-utils.js` — Simplified from ~800 to ~100 lines. Now delegates all extraction to functional extractors instead of having its own implementations.
+- `packages/parser/src/extractors/views.js` — Added `name` and `alias` to dependency objects for downstream consumers.
+- `packages/parser/spec/setup.js` — Added `await initParser()` for WASM module initialization.
+- `packages/parser/spec/procedure.spec.js` — Updated error handling test: pgsql-parser treats dollar-quoted body as opaque text, so PL/pgSQL body errors are NOT DDL-level errors.
+- `packages/parser/package.json` — Removed `node-sql-parser`, kept `pgsql-parser`.
+
+**pgsql-parser v17 gotchas resolved:**
+
+- `parseSync()` returns `{version, stmts: [{stmt, stmt_len}]}` not `[{RawStmt: {stmt}}]`
+- Constants are double-nested: `A_Const.ival.ival`, `A_Const.sval.sval`, `A_Const.boolval.boolval`
+- Type names via pg_catalog: `pg_catalog.varchar` → mapped to short `varchar`
+- JOIN types are strings: `JOIN_INNER`, `JOIN_LEFT` (not numeric)
+- Boolean ops are strings: `AND_EXPR`, `OR_EXPR` (not numeric)
+- Procedure body in `DefElem.arg.List.items[0].String.sval`
+- Schema-qualified index names are invalid PostgreSQL syntax (correctly rejected)
+
+**Test results:** 115 parser tests passing (was 114 + 1 new), 333 total workspace tests, 0 lint errors.
+
 ### Fix Console Noise in Parser Tests
 
 Replaced hardcoded `console.warn`/`console.error` calls in `parser-utils.js` (the OOP `SQLParser` class) with `errorHandler.handleParsingError()`. These were bypassing the error handler configured as silent in tests, causing stderr output during test runs. Zero stderr blocks in test output now.

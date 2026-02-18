@@ -20,7 +20,7 @@
     "access": "public"
   },
   "dependencies": {
-    "node-sql-parser": "^5.3.9",
+    "pgsql-parser": "^17.9.11",
     "ramda": "^0.29.1"
   },
   "devDependencies": {

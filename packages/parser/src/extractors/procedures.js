@@ -204,7 +204,7 @@ export const extractProcedureBody = (stmt) => {
 
 /**
  * Extract table references from a function's parsed AST body.
- * When node-sql-parser successfully parses a function body, the statements
+ * When the parser successfully parses a function body, the statements
  * are available as AST nodes in stmt.options[].expr (where type === 'as').
  * @param {Object} stmt - CREATE FUNCTION AST statement
  * @returns {Array} Array of table name strings (e.g. ['schema.table'])

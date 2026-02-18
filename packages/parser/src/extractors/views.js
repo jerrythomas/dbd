@@ -171,7 +171,9 @@ export const extractViewDependencies = (stmt) => {
 			if (cteNames.has(tableName)) return
 			dependencies.push({
 				table: tableName,
-				schema: table.db || table.schema
+				name: tableName,
+				schema: table.db || table.schema,
+				alias: table.as || null
 			})
 		}
 	}
