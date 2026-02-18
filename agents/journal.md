@@ -158,6 +158,25 @@ Implemented `packages/db/` with 4 modules and 96 unit tests. Commit `a643b18`.
 
 All 222 existing tests remain green. New code is purely additive — `src/` untouched.
 
+### Solution Directory + Vitest Consolidation
+
+Created `solution/` as monorepo workspace root, matching strategos pattern. Consolidated vitest config.
+
+**Structure changes:**
+- Created `solution/` — workspace root with `package.json`, `vitest.config.ts`, `eslint.config.js`, `.prettierrc`
+- Moved `packages/` → `solution/packages/`, `example/` → `solution/example/`
+- Deleted legacy `.eslintrc` (superseded by flat config), `pnpm-lock.yaml` (using bun), `bunfig.toml` (unnecessary)
+- Cleaned `.gitignore` — removed stale entries (`.nyc_output`, `.svelte-kit`)
+
+**Vitest consolidation:**
+- Replaced 5 identical per-package `vitest.config.js` files with single `solution/vitest.config.ts`
+- Uses inline `projects` with `extends: true` — each project inherits shared defaults (pool, globals, include, timeout)
+- Parser overrides `setupFiles` only; all other packages use pure inheritance
+- Coverage configured with `packages/*/src/**/*.js` include pattern (no thresholds — aspirational)
+- `packages/cli/vitest.e2e.config.js` kept separate (different include path and timeout)
+
+**Result:** 333 tests passing, all `--project` filters work, single config file.
+
 ## 2026-02-18
 
 ### Parser Switch: node-sql-parser → pgsql-parser — COMPLETE

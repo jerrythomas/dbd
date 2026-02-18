@@ -26,26 +26,21 @@ These files govern how you work. Do not skip them.
 dbd/
   CLAUDE.md                      <-- You are here
   agents/                        <-- Agent workflow, memory, journal, plans
-    workflow.md                  <-- Methodology and session lifecycle (READ FIRST)
-    memory.md                   <-- Shared project knowledge
-    journal.md                  <-- Chronological progress log
-    plan.md                     <-- Active plan/checklist
-    open-questions.md           <-- Q&A tracking for design discussions
-    design-patterns.md          <-- Established patterns cookbook
-    backlog.md                  <-- Deferred items for future phases
-    sessions/                   <-- Archived completed plans
   docs/
     requirements/               <-- Feature requirements (the "what")
     design/                     <-- Module design documents (the "how")
-    pre-requisites.md           <-- Setup instructions
-    to-do.md                    <-- Legacy todo (parser improvements)
-  packages/
-    parser/                     <-- @dbd/parser — SQL parsing & schema extraction
-    cli/                        <-- dbd — CLI, config, design orchestrator, references
-    dbml/                       <-- @dbd/dbml — DBML conversion
-    db/                         <-- @dbd/db — Database abstraction, entity processing
-    postgres/                   <-- @dbd/db-postgres — PostgreSQL adapter
-  example/                      <-- Example project structure
+  solution/                      <-- Monorepo workspace root
+    package.json                <-- Workspace config, scripts, devDependencies
+    vitest.config.ts            <-- Single vitest config (all projects)
+    eslint.config.js            <-- ESLint flat config
+    .prettierrc                 <-- Prettier config
+    packages/
+      parser/                   <-- @dbd/parser — SQL parsing & schema extraction
+      cli/                      <-- dbd — CLI, config, design orchestrator, references
+      dbml/                     <-- @dbd/dbml — DBML conversion
+      db/                       <-- @dbd/db — Database abstraction, entity processing
+      postgres/                 <-- @dbd/db-postgres — PostgreSQL adapter
+    example/                    <-- Example project structure
 ```
 
 ## Key Design Principles
@@ -57,27 +52,30 @@ dbd/
 
 ## Commands
 
+All workspace commands run from `solution/`:
+
 ```bash
 # All tests (workspace-aware vitest)
-bun test                          # All workspace tests (vitest run)
-bun test:watch                    # Watch mode
+cd solution
+bun run test                      # All workspace tests (vitest run)
+bun run test:watch                # Watch mode
 
 # Individual package tests (via --project)
-bun test:parser                   # packages/parser tests (115 tests)
-bun test:cli                      # packages/cli tests (55 tests)
-bun test:db                       # packages/db tests (99 tests)
-bun test:dbml                     # packages/dbml tests (35 tests)
-bun test:postgres                 # packages/postgres tests (29 tests)
+bun run test:parser               # packages/parser tests (115 tests)
+bun run test:cli                  # packages/cli tests (55 tests)
+bun run test:db                   # packages/db tests (99 tests)
+bun run test:dbml                 # packages/dbml tests (35 tests)
+bun run test:postgres             # packages/postgres tests (29 tests)
 
 # Coverage
-bun run coverage                  # All packages with 80% thresholds
+bun run coverage                  # All packages coverage report
 
 # E2E tests (requires PostgreSQL via Docker)
-bun test:e2e                      # packages/cli e2e tests
-bun test:pg                       # Full suite (pg setup, e2e, pg teardown)
+bun run test:e2e                  # packages/cli e2e tests
+bun run test:pg                   # Full suite (pg setup, e2e, pg teardown)
 
 # Code quality
-bun run lint                      # prettier + eslint (0 errors expected)
+bun run lint                      # prettier + eslint
 bun run format                    # Auto-format with prettier
 ```
 
@@ -148,19 +146,20 @@ Design documents capture the "how" — extract them from implementation:
 
 ## Key Files Quick Reference
 
-| File                             | Purpose                                         |
-| -------------------------------- | ----------------------------------------------- |
-| `agents/workflow.md`             | Methodology and session lifecycle               |
-| `agents/memory.md`               | Shared project knowledge                        |
-| `agents/plan.md`                 | Active plan/checklist                           |
-| `agents/journal.md`              | Chronological progress log                      |
-| `agents/backlog.md`              | Deferred items for future phases                |
-| `agents/design-patterns.md`      | Established patterns cookbook                   |
-| `packages/parser/src/`           | SQL parsing & schema extraction                 |
-| `packages/cli/src/design.js`     | Design class — main orchestrator                |
-| `packages/cli/src/config.js`     | YAML config loading & entity discovery          |
-| `packages/cli/src/references.js` | AST-based reference extraction & exclusions     |
-| `packages/cli/src/index.js`      | CLI entry point (sade commands)                 |
-| `packages/db/src/`               | Entity processing, dependency resolver, adapter |
-| `packages/dbml/src/`             | DBML generation from DDL entities               |
-| `packages/postgres/src/`         | PostgreSQL adapter implementation               |
+| File                                      | Purpose                                         |
+| ----------------------------------------- | ----------------------------------------------- |
+| `agents/workflow.md`                      | Methodology and session lifecycle               |
+| `agents/memory.md`                        | Shared project knowledge                        |
+| `agents/plan.md`                          | Active plan/checklist                           |
+| `agents/journal.md`                       | Chronological progress log                      |
+| `agents/backlog.md`                       | Deferred items for future phases                |
+| `agents/design-patterns.md`              | Established patterns cookbook                    |
+| `solution/vitest.config.ts`              | Single vitest config for all projects           |
+| `solution/packages/parser/src/`          | SQL parsing & schema extraction                 |
+| `solution/packages/cli/src/design.js`    | Design class — main orchestrator                |
+| `solution/packages/cli/src/config.js`    | YAML config loading & entity discovery          |
+| `solution/packages/cli/src/references.js`| AST-based reference extraction & exclusions     |
+| `solution/packages/cli/src/index.js`     | CLI entry point (sade commands)                 |
+| `solution/packages/db/src/`              | Entity processing, dependency resolver, adapter |
+| `solution/packages/dbml/src/`            | DBML generation from DDL entities               |
+| `solution/packages/postgres/src/`        | PostgreSQL adapter implementation               |
