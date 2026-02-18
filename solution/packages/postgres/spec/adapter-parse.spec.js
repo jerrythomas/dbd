@@ -1,8 +1,9 @@
-import { describe, it, expect, afterAll, beforeEach } from 'vitest'
+import { describe, it, expect, afterAll, beforeEach, vi } from 'vitest'
 import { writeFileSync, unlinkSync, existsSync, mkdirSync, readdirSync, rmSync } from 'fs'
 import { join } from 'path'
 import { PsqlAdapter } from '../src/psql-adapter.js'
 import { resetCache } from '../src/reference-classifier.js'
+import * as indexFunctional from '../src/parser/index-functional.js'
 
 // The WASM parser is initialized by spec/parser/setup.js (vitest setupFiles)
 
@@ -144,6 +145,28 @@ $$ LANGUAGE plpgsql;`
 			expect(result.name).toBe('staging.import_lookups')
 			expect(result.type).toBe('function')
 			expect(result.searchPaths).toContain('staging')
+		})
+
+		it('should fall back to regex via catch when AST throws', () => {
+			const sql = `set search_path to staging;
+CREATE OR REPLACE FUNCTION staging.boom() RETURNS void AS $$ BEGIN END; $$ LANGUAGE plpgsql;`
+			const file = writeTmpFile('boom.sql', sql)
+			const entity = {
+				file,
+				schema: 'staging',
+				type: 'function',
+				name: 'staging.boom'
+			}
+
+			const spy = vi.spyOn(indexFunctional, 'extractDependencies').mockImplementationOnce(() => {
+				throw new Error('Parser crash')
+			})
+
+			const result = adapter.parseEntityScript(entity)
+			expect(result).toBeDefined()
+			expect(result.file).toBe(file)
+
+			spy.mockRestore()
 		})
 
 		it('should fall back to regex when AST returns no entity identity', () => {
