@@ -1,12 +1,19 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest'
 import { readFileSync, existsSync, unlinkSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import yaml from 'js-yaml'
 import { rimraf } from 'rimraf'
 import createConnectionPool, { sql } from '@databases/pg'
 import { MockConsole } from '@vanillaes/mock-console'
-import { using } from '../src/collect.js'
-import { resetCache } from '../src/exclusions.js'
-import { config, exports, validations } from '../spec/fixtures/design'
+import { using } from '../src/design.js'
+import { resetCache } from '../src/references.js'
+import { config, exports, validations } from '../../../spec/fixtures/design'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const repoRoot = join(__dirname, '..', '..', '..')
+const exampleDir = join(repoRoot, 'example')
+const badExampleDir = join(repoRoot, 'spec', 'fixtures', 'bad-example')
 
 describe('collect', async () => {
 	let context = {}
@@ -28,13 +35,12 @@ describe('collect', async () => {
 	})
 	afterAll(async () => {
 		await context.db.dispose()
-		// process.chdir(context.path)
 	})
 
 	beforeEach(() => {
 		context.logger.capture()
 		resetCache()
-		process.chdir('example')
+		process.chdir(exampleDir)
 		rimraf.sync('export')
 	})
 
@@ -56,12 +62,6 @@ describe('collect', async () => {
 		expect(dx.config.import).toEqual(config.import, 'Import config should match')
 		expect(dx.config.roles).toEqual(context.collect.config.roles, 'Roles config should match')
 
-		// context.collect.entities.sort((a, b) => a.name.localeCompare(b.name))
-		// dx.entities.sort((a, b) => a.name.localeCompare(b.name))
-		// for (let i = 0; i < dx.entities.length; i++) {
-		// 	console.log(i)
-		// 	expect(dx.entities[i]).toEqual(context.collect.entities[i], 'Entities should match')
-		// }
 		expect(dx.isValidated).toBeFalsy('Validated should be false initially')
 	})
 
@@ -78,7 +78,6 @@ describe('collect', async () => {
 		unlinkSync('Example-base-design.dbml')
 		expect(existsSync('Example-core-design.dbml')).toBeTruthy()
 		unlinkSync('Example-core-design.dbml')
-		//unlinkSync('combined.sql')
 
 		expect(context.logger.infos).toEqual([
 			'Generated DBML in Example-base-design.dbml',
@@ -152,7 +151,7 @@ describe('collect', async () => {
 		result = await context.db.query(tables)
 		expect(result).toEqual(beforeApply.tables)
 
-		process.chdir('../spec/fixtures/bad-example')
+		process.chdir(badExampleDir)
 
 		const x = using('design-bad.yaml', context.databaseURL)
 		await x.apply(null, true)
@@ -257,16 +256,14 @@ describe('collect', async () => {
 
 		expect(dx.isValidated).toBeTruthy()
 		expect(dx.roles).toEqual(context.collect.roles)
-		// dx.entities.sort((a, b) => a.file.localeCompare(b.name))
-		// context.collect.entities.sort((a, b) => a.name.localeCompare(b.name))
 		for (let i = 0; i < dx.entities.length; i++) {
 			expect(dx.entities[i]).toEqual(context.collect.entities[i], 'Entities should match')
 		}
-		expect(dx.report()).toEqual({ entity: undefined, issues: [] })
+		expect(dx.report()).toEqual({ entity: undefined, issues: [], warnings: [] })
 	})
 
 	it('Should import data using psql', async () => {
-		const dx = using('design.yaml', context.databaseURL).importData()
+		const dx = await using('design.yaml', context.databaseURL).importData()
 
 		context.logger.restore()
 		expect(context.logger.infos).toEqual([
@@ -286,8 +283,8 @@ describe('collect', async () => {
 		expect(result).toEqual([{ count: 8n }])
 	})
 
-	it('Should export data using psql', () => {
-		const dx = using('design.yaml', context.databaseURL).exportData()
+	it('Should export data using psql', async () => {
+		const dx = await using('design.yaml', context.databaseURL).exportData()
 
 		expect(dx.isValidated).toBeFalsy()
 		expect(existsSync('export')).toBeTruthy()
@@ -299,7 +296,7 @@ describe('collect', async () => {
 	})
 
 	it('Should allow only staging tables in import', () => {
-		process.chdir('../spec/fixtures/bad-example')
+		process.chdir(badExampleDir)
 		const dx = using('design-bad.yaml', context.databaseURL).validate()
 
 		expect(dx.importTables).toEqual(context.validations.importTables)
@@ -332,7 +329,7 @@ describe('collect', async () => {
 		await context.db.query(sql`delete from config.lookups;`)
 		await context.db.query(sql`delete from staging.lookup_values;`)
 
-		using('design.yaml', context.databaseURL).importData('staging.lookup_values')
+		await using('design.yaml', context.databaseURL).importData('staging.lookup_values')
 		expect(context.logger.infos).toEqual([
 			'Importing staging.lookup_values',
 			'Processing import/loader.sql'
@@ -353,7 +350,7 @@ describe('collect', async () => {
 		await context.db.query(sql`delete from staging.lookup_values;`)
 		await context.db.query(sql`delete from staging.lookups;`)
 
-		using('design.yaml', context.databaseURL).importData('import/staging/invalid')
+		await using('design.yaml', context.databaseURL).importData('import/staging/invalid')
 		expect(context.logger.infos).toEqual(['Processing import/loader.sql'])
 		let result = await context.db.query(sql`select count(*) from staging.lookup_values`)
 		expect(result).toEqual([{ count: 0n }])
@@ -370,7 +367,7 @@ describe('collect', async () => {
 		await context.db.query(sql`delete from staging.lookup_values;`)
 		await context.db.query(sql`delete from staging.lookups;`)
 
-		using('design.yaml', context.databaseURL).importData('import/staging/lookups.csv')
+		await using('design.yaml', context.databaseURL).importData('import/staging/lookups.csv')
 		let result = await context.db.query(sql`select count(*) from staging.lookup_values`)
 		expect(result).toEqual([{ count: 0n }])
 		result = await context.db.query(sql`select count(*) from config.lookups`)
@@ -379,15 +376,15 @@ describe('collect', async () => {
 		expect(result).toEqual([{ count: 0n }])
 	})
 
-	it('Should export a single entity by name', () => {
-		using('design.yaml', context.databaseURL).exportData('config.unknown')
+	it('Should export a single entity by name', async () => {
+		await using('design.yaml', context.databaseURL).exportData('config.unknown')
 		expect(existsSync('export/config/genders.csv')).toBeFalsy('config.genders.csv should not exist')
 		expect(existsSync('export/config/lookups.csv')).toBeFalsy('config.lookups.csv should not exist')
 		expect(existsSync('export/config/lookup_values.csv')).toBeFalsy(
 			'config.lookup_values.csv should not exist'
 		)
 
-		using('design.yaml', context.databaseURL).exportData('config.genders')
+		await using('design.yaml', context.databaseURL).exportData('config.genders')
 		expect(existsSync('export/config/genders.csv')).toBeTruthy('Selected export file should exist')
 		expect(existsSync('export/config/lookups.csv')).toBeFalsy('config.lookups.csv should not exist')
 		expect(existsSync('export/config/lookup_values.csv')).toBeFalsy(
@@ -397,8 +394,8 @@ describe('collect', async () => {
 
 	it('Should report zero issues in example', () => {
 		let result = using('design.yaml', context.databaseURL).validate().report()
-		expect(result).toEqual({ entity: undefined, issues: [] })
+		expect(result).toEqual({ entity: undefined, issues: [], warnings: [] })
 		result = using('design.yaml', context.databaseURL).report()
-		expect(result).toEqual({ entity: undefined, issues: [] })
+		expect(result).toEqual({ entity: undefined, issues: [], warnings: [] })
 	})
 })

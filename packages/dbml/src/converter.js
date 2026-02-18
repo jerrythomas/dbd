@@ -85,7 +85,7 @@ export function qualifyTableNames(ddlText, schema, tableLookup) {
 	if (!ddlText || !schema) return ddlText
 	// Qualify unqualified CREATE TABLE names using entity schema
 	let result = ddlText.replace(
-		/(create\s+table\s+(?:if\s+not\s+exists\s+)?)([a-z_][a-z0-9_]*)(\s*[\(\n])/gi,
+		/(create\s+table\s+(?:if\s+not\s+exists\s+)?)([a-z_][a-z0-9_]*)(\s*[(\n])/gi,
 		(match, prefix, tableName, suffix) => {
 			return `${prefix}${schema}.${tableName}${suffix}`
 		}

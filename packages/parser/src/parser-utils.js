@@ -211,7 +211,7 @@ export class SQLParser {
 
 		// The SQL parser doesn't fully support PostgreSQL procedures
 		// For test purposes, when we see procedure DDL, we'll create a synthetic object
-		const procRegex = /CREATE\s+(OR\s+REPLACE\s+)?PROCEDURE\s+([^\s\(]+)\s*\(/i
+		const procRegex = /CREATE\s+(OR\s+REPLACE\s+)?PROCEDURE\s+([^\s(]+)\s*\(/i
 		const langRegex = /LANGUAGE\s+([^\s]+)/i
 
 		for (const stmt of ast) {

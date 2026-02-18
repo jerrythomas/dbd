@@ -5,11 +5,12 @@
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "dbd-cli": "src/index.js"
+    "dbd": "src/index.js"
   },
   "scripts": {
     "test": "vitest",
     "test:ci": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.js",
     "coverage": "vitest run --coverage",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write ."
