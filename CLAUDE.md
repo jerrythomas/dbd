@@ -35,11 +35,10 @@ dbd/
     eslint.config.js            <-- ESLint flat config
     .prettierrc                 <-- Prettier config
     packages/
-      parser/                   <-- @dbd/parser — SQL parsing & schema extraction
-      cli/                      <-- dbd — CLI, config, design orchestrator, references
+      cli/                      <-- dbd — CLI, config, design orchestrator (dialect-agnostic)
       dbml/                     <-- @dbd/dbml — DBML conversion
-      db/                       <-- @dbd/db — Database abstraction, entity processing
-      postgres/                 <-- @dbd/db-postgres — PostgreSQL adapter
+      db/                       <-- @dbd/db — Database abstraction, entity processing, adapter factory
+      postgres/                 <-- @dbd/db-postgres — PostgreSQL adapter (includes parser + reference classifier)
     example/                    <-- Example project structure
 ```
 
@@ -47,8 +46,9 @@ dbd/
 
 - **Functional Programming** — pure functions, composition over inheritance, Ramda for FP utilities
 - **AST-First Parsing** — `pgsql-parser` (PostgreSQL C parser via WASM) for accurate AST, regex fallback for unsupported SQL
+- **Adapter-Owned Parsing** — each database adapter provides parse, classify, apply, import, export. CLI is dialect-agnostic.
 - **Graceful Degradation** — always return partial results, collect errors don't throw them
-- **Separation of Concerns** — parser, CLI, adapters, and DBML are independent packages
+- **Separation of Concerns** — CLI, adapters, and DBML are independent packages
 
 ## Commands
 
@@ -61,11 +61,11 @@ bun run test                      # All workspace tests (vitest run)
 bun run test:watch                # Watch mode
 
 # Individual package tests (via --project)
-bun run test:parser               # packages/parser tests (115 tests)
-bun run test:cli                  # packages/cli tests (55 tests)
-bun run test:db                   # packages/db tests (99 tests)
-bun run test:dbml                 # packages/dbml tests (35 tests)
-bun run test:postgres             # packages/postgres tests (29 tests)
+bun run test:parser               # Parser tests (runs via postgres project)
+bun run test:cli                  # packages/cli tests
+bun run test:db                   # packages/db tests
+bun run test:dbml                 # packages/dbml tests
+bun run test:postgres             # packages/postgres tests (includes parser + adapter)
 
 # Coverage
 bun run coverage                  # All packages coverage report
@@ -155,11 +155,11 @@ Design documents capture the "how" — extract them from implementation:
 | `agents/backlog.md`                       | Deferred items for future phases                |
 | `agents/design-patterns.md`              | Established patterns cookbook                    |
 | `solution/vitest.config.ts`              | Single vitest config for all projects           |
-| `solution/packages/parser/src/`          | SQL parsing & schema extraction                 |
-| `solution/packages/cli/src/design.js`    | Design class — main orchestrator                |
+| `solution/packages/cli/src/design.js`    | Design class — main orchestrator (async using()) |
 | `solution/packages/cli/src/config.js`    | YAML config loading & entity discovery          |
-| `solution/packages/cli/src/references.js`| AST-based reference extraction & exclusions     |
+| `solution/packages/cli/src/references.js`| Dialect-agnostic reference resolution           |
 | `solution/packages/cli/src/index.js`     | CLI entry point (sade commands)                 |
-| `solution/packages/db/src/`              | Entity processing, dependency resolver, adapter |
+| `solution/packages/db/src/`              | Entity processing, dependency resolver, adapter factory |
 | `solution/packages/dbml/src/`            | DBML generation from DDL entities               |
-| `solution/packages/postgres/src/`        | PostgreSQL adapter implementation               |
+| `solution/packages/postgres/src/`        | PostgreSQL adapter (parse, classify, apply, import, export) |
+| `solution/packages/postgres/src/parser/` | SQL parser (pgsql-parser WASM, extractors, AST) |

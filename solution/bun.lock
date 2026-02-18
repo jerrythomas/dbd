@@ -42,14 +42,6 @@
         "@jerrythomas/dbd-db": "workspace:*",
       },
     },
-    "packages/parser": {
-      "name": "@jerrythomas/dbd-parser",
-      "version": "2.0.0",
-      "bin": "src/index.js",
-      "dependencies": {
-        "@jerrythomas/dbd-postgres-adapter": "workspace:*",
-      },
-    },
     "packages/postgres": {
       "name": "@jerrythomas/dbd-postgres-adapter",
       "version": "2.0.0",
@@ -197,8 +189,6 @@
     "@jerrythomas/dbd-db": ["@jerrythomas/dbd-db@workspace:packages/db"],
 
     "@jerrythomas/dbd-dbml": ["@jerrythomas/dbd-dbml@workspace:packages/dbml"],
-
-    "@jerrythomas/dbd-parser": ["@jerrythomas/dbd-parser@workspace:packages/parser"],
 
     "@jerrythomas/dbd-postgres-adapter": ["@jerrythomas/dbd-postgres-adapter@workspace:packages/postgres"],
 

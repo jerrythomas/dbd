@@ -13,7 +13,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:parser": "vitest run --project parser",
+    "test:parser": "vitest run --project postgres",
     "test:cli": "vitest run --project cli",
     "test:db": "vitest run --project db",
     "test:dbml": "vitest run --project dbml",

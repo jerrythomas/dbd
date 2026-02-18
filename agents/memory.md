@@ -12,31 +12,29 @@ This file is read at the start of every session.
 - **Runtime:** Node.js (ES Modules)
 - **Package Manager:** Bun (with pnpm lockfile)
 - **Test Framework:** Vitest
-- **Key Dependencies:** node-sql-parser (switching to pgsql-parser), @dbml/core, ramda, sade, js-yaml
+- **Key Dependencies:** pgsql-parser (PG C parser via WASM), @dbml/core, ramda, sade, js-yaml
 
 ## Architecture
 
-| Component           | Purpose                                                   |
-| ------------------- | --------------------------------------------------------- |
-| `packages/parser`   | SQL parsing and schema extraction (functional, AST-based) |
-| `packages/cli`      | Command-line interface and orchestration                  |
-| `packages/dbml`     | DBML conversion and dbdocs.io publishing                  |
-| `packages/db`       | Database operations abstraction, entity processing        |
-| `adapters/postgres` | PostgreSQL-specific adapter                               |
+| Component           | Purpose                                                                |
+| ------------------- | ---------------------------------------------------------------------- |
+| `packages/cli`      | Command-line interface and orchestration (dialect-agnostic)             |
+| `packages/db`       | Database abstraction, entity processing, adapter factory               |
+| `packages/dbml`     | DBML conversion and dbdocs.io publishing                               |
+| `packages/postgres` | PostgreSQL adapter — parse, classify, apply, import, export (owns parser) |
 
 ### Dependency Flow
 
 ```
-cli -> db -> adapters/postgres
-    -> dbml -> parser
-    -> parser
+cli -> db -> postgres (includes parser, reference-classifier, regex-fallback)
+    -> dbml
 ```
 
 ### Package Naming
 
-- Core packages: `@jerrythomas/dbd-{name}` (parser, dbml, db)
+- Core packages: `@jerrythomas/dbd-{name}` (dbml, db)
 - CLI: `@jerrythomas/dbd-cli` (publishes `dbd` binary)
-- Adapters: `@jerrythomas/dbd-{database}-adapter` in `adapters/{database}/`
+- Adapters: `@jerrythomas/dbd-{database}-adapter` in `packages/{database}/`
 - Root package: `@jerrythomas/dbd` — workspace-only (private, not published)
 
 ## Key Decisions
@@ -64,6 +62,9 @@ cli -> db -> adapters/postgres
 | DDL files as source of truth         | Entity classes are parsed representations, never authoritative                  | 2026-02-18   |
 | Snapshots in project folder          | `snapshots/{version}.json`; sequential integer versioning                       | 2026-02-18   |
 | Migrations from snapshot diffs       | `migrations/{from}-to-{to}.sql`; `_dbd_migrations` table for version tracking   | 2026-02-18   |
+| Parser moved into postgres adapter   | Parser is 100% PG-specific; adapter owns parse+classify+apply+import+export     | 2026-02-18   |
+| CLI is dialect-agnostic              | `using()` async factory; config `project.database` drives adapter selection     | 2026-02-18   |
+| `packages/parser` deleted            | Re-export shim removed; all parser code in `packages/postgres/src/parser/`      | 2026-02-18   |
 
 ## Technical Notes
 
@@ -86,21 +87,22 @@ cli -> db -> adapters/postgres
 ## Current Status
 
 - **v2.0.0 migration: COMPLETE** — legacy `src/` and `spec/` deleted, all code in workspace packages
-- All packages at v2.0.0: parser, db, dbml, cli, postgres-adapter
+- All packages at v2.0.0: db, dbml, cli, postgres-adapter
+- Parser moved into postgres adapter (parser package deleted)
+- CLI is fully dialect-agnostic — `using()` is async, adapter drives parsing
 - Root package: v2.0.0, private (workspace-only)
-- Test counts: 114 parser + 99 db + 55 cli + 35 dbml + 29 postgres = 332 workspace tests
-- Lint: 0 errors, ~238 warnings (pre-existing complexity/depth)
-- **Next phase:** Parser switch → Entity classes → Snapshots → Migrations
+- Test counts: 228 postgres + 104 db + 57 cli + 35 dbml = 432 workspace tests
+- Lint: 0 errors (prettier clean, ESLint config issue pre-existing)
+- **Next phase:** Entity classes → Snapshots → Migrations
 
 ### Package Summary
 
-| Package             | Tests | Key Modules                                                        |
-| ------------------- | ----- | ------------------------------------------------------------------ |
-| `packages/parser`   | 114   | SQL parsing, AST extraction, functional API, dependency extraction |
-| `packages/db`       | 99    | base-adapter, entity-processor, dependency-resolver, factory       |
-| `packages/cli`      | 55    | config, references, design, db-cache, index (sade CLI)             |
-| `packages/dbml`     | 35    | converter (cleanup, conversion, generateDBML)                      |
-| `adapters/postgres` | 29    | psql-adapter, scripts, connection                                  |
+| Package             | Tests | Key Modules                                                                  |
+| ------------------- | ----- | ---------------------------------------------------------------------------- |
+| `packages/postgres` | 228   | psql-adapter (parse, classify, apply), parser/, reference-classifier, regex-fallback, scripts |
+| `packages/db`       | 104   | base-adapter, entity-processor, dependency-resolver, factory                 |
+| `packages/cli`      | 57    | config, references (dialect-agnostic), design (async using()), db-cache      |
+| `packages/dbml`     | 35    | converter (cleanup, conversion, generateDBML)                                |
 
 ## Key Files for Resuming
 
