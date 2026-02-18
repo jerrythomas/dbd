@@ -1,7 +1,7 @@
 // dbd/packages/parser/spec/view.spec.js
 import { describe, it, expect, vi } from 'vitest'
 import { gendersViewDDL, rangeValuesViewDDL } from './fixtures/ddl-samples.js'
-import { SQLParser } from '../src/parser-utils.js'
+import { SQLParser } from '../../src/parser/parser-utils.js'
 
 describe('SQL Parser - View Definitions', () => {
 	const parser = new SQLParser()
@@ -9,7 +9,7 @@ describe('SQL Parser - View Definitions', () => {
 	describe('Basic View Parsing', () => {
 		it.skip('should parse simple view definitions', () => {
 			const sql = `
-        CREATE VIEW simple_view AS 
+        CREATE VIEW simple_view AS
         SELECT id, name FROM users;
       `
 			const ast = parser.parse(sql)
@@ -28,7 +28,7 @@ describe('SQL Parser - View Definitions', () => {
 
 		it.skip('should parse CREATE OR REPLACE VIEW', () => {
 			const sql = `
-        CREATE OR REPLACE VIEW test_view AS 
+        CREATE OR REPLACE VIEW test_view AS
         SELECT * FROM products;
       `
 			const ast = parser.parse(sql)
@@ -41,7 +41,7 @@ describe('SQL Parser - View Definitions', () => {
 		it('should handle views with column aliases', () => {
 			const sql = `
         CREATE VIEW user_details AS
-        SELECT 
+        SELECT
           u.id as user_id,
           u.name as full_name,
           u.email as contact_email
@@ -66,7 +66,7 @@ describe('SQL Parser - View Definitions', () => {
 		it.skip('should parse views with JOINs', () => {
 			const sql = `
         CREATE VIEW order_details AS
-        SELECT 
+        SELECT
           o.id as order_id,
           c.name as customer_name,
           p.name as product_name
@@ -119,7 +119,7 @@ describe('SQL Parser - View Definitions', () => {
 		it.skip('should parse views with GROUP BY and aggregates', () => {
 			const sql = `
         CREATE VIEW product_stats AS
-        SELECT 
+        SELECT
           category_id,
           COUNT(*) as product_count,
           AVG(price) as avg_price
@@ -181,7 +181,7 @@ describe('SQL Parser - View Definitions', () => {
 		it.skip('should handle views with JSON operators', () => {
 			const sql = `
         CREATE VIEW product_details AS
-        SELECT 
+        SELECT
           id,
           name,
           metadata->>'manufacturer' as manufacturer,
@@ -209,7 +209,7 @@ describe('SQL Parser - View Definitions', () => {
           name varchar(100),
           price decimal(10,2)
         );
-        
+
         CREATE VIEW expensive_products AS
         SELECT id, name, price
         FROM products

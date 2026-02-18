@@ -3,7 +3,7 @@ import { describe, it, expect, beforeAll, vi } from 'vitest'
 import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
-import { SQLParser } from '../src/parser-utils.js'
+import { SQLParser } from '../../src/parser/parser-utils.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 

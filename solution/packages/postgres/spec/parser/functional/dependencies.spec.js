@@ -3,7 +3,7 @@ import {
 	extractDependencies,
 	identifyEntity,
 	collectReferences
-} from '../../src/index-functional.js'
+} from '../../../src/parser/index-functional.js'
 
 describe('Dependency Extraction', () => {
 	describe('identifyEntity()', () => {

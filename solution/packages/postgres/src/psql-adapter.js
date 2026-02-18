@@ -1,6 +1,10 @@
 import { execSync } from 'child_process'
-import { writeFileSync, unlinkSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs'
 import { BaseDatabaseAdapter } from '@jerrythomas/dbd-db'
+import { extractDependencies } from './parser/index-functional.js'
+import { initParser } from './parser/parsers/sql.js'
+import { isInternal, matchesKnownExtension, resetCache } from './reference-classifier.js'
+import { parseEntityScriptRegex } from './regex-fallback.js'
 
 const TMP_SCRIPT = '_dbd_temp.sql'
 
@@ -181,5 +185,66 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		this.log(`Exporting ${entity.name}`)
 		const script = exportScriptForEntity(entity)
 		await this.executeScript(script, options)
+	}
+
+	// --- Parsing operations ---
+
+	async initParser() {
+		await initParser()
+	}
+
+	parseScript(sql, options = {}) {
+		return extractDependencies(sql, options)
+	}
+
+	parseEntityScript(entity) {
+		const content = readFileSync(entity.file, 'utf-8')
+
+		try {
+			return this.#parseEntityAST(entity, content)
+		} catch {
+			return this.#parseEntityRegex(entity, content)
+		}
+	}
+
+	classifyReference(name, installedExtensions = []) {
+		return isInternal(name, installedExtensions)
+	}
+
+	// --- Private parse helpers ---
+
+	#parseEntityAST(entity, content) {
+		const result = extractDependencies(content)
+		const info = result.entity
+		const searchPaths = result.searchPaths
+
+		if (!info || !info.name) {
+			return this.#parseEntityRegex(entity, content)
+		}
+
+		const schema = info.schema || searchPaths[0]
+		const fullName = schema + '.' + info.name
+
+		let errors = []
+		if (schema !== entity.schema) errors.push('Schema in script does not match file path')
+		if (info.type !== entity.type) errors.push('Entity type in script does not match file path')
+		if (fullName !== entity.name) errors.push('Entity name in script does not match file name')
+
+		const excludeEntity = [info.name, fullName]
+		const references = result.references.filter(({ name }) => !excludeEntity.includes(name))
+
+		return {
+			...entity,
+			type: info.type,
+			name: fullName,
+			schema,
+			searchPaths,
+			references,
+			errors
+		}
+	}
+
+	#parseEntityRegex(entity, content) {
+		return parseEntityScriptRegex(entity, content)
 	}
 }

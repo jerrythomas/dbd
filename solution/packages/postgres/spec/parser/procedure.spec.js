@@ -5,7 +5,7 @@ import {
 	importLookupsProcedureDDL,
 	complexProcedureDDL
 } from './fixtures/ddl-samples.js'
-import { SQLParser } from '../src/parser-utils.js'
+import { SQLParser } from '../../src/parser/parser-utils.js'
 
 describe('SQL Parser - Procedure Definitions', () => {
 	const parser = new SQLParser()

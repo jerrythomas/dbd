@@ -7,13 +7,13 @@ import {
 	extractProcedureDefinitions,
 	extractIndexDefinitions,
 	validateDDL
-} from '../../src/index-functional.js'
+} from '../../../src/parser/index-functional.js'
 
 describe('SQL Parser - Functional API - Complete Workflow', () => {
 	const complexSQL = `
     -- Set the search path
     SET search_path TO app, public;
-    
+
     -- Create tables
     CREATE TABLE categories (
       id serial PRIMARY KEY,
@@ -21,7 +21,7 @@ describe('SQL Parser - Functional API - Complete Workflow', () => {
       parent_id int REFERENCES categories(id),
       created_at timestamp DEFAULT now()
     );
-    
+
     CREATE TABLE products (
       id uuid PRIMARY KEY,
       name varchar(200) NOT NULL,
@@ -32,29 +32,29 @@ describe('SQL Parser - Functional API - Complete Workflow', () => {
       created_at timestamp NOT NULL DEFAULT now(),
       updated_at timestamp
     );
-    
+
     -- Add comments
     COMMENT ON TABLE products IS 'Product catalog';
     COMMENT ON COLUMN products.id IS 'Unique product identifier';
-    
+
     -- Create indexes
     CREATE UNIQUE INDEX idx_categories_name ON categories(name);
     CREATE INDEX idx_products_category ON products(category_id);
-    
+
     -- Create view
     CREATE OR REPLACE VIEW active_products AS
     SELECT p.*, c.name as category_name
     FROM products p
     JOIN categories c ON c.id = p.category_id
     WHERE p.is_active = true;
-    
+
     -- Create procedure
     CREATE OR REPLACE PROCEDURE update_product_timestamp(product_id uuid)
     LANGUAGE plpgsql
     AS $$
     BEGIN
-      UPDATE products 
-      SET updated_at = now() 
+      UPDATE products
+      SET updated_at = now()
       WHERE id = product_id;
     END;
     $$;

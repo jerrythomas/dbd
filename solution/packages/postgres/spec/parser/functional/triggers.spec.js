@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractTriggers, extractTriggersFromSql } from '../../src/extractors/triggers.js'
+import { extractTriggers, extractTriggersFromSql } from '../../../src/parser/extractors/triggers.js'
 
 describe('Trigger Extraction', () => {
 	describe('extractTriggersFromSql()', () => {

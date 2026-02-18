@@ -1,6 +1,6 @@
 // dbd/packages/parser/spec/functional/sql.spec.js
 import { describe, it, expect } from 'vitest'
-import { parse, splitStatements, validateSQL } from '../../src/parsers/sql.js'
+import { parse, splitStatements, validateSQL } from '../../../src/parser/parsers/sql.js'
 
 describe('SQL Parser - Functional API', () => {
 	describe('splitStatements', () => {
@@ -48,7 +48,7 @@ describe('SQL Parser - Functional API', () => {
           RETURN;
         END;
         $$ LANGUAGE plpgsql;
-        
+
         CREATE TABLE test (id int);
       `
 

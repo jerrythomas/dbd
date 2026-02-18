@@ -9,7 +9,7 @@ import {
 	isNullable,
 	extractDefaultValue,
 	extractColumnConstraints
-} from '../../src/extractors/tables.js'
+} from '../../../src/parser/extractors/tables.js'
 
 describe('Table Extractor - Functional API', () => {
 	describe('extractTables', () => {

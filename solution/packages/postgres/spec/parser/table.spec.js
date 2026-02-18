@@ -5,7 +5,7 @@ import {
 	lookupValueTableDDL,
 	stagingLookupValueTableDDL
 } from './fixtures/ddl-samples.js'
-import { SQLParser } from '../src/parser-utils.js'
+import { SQLParser } from '../../src/parser/parser-utils.js'
 
 describe('SQL Parser - Table Definitions', () => {
 	const parser = new SQLParser()

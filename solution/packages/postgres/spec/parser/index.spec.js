@@ -9,7 +9,7 @@ import {
 	extractViews,
 	extractProcedures,
 	extractIndexes
-} from '../src/index.js'
+} from '../../src/parser/index.js'
 
 describe('Parser public API', () => {
 	const tableDDL = 'CREATE TABLE users (id int PRIMARY KEY, name varchar(100));'

@@ -6,7 +6,7 @@ import {
 	gendersViewDDL,
 	importJsonbProcedureDDL
 } from './fixtures/ddl-samples.js'
-import { SQLParser, validateDDL } from '../src/parser-utils.js'
+import { SQLParser, validateDDL } from '../../src/parser/parser-utils.js'
 
 // Tests for the SQLParser class
 describe('SQLParser Utility', () => {
@@ -117,9 +117,9 @@ describe('SQLParser Utility', () => {
 			// Combine multiple DDL statements to test full schema extraction
 			const combinedDDL = `
         ${lookupTableDDL}
-        
+
         ${lookupValueTableDDL}
-        
+
         ${gendersViewDDL}
       `
 

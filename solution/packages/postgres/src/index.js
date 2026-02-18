@@ -12,3 +12,45 @@ export { PsqlAdapter }
 export function createAdapter(connectionString, options = {}) {
 	return new PsqlAdapter(connectionString, options)
 }
+
+// Re-export parser API for direct usage
+export {
+	parseSchema,
+	validate,
+	extractTables,
+	extractViews,
+	extractProcedures,
+	extractIndexes,
+	SQLParser,
+	extractDependencies
+} from './parser/index.js'
+
+// Re-export reference classifier API
+export {
+	isInternal,
+	isAnsiiSQL,
+	isPostgres,
+	isExtension,
+	matchesKnownExtension,
+	resetCache,
+	getCache,
+	internals,
+	extensions
+} from './reference-classifier.js'
+
+// Re-export regex fallback utilities
+export {
+	removeCommentBlocks,
+	removeIndexCreationStatements,
+	normalizeComment,
+	cleanupDDLForDBML,
+	isSqlExpression,
+	extractEntityType,
+	extractSearchPaths,
+	extractWithAliases,
+	extractReferences,
+	extractTableReferences,
+	extractTriggerReferences,
+	extractEntity,
+	parseEntityScriptRegex
+} from './regex-fallback.js'

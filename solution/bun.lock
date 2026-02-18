@@ -47,8 +47,7 @@
       "version": "2.0.0",
       "bin": "src/index.js",
       "dependencies": {
-        "pgsql-parser": "^17.9.11",
-        "ramda": "^0.29.1",
+        "@jerrythomas/dbd-postgres-adapter": "workspace:*",
       },
     },
     "packages/postgres": {
@@ -57,6 +56,8 @@
       "dependencies": {
         "@jerrythomas/dbd-db": "workspace:*",
         "csvtojson": "^2.0.10",
+        "pgsql-parser": "^17.9.11",
+        "ramda": "^0.29.1",
       },
     },
   },
@@ -839,7 +840,7 @@
 
     "@isaacs/cliui/wrap-ansi": ["wrap-ansi@8.1.0", "", { "dependencies": { "ansi-styles": "^6.1.0", "string-width": "^5.0.1", "strip-ansi": "^7.0.1" } }, "sha512-si7QWI6zUMq56bESFvagtmzMdGOtoxfR+Sez11Mobfc7tm+VkUckk9bW2UeffTGVUbOksxmSw0AA2gs8g71NCQ=="],
 
-    "@jerrythomas/dbd-parser/ramda": ["ramda@0.29.1", "", {}, "sha512-OfxIeWzd4xdUNxlWhgFazxsA/nl3mS4/jGZI5n00uWOoSSFRhC1b6gl6xvmzUamgmqELraWp0J/qqVlXYPDPyA=="],
+    "@jerrythomas/dbd-postgres-adapter/ramda": ["ramda@0.29.1", "", {}, "sha512-OfxIeWzd4xdUNxlWhgFazxsA/nl3mS4/jGZI5n00uWOoSSFRhC1b6gl6xvmzUamgmqELraWp0J/qqVlXYPDPyA=="],
 
     "execa/onetime": ["onetime@6.0.0", "", { "dependencies": { "mimic-fn": "^4.0.0" } }, "sha512-1FlR+gjXK7X+AsAHso35MnyN5KqGwJRi/31ft6x0M194ht7S+rWAvd7PHss9xSKMzE0asv1pyIHaJYq+BbacAQ=="],
 

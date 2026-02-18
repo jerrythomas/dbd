@@ -1,6 +1,6 @@
 // dbd/packages/parser/spec/error-handler.spec.js
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import errorHandler from '../src/utils/error-handler.js'
+import errorHandler from '../../src/parser/utils/error-handler.js'
 
 describe('Error Handler', () => {
 	beforeEach(() => {

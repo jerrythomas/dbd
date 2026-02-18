@@ -1,7 +1,7 @@
 // dbd/packages/parser/spec/complex-sql.spec.js
 import { describe, it, expect } from 'vitest'
-import { extractSchema, validateDDL } from '../src/index-functional.js'
-import errorHandler from '../src/utils/error-handler.js'
+import { extractSchema, validateDDL } from '../../src/parser/index-functional.js'
+import errorHandler from '../../src/parser/utils/error-handler.js'
 
 describe('SQL Parser - Complex SQL Statements', () => {
 	// Make sure we don't see warnings in the console during tests
@@ -23,14 +23,14 @@ describe('SQL Parser - Complex SQL Statements', () => {
     , modified_on              timestamp with time zone not null default now()
     , modified_by              varchar
     );
-    
+
     create unique index if not exists config.lookup_values_ukey on config.lookup_values(lookup_id, value);
-    
+
     comment on table config.lookup_values IS
     'Different values associated with various lookups.
     - Used to store predefined values for different lookup categories.
     - Each value is associated with a specific lookup.';
-    
+
     comment on column config.lookup_values.id IS
     'Unique identifier for the lookup value. Ensures each value can be uniquely identified.';
   `

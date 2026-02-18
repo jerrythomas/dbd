@@ -8,7 +8,7 @@ import {
 	extractTableSchema,
 	extractIndexColumns,
 	extractIndexesFromSql
-} from '../../src/extractors/db-indexes.js'
+} from '../../../src/parser/extractors/db-indexes.js'
 
 describe('Database Index Extractor - Functional API', () => {
 	describe('extractIndexes', () => {

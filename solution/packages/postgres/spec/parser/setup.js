@@ -1,6 +1,6 @@
 // dbd/packages/parser/spec/setup.js
-import errorHandler from '../src/utils/error-handler.js'
-import { initParser } from '../src/parsers/sql.js'
+import errorHandler from '../../src/parser/utils/error-handler.js'
+import { initParser } from '../../src/parser/parsers/sql.js'
 
 // Load the pgsql-parser WASM module before any tests run
 await initParser()

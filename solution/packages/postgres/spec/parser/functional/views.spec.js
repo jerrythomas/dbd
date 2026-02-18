@@ -8,7 +8,7 @@ import {
 	extractViewColumns,
 	extractViewDependencies,
 	extractViewDefinition
-} from '../../src/extractors/views.js'
+} from '../../../src/parser/extractors/views.js'
 
 describe('View Extractor - Functional API', () => {
 	describe('extractViews', () => {

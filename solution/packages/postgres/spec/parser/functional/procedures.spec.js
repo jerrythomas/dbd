@@ -10,7 +10,7 @@ import {
 	extractProcedureBody,
 	extractTableReferencesFromBody,
 	extractProceduresFromSql
-} from '../../src/extractors/procedures.js'
+} from '../../../src/parser/extractors/procedures.js'
 
 describe('Procedure Extractor - Functional API', () => {
 	describe('extractProcedures', () => {

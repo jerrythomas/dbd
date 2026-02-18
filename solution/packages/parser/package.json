@@ -17,8 +17,7 @@
     "access": "public"
   },
   "dependencies": {
-    "pgsql-parser": "^17.9.11",
-    "ramda": "^0.29.1"
+    "@jerrythomas/dbd-postgres-adapter": "workspace:*"
   },
   "devDependencies": {},
   "exports": {

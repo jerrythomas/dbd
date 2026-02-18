@@ -20,7 +20,9 @@
   "license": "MIT",
   "dependencies": {
     "@jerrythomas/dbd-db": "workspace:*",
-    "csvtojson": "^2.0.10"
+    "csvtojson": "^2.0.10",
+    "pgsql-parser": "^17.9.11",
+    "ramda": "^0.29.1"
   },
   "devDependencies": {},
   "publishConfig": {
