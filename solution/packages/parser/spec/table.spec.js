@@ -65,8 +65,6 @@ describe('SQL Parser - Table Definitions', () => {
       );`
 
 			const ast = parser.parse(sql)
-			console.log('AST for basic table definition:', JSON.stringify(ast[0], null, 2))
-
 			const tables = parser.extractTableDefinitions(ast)
 
 			expect(tables).toBeInstanceOf(Array)
@@ -94,7 +92,7 @@ describe('SQL Parser - Table Definitions', () => {
           id int PRIMARY KEY,
           name varchar(50)
         );
-        
+
         CREATE TABLE products (
           id int PRIMARY KEY,
           name varchar(100),
@@ -126,7 +124,7 @@ describe('SQL Parser - Table Definitions', () => {
           id int PRIMARY KEY,
           name varchar(100)
         );
-        
+
         COMMENT ON TABLE users IS 'User accounts table';
         COMMENT ON COLUMN users.id IS 'Primary key';
         COMMENT ON COLUMN users.name IS 'User display name';

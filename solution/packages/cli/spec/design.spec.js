@@ -4,7 +4,7 @@
  * Mirrors spec/compat/design.spec.js but imports from packages/cli.
  * Proves feature parity with the legacy src/collect.js Design class.
  */
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { existsSync, readFileSync, unlinkSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -26,10 +26,15 @@ describe('Design class (packages/cli)', () => {
 	beforeEach(() => {
 		resetCache()
 		process.chdir(exampleDir)
+		vi.spyOn(console, 'log').mockImplementation(() => {})
+		vi.spyOn(console, 'info').mockImplementation(() => {})
+		vi.spyOn(console, 'warn').mockImplementation(() => {})
+		vi.spyOn(console, 'error').mockImplementation(() => {})
 	})
 
 	afterEach(() => {
 		process.chdir(originalPath)
+		vi.restoreAllMocks()
 	})
 
 	// --- Initialization ---
