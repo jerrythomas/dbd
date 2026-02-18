@@ -155,7 +155,7 @@ describe('Design class (packages/cli)', () => {
 
 	// --- DBML ---
 
-	it('dbml() generates DBML files for each dbdocs config entry', () => {
+	it('dbml() generates DBML files and logs each filename', () => {
 		const dx = using('design.yaml')
 
 		const baseFile = 'Example-base-design.dbml'
@@ -165,6 +165,10 @@ describe('Design class (packages/cli)', () => {
 			dx.dbml()
 			expect(existsSync(baseFile)).toBe(true)
 			expect(existsSync(coreFile)).toBe(true)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls).toContainEqual(`Generated DBML in ${baseFile}`)
+			expect(infoCalls).toContainEqual(`Generated DBML in ${coreFile}`)
 		} finally {
 			if (existsSync(baseFile)) unlinkSync(baseFile)
 			if (existsSync(coreFile)) unlinkSync(coreFile)
@@ -188,33 +192,67 @@ describe('Design class (packages/cli)', () => {
 
 	// --- apply dry-run ---
 
-	it('apply dry-run logs entity details without database', () => {
+	it('apply dry-run logs entity type, name, and file for each entity', () => {
 		const dx = using('design.yaml')
 		dx.apply(undefined, true)
-		expect(console.info).toHaveBeenCalled()
+
+		const infoCalls = console.info.mock.calls.map((c) => c[0])
+		// Schema entities: "schema => <name>"
+		expect(infoCalls.some((c) => /^schema =>/.test(c))).toBe(true)
+		// Extension entities: 'extension => <name> using "<schema>"'
+		expect(infoCalls.some((c) => /^extension =>.*using/.test(c))).toBe(true)
+		// File-backed entities include the file path
+		expect(infoCalls.some((c) => /using ".*\.ddl"/.test(c))).toBe(true)
 	})
 
-	it('apply dry-run logs errors for invalid entities', () => {
+	it('apply dry-run logs errors for invalid entities with entity details', () => {
 		const dx = using('design.yaml')
-		// Force an error on an entity
-		dx.entities[dx.entities.length - 1].errors = ['test error']
+		const lastEntity = dx.entities[dx.entities.length - 1]
+		lastEntity.errors = ['test error']
 		dx.apply(undefined, true)
-		expect(console.error).toHaveBeenCalled()
+
+		const errorCalls = console.error.mock.calls.map((c) => c[0])
+		expect(errorCalls.some((obj) => obj.errors && obj.errors.includes('test error'))).toBe(true)
+		expect(errorCalls.some((obj) => obj.name === lastEntity.name)).toBe(true)
 	})
 
 	// --- importData dry-run ---
 
-	it('importData dry-run does not require database', () => {
+	it('importData dry-run logs "Importing <name>" for each table', () => {
 		const dx = using('design.yaml')
 		dx.importData(undefined, true)
-		expect(console.info).toHaveBeenCalled()
+
+		const infoCalls = console.info.mock.calls.map((c) => c[0])
+		const importMessages = infoCalls.filter(
+			(c) => typeof c === 'string' && c.startsWith('Importing ')
+		)
+		expect(importMessages.length).toBeGreaterThan(0)
+		// Each message should include the table name
+		importMessages.forEach((msg) => {
+			expect(msg).toMatch(/^Importing \w+\.\w+/)
+		})
 	})
 
-	it('importData dry-run filters by name', () => {
+	it('importData dry-run filters by name and logs matching table', () => {
 		const dx = using('design.yaml')
 		dx.importData('staging.lookups', true)
-		const calls = console.info.mock.calls.flat()
-		expect(calls.some((c) => typeof c === 'string' && c.includes('staging.lookups'))).toBe(true)
+
+		const infoCalls = console.info.mock.calls.map((c) => c[0])
+		const importMessages = infoCalls.filter(
+			(c) => typeof c === 'string' && c.startsWith('Importing ')
+		)
+		expect(importMessages).toEqual(['Importing staging.lookups'])
+	})
+
+	it('importData dry-run also logs the table object', () => {
+		const dx = using('design.yaml')
+		dx.importData('staging.lookups', true)
+
+		const infoCalls = console.info.mock.calls.map((c) => c[0])
+		// Second info call for the table should be the table object
+		const tableObj = infoCalls.find((c) => typeof c === 'object' && c.name === 'staging.lookups')
+		expect(tableObj).toBeDefined()
+		expect(tableObj).toHaveProperty('file')
 	})
 
 	// --- updateEntities ---
