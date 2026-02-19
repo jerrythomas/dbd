@@ -37,20 +37,3 @@ export {
 	internals,
 	extensions
 } from './reference-classifier.js'
-
-// Re-export regex fallback utilities
-export {
-	removeCommentBlocks,
-	removeIndexCreationStatements,
-	normalizeComment,
-	cleanupDDLForDBML,
-	isSqlExpression,
-	extractEntityType,
-	extractSearchPaths,
-	extractWithAliases,
-	extractReferences,
-	extractTableReferences,
-	extractTriggerReferences,
-	extractEntity,
-	parseEntityScriptRegex
-} from './regex-fallback.js'

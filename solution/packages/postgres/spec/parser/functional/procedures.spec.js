@@ -8,8 +8,13 @@ import {
 	extractProcedureLanguage,
 	extractProcedureParameters,
 	extractProcedureBody,
+	extractProcedureReturnType,
 	extractTableReferencesFromBody,
-	extractProceduresFromSql
+	extractProceduresFromSql,
+	extractBodyReferencesFromAst,
+	extractProcedureFromOriginal,
+	extractParameterDataType,
+	extractParameterMode
 } from '../../../src/parser/extractors/procedures.js'
 
 describe('Procedure Extractor - Functional API', () => {
@@ -214,6 +219,233 @@ describe('Procedure Extractor - Functional API', () => {
 			expect(procedures[0].parameters[0].dataType).toContain('int')
 			expect(procedures[0].parameters[1].mode).toBe('out')
 			expect(procedures[0].tableReferences).toContain('orders')
+		})
+
+		it('should extract INOUT parameter in regex path', () => {
+			const sql = `
+        CREATE FUNCTION inc(INOUT p_val INT)
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+          p_val := p_val + 1;
+        END;
+        $$;
+      `
+			const procs = extractProceduresFromSql(sql, 'public')
+			expect(procs[0].parameters[0].mode).toBe('inout')
+			expect(procs[0].parameters[0].name).toBe('p_val')
+		})
+	})
+
+	describe('Additional coverage', () => {
+		it('should extract procedures from original statement', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'function',
+					name: { name: [{ value: 'my_func' }], schema: null },
+					original: `CREATE FUNCTION my_func(p_id int) LANGUAGE plpgsql AS $$ BEGIN INSERT INTO logs(id) VALUES (p_id); END; $$;`,
+					language: 'plpgsql',
+					parameters: [],
+					as: ''
+				}
+			]
+			const procs = extractProcedures(ast)
+			expect(procs.length).toBe(1)
+			expect(procs[0].name).toBe('my_func')
+		})
+
+		it('should extract function name via name.name[0].value', () => {
+			expect(
+				extractProcedureName({
+					keyword: 'function',
+					name: { name: [{ value: 'calc_total' }] }
+				})
+			).toBe('calc_total')
+		})
+
+		it('should extract function schema via name.schema', () => {
+			expect(
+				extractProcedureSchema({
+					keyword: 'function',
+					name: { name: [{ value: 'f' }], schema: 'staging' }
+				})
+			).toBe('staging')
+		})
+
+		it('should return null schema for function without schema', () => {
+			expect(
+				extractProcedureSchema({
+					keyword: 'function',
+					name: { name: [{ value: 'f' }] }
+				})
+			).toBeNull()
+		})
+
+		it('should extract language from options array', () => {
+			expect(
+				extractProcedureLanguage({
+					options: [{ prefix: 'LANGUAGE', value: 'sql' }]
+				})
+			).toBe('sql')
+		})
+
+		it('should extract return type', () => {
+			expect(extractProcedureReturnType({ returns: 'int' })).toBe('int')
+			expect(extractProcedureReturnType({})).toBeNull()
+		})
+
+		it('should return empty string for body without as property', () => {
+			expect(extractProcedureBody({})).toBe('')
+		})
+
+		it('should exclude PL/pgSQL keywords from table references', () => {
+			const body = `
+        BEGIN
+          IF FOUND THEN
+            RETURN NEW;
+          END IF;
+          INSERT INTO audit_log(entity) VALUES ('test');
+          PERFORM STRICT 1;
+        END;
+      `
+			const tables = extractTableReferencesFromBody(body)
+			expect(tables).toContain('audit_log')
+			expect(tables).not.toContain('FOUND')
+			expect(tables).not.toContain('NEW')
+			expect(tables).not.toContain('STRICT')
+		})
+
+		it('should return empty array for null/undefined body', () => {
+			expect(extractTableReferencesFromBody(null)).toEqual([])
+			expect(extractTableReferencesFromBody(undefined)).toEqual([])
+		})
+
+		it('should return empty params when none provided', () => {
+			expect(extractProcedureParameters({})).toEqual([])
+		})
+
+		it('should handle string dataType in parameters', () => {
+			const params = extractProcedureParameters({
+				parameters: [{ name: 'x', dataType: 'TEXT', mode: 'in' }]
+			})
+			expect(params[0].dataType).toBe('text')
+		})
+
+		it('returns empty array for non-array ast', () => {
+			expect(extractProcedures('not an array')).toEqual([])
+			expect(extractProcedures(null)).toEqual([])
+		})
+
+		it('extracts procedure name via .name fallback on object procedure', () => {
+			expect(
+				extractProcedureName({
+					procedure: { name: 'my_proc' }
+				})
+			).toBe('my_proc')
+		})
+
+		it('returns empty string for missing procedure name', () => {
+			expect(extractProcedureName({})).toBe('')
+		})
+
+		it('extractBodyReferencesFromAst returns empty for no options', () => {
+			expect(extractBodyReferencesFromAst({})).toEqual([])
+			expect(extractBodyReferencesFromAst({ options: 'not array' })).toEqual([])
+		})
+
+		it('extractBodyReferencesFromAst returns empty when no as option', () => {
+			expect(
+				extractBodyReferencesFromAst({
+					options: [{ type: 'language', value: 'plpgsql' }]
+				})
+			).toEqual([])
+		})
+
+		it('extractBodyReferencesFromAst returns empty when as has no expr array', () => {
+			expect(
+				extractBodyReferencesFromAst({
+					options: [{ type: 'as', expr: 'not array' }]
+				})
+			).toEqual([])
+		})
+
+		it('extractBodyReferencesFromAst extracts table refs from AST body', () => {
+			const refs = extractBodyReferencesFromAst({
+				options: [
+					{
+						type: 'as',
+						expr: [
+							{
+								table: [{ db: 'config', table: 'lookups' }],
+								from: [{ db: 'staging', table: 'data' }]
+							}
+						]
+					}
+				]
+			})
+			expect(refs).toContain('config.lookups')
+			expect(refs).toContain('staging.data')
+		})
+
+		it('extractBodyReferencesFromAst handles table without db prefix', () => {
+			const refs = extractBodyReferencesFromAst({
+				options: [
+					{
+						type: 'as',
+						expr: [
+							{
+								table: [{ table: 'users' }],
+								from: [{ table: 'orders' }]
+							}
+						]
+					}
+				]
+			})
+			expect(refs).toContain('users')
+			expect(refs).toContain('orders')
+		})
+
+		it('extractProcedureFromOriginal returns null for non-matching SQL', () => {
+			expect(extractProcedureFromOriginal('SELECT 1;', null)).toBeNull()
+		})
+
+		it('extractRoutinesFromSql handles function without explicit language', () => {
+			const procs = extractProceduresFromSql(
+				'CREATE FUNCTION do_it() RETURNS void AS $$ BEGIN NULL; END; $$;',
+				'public'
+			)
+			expect(procs[0].language).toBe('plpgsql')
+		})
+
+		it('extractRoutinesFromSql handles body in single quotes', () => {
+			const procs = extractProceduresFromSql(
+				"CREATE FUNCTION f() RETURNS void LANGUAGE sql AS 'SELECT 1';",
+				'public'
+			)
+			expect(procs[0].body).toBe('SELECT 1')
+		})
+
+		it('extractParameterDataType returns unknown when no dataType', () => {
+			expect(extractParameterDataType({})).toBe('unknown')
+			expect(extractParameterDataType({ name: 'x' })).toBe('unknown')
+		})
+
+		it('extractParameterMode defaults to in when no mode', () => {
+			expect(extractParameterMode({})).toBe('in')
+			expect(extractParameterMode({ name: 'x' })).toBe('in')
+		})
+
+		it('extractBodyReferencesFromAst handles null/non-object nodes in expr array', () => {
+			const refs = extractBodyReferencesFromAst({
+				options: [
+					{
+						type: 'as',
+						expr: [null, 'string-node', { table: [{ table: 'real_table' }] }]
+					}
+				]
+			})
+			expect(refs).toContain('real_table')
 		})
 	})
 })

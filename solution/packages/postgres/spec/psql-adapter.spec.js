@@ -183,6 +183,22 @@ describe('PsqlAdapter', () => {
 			await a.applyEntity(entity)
 			expect(execSync).not.toHaveBeenCalled()
 		})
+
+		it('shows using info for extension in dryRun mode', async () => {
+			const a = new PsqlAdapter('postgresql://localhost/testdb', { dryRun: true, verbose: true })
+			const logs = []
+			a.log = (msg) => logs.push(msg)
+			await a.applyEntity({ type: 'extension', name: 'uuid-ossp', schema: 'public' })
+			expect(logs.some((l) => l.includes('using') && l.includes('public'))).toBe(true)
+		})
+
+		it('shows no using info for entity without file or extension type in dryRun', async () => {
+			const a = new PsqlAdapter('postgresql://localhost/testdb', { dryRun: true, verbose: true })
+			const logs = []
+			a.log = (msg) => logs.push(msg)
+			await a.applyEntity({ type: 'schema', name: 'staging' })
+			expect(logs.some((l) => l.includes('using'))).toBe(false)
+		})
 	})
 
 	describe('importData()', () => {
@@ -251,6 +267,18 @@ describe('PsqlAdapter', () => {
 			execSync.mockReturnValueOnce('summary|analytics|m')
 			const result = await adapter.resolveEntity('analytics.summary')
 			expect(result).toEqual({ name: 'analytics.summary', schema: 'analytics', type: 'view' })
+		})
+
+		it('falls back to table type for unknown relkind', async () => {
+			execSync.mockReturnValueOnce('seq|public|S')
+			const result = await adapter.resolveEntity('public.seq')
+			expect(result).toEqual({ name: 'public.seq', schema: 'public', type: 'table' })
+		})
+
+		it('falls back to function type for unknown prokind', async () => {
+			execSync.mockReturnValueOnce('').mockReturnValueOnce('my_agg|public|x')
+			const result = await adapter.resolveEntity('public.my_agg')
+			expect(result).toEqual({ name: 'public.my_agg', schema: 'public', type: 'function' })
 		})
 
 		it('falls back to pg_proc when pg_class finds nothing', async () => {

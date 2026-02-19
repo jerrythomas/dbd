@@ -82,6 +82,161 @@ describe('Dependency Extraction', () => {
 		})
 	})
 
+	describe('identifyEntity() — additional branches', () => {
+		it('returns null for non-array ast', () => {
+			expect(identifyEntity('not an array', '')).toBeNull()
+			expect(identifyEntity({}, '')).toBeNull()
+		})
+
+		it('identifies procedure with object procInfo having .procedure', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'procedure',
+					procedure: { procedure: 'do_work', schema: 'batch' }
+				}
+			]
+			const result = identifyEntity(ast, '')
+			expect(result).toEqual({ name: 'do_work', schema: 'batch', type: 'procedure' })
+		})
+
+		it('identifies procedure with object procInfo having .name', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'procedure',
+					procedure: { name: 'run_job', schema: 'ops' }
+				}
+			]
+			const result = identifyEntity(ast, '')
+			expect(result).toEqual({ name: 'run_job', schema: 'ops', type: 'procedure' })
+		})
+
+		it('returns null when function AST has no name info', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'function',
+					name: null
+				}
+			]
+			const result = identifyEntity(ast, '')
+			expect(result).toBeNull()
+		})
+
+		it('returns null when function name array is empty', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'function',
+					name: { name: [] }
+				}
+			]
+			const result = identifyEntity(ast, '')
+			expect(result).toBeNull()
+		})
+
+		it('returns null when no sql provided for regex fallback', () => {
+			const ast = [{ type: 'set' }]
+			const result = identifyEntity(ast, null)
+			expect(result).toBeNull()
+		})
+	})
+
+	describe('collectReferences() — schema-qualified branches', () => {
+		it('collects FK with schema qualification', () => {
+			const refs = collectReferences({
+				tables: [
+					{
+						columns: [
+							{
+								constraints: [{ type: 'FOREIGN KEY', table: 'users', schema: 'auth' }]
+							}
+						]
+					}
+				],
+				views: [],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs).toHaveLength(1)
+			expect(refs[0].name).toBe('auth.users')
+			expect(refs[0].type).toBe('table')
+		})
+
+		it('collects trigger with schema-qualified table', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [],
+				procedures: [],
+				triggers: [
+					{
+						table: 'orders',
+						tableSchema: 'sales',
+						executeFunction: 'audit.log_change'
+					}
+				]
+			})
+			expect(refs).toHaveLength(2)
+			expect(refs.find((r) => r.name === 'sales.orders')).toBeDefined()
+			expect(refs.find((r) => r.name === 'audit.log_change')).toBeDefined()
+		})
+
+		it('collects view dependency with schema prefix', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [
+					{
+						dependencies: [{ table: 'items', schema: 'inventory' }]
+					}
+				],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs[0].name).toBe('inventory.items')
+		})
+
+		it('handles table with no columns property', () => {
+			const refs = collectReferences({
+				tables: [{}],
+				views: [],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs).toEqual([])
+		})
+
+		it('handles column with no constraints property', () => {
+			const refs = collectReferences({
+				tables: [{ columns: [{}] }],
+				views: [],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs).toEqual([])
+		})
+
+		it('handles view with no dependencies property', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [{}],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs).toEqual([])
+		})
+
+		it('handles procedure with no tableReferences property', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [],
+				procedures: [{}],
+				triggers: []
+			})
+			expect(refs).toEqual([])
+		})
+	})
+
 	describe('extractDependencies() — searchPaths', () => {
 		it('extracts single search_path', () => {
 			const sql = 'SET search_path to staging;\nCREATE TABLE t (id int);'
@@ -319,6 +474,46 @@ describe('Dependency Extraction', () => {
 				triggers: []
 			})
 			expect(refs).toEqual([])
+		})
+
+		it('collects FK reference without schema', () => {
+			const refs = collectReferences({
+				tables: [
+					{
+						columns: [
+							{
+								constraints: [{ type: 'FOREIGN KEY', table: 'roles' }]
+							}
+						]
+					}
+				],
+				views: [],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs).toHaveLength(1)
+			expect(refs[0].name).toBe('roles')
+		})
+
+		it('collects trigger reference without schema', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [],
+				procedures: [],
+				triggers: [{ table: 'events', executeFunction: 'on_event' }]
+			})
+			expect(refs).toHaveLength(2)
+			expect(refs[0].name).toBe('events')
+		})
+
+		it('collects view dependency with schema', () => {
+			const refs = collectReferences({
+				tables: [],
+				views: [{ dependencies: [{ table: 'users', schema: 'staging' }] }],
+				procedures: [],
+				triggers: []
+			})
+			expect(refs[0].name).toBe('staging.users')
 		})
 	})
 })

@@ -123,8 +123,7 @@ CREATE TABLE lookups (id uuid PRIMARY KEY);`
 			expect(result.errors).toContain('Schema in script does not match file path')
 		})
 
-		it('should fall back to regex when AST parsing fails', () => {
-			// PL/pgSQL function bodies often fail AST parsing
+		it('should parse PL/pgSQL functions via AST', () => {
 			const sql = `SET search_path TO staging;
 CREATE OR REPLACE FUNCTION import_lookups(p_config text)
 RETURNS void AS $$
@@ -147,8 +146,19 @@ $$ LANGUAGE plpgsql;`
 			expect(result.searchPaths).toContain('staging')
 		})
 
-		it('should fall back to regex via catch when AST throws', () => {
-			const sql = `set search_path to staging;
+		it('should report error when entity type mismatches script type', () => {
+			const sql = `SET search_path TO staging;
+CREATE VIEW my_view AS SELECT 1 AS id;`
+			const file = writeTmpFile('my_view.sql', sql)
+			const entity = { file, schema: 'staging', type: 'table', name: 'staging.my_view' }
+
+			const result = adapter.parseEntityScript(entity)
+
+			expect(result.errors).toContain('Entity type in script does not match file path')
+		})
+
+		it('should return error when AST parsing throws', () => {
+			const sql = `SET search_path TO staging;
 CREATE OR REPLACE FUNCTION staging.boom() RETURNS void AS $$ BEGIN END; $$ LANGUAGE plpgsql;`
 			const file = writeTmpFile('boom.sql', sql)
 			const entity = {
@@ -163,15 +173,16 @@ CREATE OR REPLACE FUNCTION staging.boom() RETURNS void AS $$ BEGIN END; $$ LANGU
 			})
 
 			const result = adapter.parseEntityScript(entity)
-			expect(result).toBeDefined()
+			expect(result.errors).toContain('Failed to parse: Parser crash')
+			expect(result.references).toEqual([])
+			expect(result.searchPaths).toEqual([])
 			expect(result.file).toBe(file)
 
 			spy.mockRestore()
 		})
 
-		it('should fall back to regex when AST returns no entity identity', () => {
-			// An INSERT statement — AST parses but identifyEntity returns null
-			const sql = `set search_path to staging;
+		it('should return error when AST returns no entity identity', () => {
+			const sql = `SET search_path TO staging;
 INSERT INTO staging.data (id) VALUES (1);`
 			const file = writeTmpFile('no_entity.sql', sql)
 			const entity = {
@@ -182,8 +193,10 @@ INSERT INTO staging.data (id) VALUES (1);`
 			}
 
 			const result = adapter.parseEntityScript(entity)
-			// Regex fallback returns the entity enriched with whatever it can extract
-			expect(result).toBeDefined()
+
+			expect(result.errors).toContain('Could not identify entity in script')
+			expect(result.references).toEqual([])
+			expect(result.searchPaths).toContain('staging')
 			expect(result.file).toBe(file)
 		})
 	})

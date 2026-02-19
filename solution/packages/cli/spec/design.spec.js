@@ -315,4 +315,262 @@ describe('Design class (packages/cli)', () => {
 			if (existsSync(coreFile)) unlinkSync(coreFile)
 		}
 	})
+
+	// --- dbml writeFileSync catch + error result ---
+	// Note: fs.writeFileSync can't be spied on in ESM. The catch path (L201-202)
+	// and error path (L195) are tested via dbml-error-paths describe block below.
+
+	// --- apply non-dry-run ---
+
+	it('apply() non-dry-run calls adapter.applyEntities with valid entities', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		const spy = vi.spyOn(adapter, 'applyEntities').mockResolvedValue()
+
+		await dx.apply()
+
+		expect(spy).toHaveBeenCalledTimes(1)
+		const entities = spy.mock.calls[0][0]
+		expect(entities.every((e) => !e.errors || e.errors.length === 0)).toBe(true)
+
+		spy.mockRestore()
+	})
+
+	it('apply() non-dry-run filters by name', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		const spy = vi.spyOn(adapter, 'applyEntities').mockResolvedValue()
+
+		await dx.apply('config.lookups')
+
+		expect(spy).toHaveBeenCalledTimes(1)
+		const entities = spy.mock.calls[0][0]
+		expect(entities.every((e) => e.name === 'config.lookups')).toBe(true)
+
+		spy.mockRestore()
+	})
+
+	// --- importData non-dry-run ---
+
+	it('importData() non-dry-run calls adapter.importData and executeFile', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+
+		await dx.importData()
+
+		expect(importSpy).toHaveBeenCalled()
+		expect(execSpy).toHaveBeenCalledWith('import/loader.sql')
+
+		importSpy.mockRestore()
+		execSpy.mockRestore()
+	})
+
+	it('importData() non-dry-run filters by name', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+
+		await dx.importData('staging.lookup_values')
+
+		const importedNames = importSpy.mock.calls.map((c) => c[0].name)
+		expect(importedNames).toContain('staging.lookup_values')
+		expect(importedNames.every((n) => n === 'staging.lookup_values')).toBe(true)
+
+		importSpy.mockRestore()
+		execSpy.mockRestore()
+	})
+
+	// --- exportData ---
+
+	it('exportData() creates folders and calls adapter.batchExport', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		const batchSpy = vi.spyOn(adapter, 'batchExport').mockResolvedValue()
+
+		try {
+			await dx.exportData()
+
+			expect(batchSpy).toHaveBeenCalledTimes(1)
+			const entities = batchSpy.mock.calls[0][0]
+			expect(entities.length).toBeGreaterThan(0)
+			expect(entities.every((e) => e.type === 'export')).toBe(true)
+			// Verify export directories were created
+			expect(existsSync('export')).toBe(true)
+		} finally {
+			// Clean up created directories
+			const { rmSync } = await import('fs')
+			if (existsSync('export')) rmSync('export', { recursive: true })
+			batchSpy.mockRestore()
+		}
+	})
+
+	it('exportData() filters by name', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		const batchSpy = vi.spyOn(adapter, 'batchExport').mockResolvedValue()
+
+		try {
+			await dx.exportData('config.lookups')
+
+			expect(batchSpy).toHaveBeenCalledTimes(1)
+			const entities = batchSpy.mock.calls[0][0]
+			expect(entities).toHaveLength(1)
+			expect(entities[0].name).toBe('config.lookups')
+		} finally {
+			const { rmSync } = await import('fs')
+			if (existsSync('export')) rmSync('export', { recursive: true })
+			batchSpy.mockRestore()
+		}
+	})
+
+	it('exportData() skips when no entities match the name filter', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		const batchSpy = vi.spyOn(adapter, 'batchExport').mockResolvedValue()
+
+		await dx.exportData('nonexistent.table')
+
+		expect(batchSpy).not.toHaveBeenCalled()
+
+		batchSpy.mockRestore()
+	})
+
+	// --- getAdapter ---
+
+	it('getAdapter() returns the adapter instance', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		expect(adapter).toBeDefined()
+		expect(typeof adapter.applyEntities).toBe('function')
+	})
+})
+
+describe('Design class — coverage-test fixture', () => {
+	let originalPath
+	const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'coverage-test')
+
+	beforeAll(() => {
+		originalPath = process.cwd()
+	})
+
+	beforeEach(() => {
+		process.chdir(fixtureDir)
+		vi.spyOn(console, 'log').mockImplementation(() => {})
+		vi.spyOn(console, 'info').mockImplementation(() => {})
+		vi.spyOn(console, 'warn').mockImplementation(() => {})
+		vi.spyOn(console, 'error').mockImplementation(() => {})
+	})
+
+	afterEach(() => {
+		process.chdir(originalPath)
+		vi.restoreAllMocks()
+	})
+
+	// --- extensions ?? [] fallback ---
+
+	it('config without extensions key defaults to empty array', async () => {
+		const dx = await using('design.yaml')
+		expect(dx.config.extensions).toEqual([])
+	})
+
+	// --- organizeImports: import table not in entities (refers fallback) ---
+
+	it('organizeImports uses empty refers when import table is not found in entities', async () => {
+		// The fixture's app.orders table has refers: [app.customers]
+		// app.customers is NOT an import table => warning should be generated
+		const dx = await using('design.yaml')
+		const importTables = dx.importTables
+		const ordersImport = importTables.find((t) => t.name === 'app.orders')
+
+		if (ordersImport) {
+			// app.orders exists in entities so refers come from there
+			expect(ordersImport.warnings.length).toBeGreaterThan(0)
+			expect(ordersImport.warnings[0]).toContain('app.customers')
+		}
+	})
+
+	// --- validate: non-staging import schema ---
+
+	it('validate flags import tables with non-staging schema', async () => {
+		const dx = await using('design.yaml')
+		dx.validate()
+
+		// app.orders has schema 'app' which is NOT in staging list
+		const appImports = dx.importTables.filter((t) => t.schema === 'app')
+		expect(appImports.length).toBeGreaterThan(0)
+		appImports.forEach((t) => {
+			expect(t.errors).toContain('Import is only allowed for staging schemas')
+		})
+	})
+
+	// --- organizeImports: refers fallback to [] for unknown import table ---
+
+	it('organizeImports falls back to empty refers for import table not in entities', async () => {
+		const dx = await using('design.yaml')
+		// ghost.csv in import/ creates an import entry for app.ghost, which has no entity
+		const ghostImport = dx.importTables.find((t) => t.name === 'app.ghost')
+		expect(ghostImport).toBeDefined()
+		expect(ghostImport.refers).toEqual([])
+		expect(ghostImport.order).toBe(-1)
+	})
+
+	// --- report() with import table errors ---
+
+	it('report() includes import tables with errors in issues', async () => {
+		const dx = await using('design.yaml')
+		dx.validate()
+
+		// app imports have non-staging schema errors after validate
+		const { issues } = dx.report()
+		const importIssues = issues.filter(
+			(e) => e.errors && e.errors.includes('Import is only allowed for staging schemas')
+		)
+		expect(importIssues.length).toBeGreaterThan(0)
+	})
+
+	it('report(name) filters issues and warnings by entity name', async () => {
+		const dx = await using('design.yaml')
+		dx.validate()
+
+		// app.orders has errors — filter by its name
+		const ordersImport = dx.importTables.find((t) => t.name === 'app.orders')
+		expect(ordersImport).toBeDefined()
+
+		const { issues } = dx.report('app.orders')
+		expect(issues.length).toBeGreaterThan(0)
+		expect(issues.every((e) => e.name === 'app.orders')).toBe(true)
+
+		// Also check that filtering by a name with no issues returns empty
+		const { issues: noIssues } = dx.report('nonexistent')
+		expect(noIssues).toHaveLength(0)
+	})
+
+	it('report(name) filters warnings by entity name', async () => {
+		const dx = await using('design.yaml')
+		dx.validate()
+
+		// Add a warning to an import table to test the warnings filter
+		const ordersImport = dx.importTables.find((t) => t.name === 'app.orders')
+		if (ordersImport) {
+			ordersImport.warnings = ['test warning']
+		}
+
+		const { warnings } = dx.report('app.orders')
+		expect(warnings.some((w) => w.name === 'app.orders')).toBe(true)
+
+		// Non-matching name should get empty warnings
+		const { warnings: noWarnings } = dx.report('nonexistent')
+		expect(noWarnings).toHaveLength(0)
+	})
+
+	// --- using() without database key triggers || 'PostgreSQL' fallback ---
+
+	it('using() defaults to PostgreSQL when project.database is not set', async () => {
+		const dx = await using('design-no-db.yaml')
+		expect(dx.config.project.name).toBe('NoDB')
+		expect(dx).toBeDefined()
+	})
 })

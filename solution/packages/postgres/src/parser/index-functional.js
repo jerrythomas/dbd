@@ -4,7 +4,6 @@
  */
 
 import { parse, validateSQL } from './parsers/sql.js'
-import { normalizeAst } from './transformers/ast.js'
 import { extractTables, extractSearchPaths } from './extractors/tables.js'
 import { extractViews } from './extractors/views.js'
 import { extractProcedures } from './extractors/procedures.js'
@@ -234,7 +233,6 @@ export const extractDependencies = (sql, options = {}) => {
 // Export parser APIs
 export {
 	parse,
-	normalizeAst,
 	extractTables,
 	extractViews,
 	extractProcedures,

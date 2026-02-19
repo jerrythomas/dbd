@@ -7,7 +7,8 @@ import {
 	extractIsReplace,
 	extractViewColumns,
 	extractViewDependencies,
-	extractViewDefinition
+	extractViewDefinition,
+	extractViewsFromSql
 } from '../../../src/parser/extractors/views.js'
 
 describe('View Extractor - Functional API', () => {
@@ -196,6 +197,182 @@ describe('View Extractor - Functional API', () => {
 			expect(dependencies.length).toBe(2)
 			expect(dependencies[0].table).toBe('users')
 			expect(dependencies[1].table).toBe('orders')
+		})
+	})
+
+	describe('Additional coverage', () => {
+		it('should use expr.name for column name', () => {
+			const cols = extractViewColumns({
+				select: {
+					columns: [{ expr: { type: 'column_ref', name: 'computed_col' } }]
+				}
+			})
+			expect(cols[0].name).toBe('computed_col')
+		})
+
+		it('should use [EXPRESSION] when no name available', () => {
+			const cols = extractViewColumns({
+				select: {
+					columns: [{ expr: { type: 'expression' } }]
+				}
+			})
+			expect(cols[0].name).toBe('[EXPRESSION]')
+		})
+
+		it('should handle JSONB operator column', () => {
+			const cols = extractViewColumns({
+				select: {
+					columns: [
+						{
+							expr: {
+								type: 'binary_expr',
+								operator: '->',
+								left: { column: 'data' },
+								right: { value: 'key' }
+							},
+							as: 'val'
+						}
+					]
+				}
+			})
+			expect(cols[0].source.type).toBe('json_extract')
+			expect(cols[0].source.expression).toBe('data -> key')
+		})
+
+		it('should collect CTE names and exclude from dependencies', () => {
+			const deps = extractViewDependencies({
+				select: {
+					with: [{ name: { value: 'cte_data' }, stmt: { from: [{ table: 'raw_data' }] } }],
+					from: [{ table: 'cte_data' }, { table: 'other_table' }]
+				}
+			})
+			expect(deps.some((d) => d.table === 'cte_data')).toBe(false)
+			expect(deps.some((d) => d.table === 'other_table')).toBe(true)
+			expect(deps.some((d) => d.table === 'raw_data')).toBe(true)
+		})
+
+		it('should extract definition from _original_sql', () => {
+			const def = extractViewDefinition({
+				view: 'my_view',
+				select: { columns: [] },
+				_original_sql: 'CREATE VIEW my_view AS SELECT id FROM users;'
+			})
+			expect(def).toBe('SELECT id FROM users')
+		})
+
+		it('should fallback to SELECT ... when no original SQL', () => {
+			const def = extractViewDefinition({
+				view: 'my_view',
+				select: { columns: [] }
+			})
+			expect(def).toBe('SELECT ...')
+		})
+
+		it('should extract views from SQL string via extractViewsFromSql', () => {
+			const views = extractViewsFromSql(
+				'CREATE OR REPLACE VIEW staging.active_users AS SELECT id FROM users WHERE active;',
+				'public'
+			)
+			expect(views.length).toBe(1)
+			expect(views[0].name).toBe('active_users')
+			expect(views[0].schema).toBe('staging')
+			expect(views[0].replace).toBe(true)
+			expect(views[0].definition).toContain('SELECT id FROM users')
+		})
+
+		it('should handle subquery in dependencies', () => {
+			const deps = extractViewDependencies({
+				select: {
+					from: [{ table: 'users' }, { expr: { type: 'subquery' } }]
+				}
+			})
+			expect(deps.length).toBe(2)
+			expect(deps[0].table).toBe('users')
+			expect(deps[1].type).toBe('subquery')
+		})
+	})
+
+	describe('Branch coverage — remaining gaps', () => {
+		it('extractViews returns empty for non-array ast', () => {
+			expect(extractViews('not array')).toEqual([])
+			expect(extractViews(null)).toEqual([])
+		})
+
+		it('extractViewName uses view.table fallback', () => {
+			expect(extractViewName({ view: { table: 'my_view' } })).toBe('my_view')
+		})
+
+		it('extractViewName returns empty string for falsy view', () => {
+			expect(extractViewName({ view: null })).toBe('')
+			expect(extractViewName({})).toBe('')
+		})
+
+		it('extractViewColumns returns empty when no select', () => {
+			expect(extractViewColumns({})).toEqual([])
+			expect(extractViewColumns({ select: {} })).toEqual([])
+		})
+
+		it('extractViewColumns uses function name string fallback', () => {
+			const cols = extractViewColumns({
+				select: {
+					columns: [
+						{
+							expr: { type: 'function', name: 'count' },
+							as: 'cnt'
+						}
+					]
+				}
+			})
+			expect(cols[0].source.name).toBe('count')
+		})
+
+		it('extractViewDependencies returns empty for no select or from', () => {
+			expect(extractViewDependencies({})).toEqual([])
+			expect(extractViewDependencies({ select: {} })).toEqual([])
+		})
+
+		it('extractViewDependencies handles CTE with string name', () => {
+			const deps = extractViewDependencies({
+				select: {
+					with: [{ name: 'my_cte', stmt: { from: [{ table: 'raw' }] } }],
+					from: [{ table: 'my_cte' }, { table: 'other' }]
+				}
+			})
+			expect(deps.some((d) => d.table === 'my_cte')).toBe(false)
+			expect(deps.some((d) => d.table === 'raw')).toBe(true)
+			expect(deps.some((d) => d.table === 'other')).toBe(true)
+		})
+
+		it('extractViewDependencies uses table.name fallback via join', () => {
+			const deps = extractViewDependencies({
+				select: {
+					from: [{ table: 'users' }, { join: { name: 'aliased_source', schema: 'app' } }]
+				}
+			})
+			expect(deps).toHaveLength(2)
+			expect(deps[0].table).toBe('users')
+			expect(deps[1].table).toBe('aliased_source')
+		})
+
+		it('collectFromDeps handles non-array from gracefully', () => {
+			// CTE with non-array from
+			const deps = extractViewDependencies({
+				select: {
+					with: [{ name: { value: 'x' }, stmt: { from: 'not-array' } }],
+					from: [{ table: 'users' }]
+				}
+			})
+			expect(deps).toHaveLength(1)
+			expect(deps[0].table).toBe('users')
+		})
+
+		it('extractViewsFromSql uses defaultSchema when no schema in SQL', () => {
+			const views = extractViewsFromSql(
+				'CREATE VIEW active_users AS SELECT id FROM users WHERE active;',
+				'myschema'
+			)
+			expect(views[0].schema).toBe('myschema')
+			expect(views[0].replace).toBe(false)
 		})
 	})
 })

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
 	createAdapter,
 	getAdapterInfo,
@@ -6,6 +6,10 @@ import {
 	SUPPORTED_DATABASES
 } from '../src/factory.js'
 import { BaseDatabaseAdapter } from '../src/base-adapter.js'
+
+vi.mock('@jerrythomas/dbd-postgres-adapter', () => ({
+	createAdapter: (conn, opts) => ({ type: 'mock-postgres', conn, opts, initParser: () => {} })
+}))
 
 describe('factory', () => {
 	describe('SUPPORTED_DATABASES', () => {
@@ -44,6 +48,16 @@ describe('factory', () => {
 			await expect(createAdapter('sqlite', 'sqlite://test.db')).rejects.toThrow(
 				'Supported: postgres, postgresql'
 			)
+		})
+	})
+
+	describe('createAdapter() — built-in loader', () => {
+		it('uses the built-in postgres loader when no override registered', async () => {
+			const adapter = await createAdapter('postgres', 'pg://localhost')
+			expect(adapter).toBeDefined()
+			expect(adapter.type).toBe('mock-postgres')
+			expect(adapter.conn).toBe('pg://localhost')
+			expect(typeof adapter.initParser).toBe('function')
 		})
 	})
 

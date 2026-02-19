@@ -8,7 +8,8 @@ import {
 	extractDataType,
 	isNullable,
 	extractDefaultValue,
-	extractColumnConstraints
+	extractColumnConstraints,
+	extractComments
 } from '../../../src/parser/extractors/tables.js'
 
 describe('Table Extractor - Functional API', () => {
@@ -686,6 +687,39 @@ describe('Table Extractor - Functional API', () => {
 			expect(tables[0].comments.table).toBe('Table with db qualifier')
 		})
 
+		it('extracts column name from colname fallback', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ table: 'items' }],
+					create_definitions: [
+						{
+							column: true,
+							colname: 'status',
+							definition: { dataType: 'TEXT' }
+						}
+					]
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].columns[0].name).toBe('status')
+		})
+
+		it('extracts default value from function with args', () => {
+			const col = {
+				default_val: {
+					type: 'default',
+					value: {
+						type: 'function',
+						name: { name: [{ value: 'substr' }] },
+						args: { value: [{ value: 'hello' }, { value: '1' }] }
+					}
+				}
+			}
+			expect(extractDefaultValue(col)).toBe('substr(hello, 1)')
+		})
+
 		it('handles expr as plain string', () => {
 			const ast = [
 				{
@@ -708,6 +742,141 @@ describe('Table Extractor - Functional API', () => {
 			]
 			const tables = extractTables(ast)
 			expect(tables[0].comments.table).toBe('A simple items table')
+		})
+	})
+
+	describe('Branch coverage — remaining gaps', () => {
+		it('extractTables returns empty for non-array ast', () => {
+			expect(extractTables('not array')).toEqual([])
+			expect(extractTables(null)).toEqual([])
+		})
+
+		it('extractColumnsFromStatement filters out rows without column or ColumnDef', () => {
+			const stmt = {
+				create_definitions: [
+					{ column: { column: { expr: { value: 'id' } } }, definition: { dataType: 'INT' } },
+					{ resource: 'constraint', type: 'primary key' }
+				]
+			}
+			const cols = extractColumnsFromStatement(stmt)
+			expect(cols).toHaveLength(1)
+			expect(cols[0].name).toBe('id')
+		})
+
+		it('isNullable returns false for nullable.value "not null"', () => {
+			expect(isNullable({ nullable: { value: 'not null' } })).toBe(false)
+		})
+
+		it('isNullable returns false when PK detected via extractColumnConstraints', () => {
+			// Column with no primary_key flag but has CONSTR_PRIMARY in constraints
+			const col = {
+				constraints: [{ Constraint: { contype: 'CONSTR_PRIMARY' } }]
+			}
+			expect(isNullable(col)).toBe(false)
+		})
+
+		it('extractDefaultValue handles function name as plain string', () => {
+			const col = {
+				default_val: {
+					type: 'default',
+					value: {
+						type: 'function',
+						name: 'gen_random_uuid',
+						args: { value: [] }
+					}
+				}
+			}
+			expect(extractDefaultValue(col)).toBe('gen_random_uuid()')
+		})
+
+		it('extractDefaultValue handles function with no args', () => {
+			const col = {
+				default_val: {
+					type: 'default',
+					value: {
+						type: 'function',
+						name: { name: [{ value: 'now' }] }
+					}
+				}
+			}
+			expect(extractDefaultValue(col)).toBe('now()')
+		})
+
+		it('extractDefaultValue handles function arg with no value', () => {
+			const col = {
+				default_val: {
+					type: 'default',
+					value: {
+						type: 'function',
+						name: { name: [{ value: 'coalesce' }] },
+						args: { value: [{ type: 'expr' }] }
+					}
+				}
+			}
+			expect(extractDefaultValue(col)).toBe('coalesce()')
+		})
+
+		it('extractColumnConstraints FK with no pk_attrs falls back to id', () => {
+			const col = {
+				constraints: [
+					{
+						Constraint: {
+							contype: 'CONSTR_FOREIGN',
+							pktable: { relname: 'users', schemaname: 'public' }
+						}
+					}
+				]
+			}
+			const result = extractColumnConstraints(col)
+			expect(result[0].column).toBe('id')
+		})
+
+		it('extractComments returns default for non-array ast', () => {
+			expect(extractComments(null)).toEqual({ tables: {}, columns: {} })
+			expect(extractComments('not array')).toEqual({ tables: {}, columns: {} })
+		})
+
+		it('table comment with single-part string name (no schema)', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ table: 'items' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'id' } } },
+							definition: { dataType: 'INT' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'table', name: 'items' },
+					expr: { value: 'Single-name table comment' }
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].comments.table).toBe('Single-name table comment')
+		})
+
+		it('extractDataType returns null for falsy def (definition missing, columnDef falsy)', () => {
+			expect(extractDataType(false)).toBeNull()
+			expect(extractDataType(0)).toBeNull()
+		})
+
+		it('extractDefaultValue uses array map+join when name.name[0].value is falsy', () => {
+			const col = {
+				default_val: {
+					type: 'default',
+					value: {
+						type: 'function',
+						name: { name: ['pg_catalog', 'nextval'] },
+						args: { value: [] }
+					}
+				}
+			}
+			expect(extractDefaultValue(col)).toBe('pg_catalog.nextval()')
 		})
 	})
 })

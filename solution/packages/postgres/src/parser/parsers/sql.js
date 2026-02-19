@@ -178,8 +178,6 @@ const PG_TYPE_MAP = {
  * Convert a pgsql-parser typeName node to a human-readable type string
  */
 const resolveTypeName = (typeName) => {
-	if (!typeName || !typeName.names) return null
-
 	const names = typeName.names.map((n) => n.String?.sval).filter(Boolean)
 
 	// Skip pg_catalog prefix
@@ -190,17 +188,10 @@ const resolveTypeName = (typeName) => {
 	// Handle typmods (length/precision)
 	// pgsql-parser v17 shape: typmods: [{ A_Const: { ival: { ival: 100 }, location: N } }]
 	if (typeName.typmods && typeName.typmods.length > 0) {
-		const mods = typeName.typmods
-			.map((tm) => {
-				// { A_Const: { ival: { ival: N } } }
-				if (tm.A_Const?.ival?.ival !== undefined) return tm.A_Const.ival.ival
-				// { A_Const: { fval: { fval: "N.N" } } }
-				if (tm.A_Const?.fval?.fval !== undefined) return tm.A_Const.fval.fval
-				// Direct Integer (older format)
-				if (tm.Integer?.ival !== undefined) return tm.Integer.ival
-				return undefined
-			})
-			.filter((v) => v !== undefined)
+		const mods = typeName.typmods.map(
+			// { A_Const: { ival: { ival: N } } } — protobuf omits 0, so ival:{} means 0
+			(tm) => tm.A_Const?.ival?.ival ?? 0
+		)
 
 		if (mods.length > 0) {
 			resolved += `(${mods.join(',')})`
@@ -223,25 +214,17 @@ const resolveTypeName = (typeName) => {
  *   { A_Const: { boolval: { boolval: true }, location: N } }
  */
 const resolveDefaultExpr = (rawExpr) => {
-	if (!rawExpr) return null
-
 	// A_Const wrapper (pgsql-parser v17 shape)
+	// Note: protobuf omits default values (0, false, "") from wire format,
+	// so ival:{} means 0, boolval:{} means false
 	if (rawExpr.A_Const) {
 		const ac = rawExpr.A_Const
-		if (ac.ival?.ival !== undefined) return ac.ival.ival
+		if (ac.ival !== undefined && typeof ac.ival === 'object') return ac.ival.ival ?? 0
 		if (ac.sval?.sval !== undefined) return ac.sval.sval
 		if (ac.fval?.fval !== undefined) return ac.fval.fval
-		if (ac.boolval?.boolval !== undefined) return ac.boolval.boolval
-		// Fallback for simpler shapes
-		if (typeof ac.ival === 'number') return ac.ival
-		if (typeof ac.sval === 'string') return ac.sval
-		if (typeof ac.boolval === 'boolean') return ac.boolval
+		if (ac.boolval !== undefined && typeof ac.boolval === 'object')
+			return ac.boolval.boolval ?? false
 	}
-
-	// Simple constants (older format)
-	if (rawExpr.Integer !== undefined) return rawExpr.Integer.ival
-	if (rawExpr.String !== undefined) return rawExpr.String.sval
-	if (rawExpr.Float !== undefined) return rawExpr.Float.fval
 
 	// Function call — e.g. uuid_generate_v4(), now()
 	if (rawExpr.FuncCall) {
@@ -267,7 +250,6 @@ const resolveDefaultExpr = (rawExpr) => {
  */
 const translateColumnDef = (colDef) => {
 	const cd = colDef.ColumnDef
-	if (!cd) return null
 
 	const dataType = resolveTypeName(cd.typeName)
 	let nullable = true
@@ -278,7 +260,6 @@ const translateColumnDef = (colDef) => {
 	if (cd.constraints) {
 		for (const c of cd.constraints) {
 			const con = c.Constraint
-			if (!con) continue
 
 			switch (con.contype) {
 				case 'CONSTR_NOTNULL':
@@ -298,7 +279,7 @@ const translateColumnDef = (colDef) => {
 				case 'CONSTR_FOREIGN':
 					constraints.push({
 						type: 'FOREIGN KEY',
-						table: con.pktable?.relname || null,
+						table: con.pktable.relname,
 						schema: con.pktable?.schemaname || null,
 						column: con.pk_attrs?.[0]?.String?.sval || 'id'
 					})
@@ -322,7 +303,7 @@ const translateColumnDef = (colDef) => {
 				expr: { type: 'default', value: cd.colname }
 			}
 		},
-		definition: { dataType: dataType?.toUpperCase() || null },
+		definition: { dataType: dataType.toUpperCase() },
 		...(isPrimaryKey ? { primary_key: 'primary key' } : {}),
 		...(nullable
 			? {}
@@ -366,7 +347,6 @@ const translateColumnDef = (colDef) => {
  */
 const translateTableConstraint = (constraint) => {
 	const con = constraint.Constraint
-	if (!con) return null
 
 	const base = { resource: 'constraint' }
 
@@ -377,7 +357,7 @@ const translateTableConstraint = (constraint) => {
 				type: 'primary_key',
 				constraint: 'PRIMARY KEY',
 				conname: con.conname,
-				keys: (con.keys || []).map((k) => k.String?.sval).filter(Boolean)
+				keys: con.keys.map((k) => k.String?.sval).filter(Boolean)
 			}
 		case 'CONSTR_UNIQUE':
 			return {
@@ -385,7 +365,7 @@ const translateTableConstraint = (constraint) => {
 				type: 'unique',
 				constraint: 'UNIQUE',
 				conname: con.conname,
-				keys: (con.keys || []).map((k) => k.String?.sval).filter(Boolean)
+				keys: con.keys.map((k) => k.String?.sval).filter(Boolean)
 			}
 		case 'CONSTR_FOREIGN':
 			return {
@@ -393,7 +373,7 @@ const translateTableConstraint = (constraint) => {
 				type: 'foreign_key',
 				constraint: 'FOREIGN KEY',
 				conname: con.conname,
-				fk_attrs: (con.fk_attrs || []).map((k) => k.String?.sval).filter(Boolean),
+				fk_attrs: con.fk_attrs.map((k) => k.String?.sval).filter(Boolean),
 				pktable: {
 					relname: con.pktable?.relname,
 					schemaname: con.pktable?.schemaname
@@ -416,8 +396,8 @@ const translateTableConstraint = (constraint) => {
  * Translate a pgsql-parser CreateStmt into the normalized shape.
  */
 const translateCreateStmt = (createStmt, originalSql) => {
-	const rel = createStmt.relation || {}
-	const tableElts = createStmt.tableElts || []
+	const rel = createStmt.relation
+	const tableElts = createStmt.tableElts
 
 	// Separate columns from table-level constraints
 	const columnDefs = tableElts.filter((e) => e.ColumnDef)
@@ -435,7 +415,7 @@ const translateCreateStmt = (createStmt, originalSql) => {
 			if (col) {
 				const fk = {
 					type: 'FOREIGN KEY',
-					table: con.pktable?.relname || null,
+					table: con.pktable.relname,
 					schema: con.pktable?.schemaname || null,
 					column: con.pk_attrs?.[0]?.String?.sval || 'id'
 				}
@@ -485,20 +465,19 @@ const translateCreateStmt = (createStmt, originalSql) => {
  * Translate a pgsql-parser ViewStmt into the normalized shape.
  */
 const translateViewStmt = (viewStmt, originalSql) => {
-	const rel = viewStmt.view || {}
+	const rel = viewStmt.view
 	const query = viewStmt.query?.SelectStmt
 
 	// Translate SELECT columns
-	const selectColumns = (query?.targetList || [])
+	const selectColumns = query.targetList
 		.map((target) => {
 			const rt = target.ResTarget
-			if (!rt) return null
 
 			const val = rt.val
 			let expr = { type: 'column_ref' }
 
 			if (val?.ColumnRef) {
-				const fields = val.ColumnRef.fields || []
+				const fields = val.ColumnRef.fields
 				if (fields.length === 2) {
 					expr = {
 						type: 'column_ref',
@@ -525,8 +504,6 @@ const translateViewStmt = (viewStmt, originalSql) => {
 					type: 'function',
 					name: { name: [{ value: funcName }] }
 				}
-			} else if (val?.A_Star) {
-				expr = { type: 'star', value: '*' }
 			} else if (val?.A_Expr || val?.BoolExpr || val?.TypeCast || val?.SubLink) {
 				expr = { type: 'expression' }
 			}
@@ -601,7 +578,7 @@ const flattenJoinExpr = (je) => {
 	if (je.rarg) {
 		const right = translateFromItem(je.rarg)
 		const joinInfo = {
-			type: joinTypeMap[je.jointype] || 'JOIN',
+			type: joinTypeMap[je.jointype],
 			on: je.quals ? translateWhereExpr(je.quals) : null
 		}
 
@@ -652,8 +629,6 @@ const translateFromItem = (item) => {
  * Translate a WHERE clause expression to a simplified normalized shape
  */
 const translateWhereExpr = (expr) => {
-	if (!expr) return null
-
 	if (expr.BoolExpr) {
 		const boolOp = {
 			0: 'AND',
@@ -665,22 +640,22 @@ const translateWhereExpr = (expr) => {
 		}
 		return {
 			type: 'binary_expr',
-			operator: boolOp[expr.BoolExpr.boolop] || expr.BoolExpr.boolop,
-			args: (expr.BoolExpr.args || []).map(translateWhereExpr)
+			operator: boolOp[expr.BoolExpr.boolop],
+			args: expr.BoolExpr.args.map(translateWhereExpr)
 		}
 	}
 
 	if (expr.A_Expr) {
 		return {
 			type: 'binary_expr',
-			operator: expr.A_Expr.name?.[0]?.String?.sval || '=',
+			operator: expr.A_Expr.name[0].String.sval,
 			left: translateWhereExpr(expr.A_Expr.lexpr),
 			right: translateWhereExpr(expr.A_Expr.rexpr)
 		}
 	}
 
 	if (expr.ColumnRef) {
-		const fields = expr.ColumnRef.fields || []
+		const fields = expr.ColumnRef.fields
 		return {
 			type: 'column_ref',
 			table: fields.length > 1 ? fields[0].String?.sval : null,
@@ -690,8 +665,14 @@ const translateWhereExpr = (expr) => {
 
 	if (expr.A_Const) {
 		if (expr.A_Const.sval) return { type: 'string', value: expr.A_Const.sval.sval }
-		if (expr.A_Const.ival !== undefined) return { type: 'number', value: expr.A_Const.ival }
-		if (expr.A_Const.boolval !== undefined) return { type: 'bool', value: expr.A_Const.boolval }
+		// protobuf omits default values: ival:{} means 0, boolval:{} means false
+		if (expr.A_Const.ival !== undefined) {
+			return { type: 'number', value: expr.A_Const.ival.ival ?? 0 }
+		}
+		if (expr.A_Const.boolval !== undefined) {
+			const v = expr.A_Const.boolval.boolval ?? false
+			return { type: 'bool', value: v }
+		}
 	}
 
 	if (expr.TypeCast) {
@@ -706,11 +687,11 @@ const translateWhereExpr = (expr) => {
  * Used for both CREATE FUNCTION and CREATE PROCEDURE.
  */
 const translateCreateFunctionStmt = (funcStmt, originalSql) => {
-	const funcnames = funcStmt.funcname || []
+	const funcnames = funcStmt.funcname
 	const nameStr = funcnames.map((n) => n.String?.sval).filter(Boolean)
 
 	const schema = nameStr.length > 1 ? nameStr[0] : null
-	const name = nameStr.length > 1 ? nameStr[1] : nameStr[0] || ''
+	const name = nameStr.length > 1 ? nameStr[1] : nameStr[0]
 
 	// Determine if this is a procedure (RETURNS void with no RETURNS) vs function
 	// In PostgreSQL, CREATE PROCEDURE has is_procedure = true
@@ -725,48 +706,37 @@ const translateCreateFunctionStmt = (funcStmt, originalSql) => {
 	if (funcStmt.options) {
 		for (const opt of funcStmt.options) {
 			const de = opt.DefElem
-			if (!de) continue
 			if (de.defname === 'language') {
-				language = de.arg?.String?.sval || 'plpgsql'
+				language = de.arg.String.sval
 			}
-			if (de.defname === 'as') {
-				// Body is in arg — can be List (v17+), Array, or direct String
-				if (de.arg?.List?.items) {
-					body = de.arg.List.items
-						.map((a) => a.String?.sval)
-						.filter(Boolean)
-						.join('')
-				} else if (Array.isArray(de.arg)) {
-					body = de.arg
-						.map((a) => a.String?.sval)
-						.filter(Boolean)
-						.join('')
-				} else if (de.arg?.String?.sval) {
-					body = de.arg.String.sval
-				}
+			if (de.defname === 'as' && de.arg?.List?.items) {
+				body = de.arg.List.items
+					.map((a) => a.String?.sval)
+					.filter(Boolean)
+					.join('')
 			}
 		}
 	}
 
 	// Extract parameters
-	const parameters = (funcStmt.parameters || [])
-		.map((param) => {
-			const fp = param.FunctionParameter
-			if (!fp) return null
+	const parameters = (funcStmt.parameters || []).map((param) => {
+		const fp = param.FunctionParameter
 
-			const modeMap = {
-				105: 'in', // FUNC_PARAM_IN (ASCII 'i')
-				111: 'out', // FUNC_PARAM_OUT (ASCII 'o')
-				98: 'inout' // FUNC_PARAM_INOUT (ASCII 'b')
-			}
+		const modeMap = {
+			105: 'in',
+			111: 'out',
+			98: 'inout',
+			FUNC_PARAM_IN: 'in',
+			FUNC_PARAM_OUT: 'out',
+			FUNC_PARAM_INOUT: 'inout'
+		}
 
-			return {
-				name: fp.name || '',
-				dataType: fp.argType ? resolveTypeName(fp.argType) : 'unknown',
-				mode: modeMap[fp.mode] || 'in'
-			}
-		})
-		.filter(Boolean)
+		return {
+			name: fp.name || '',
+			dataType: resolveTypeName(fp.argType),
+			mode: modeMap[fp.mode] || 'in'
+		}
+	})
 
 	const keyword = isProcedure ? 'procedure' : 'function'
 
@@ -792,16 +762,13 @@ const translateCreateFunctionStmt = (funcStmt, originalSql) => {
 		as: body,
 		body,
 		options: funcStmt.options
-			? funcStmt.options
-					.map((o) => {
-						const de = o.DefElem
-						if (!de) return null
-						if (de.defname === 'language') return { prefix: 'LANGUAGE', value: language }
-						if (de.defname === 'as') return { type: 'as', expr: body }
-						return null
-					})
-					.filter(Boolean)
-			: [],
+			.map((o) => {
+				const de = o.DefElem
+				if (de.defname === 'language') return { prefix: 'LANGUAGE', value: language }
+				if (de.defname === 'as') return { type: 'as', expr: body }
+				return null
+			})
+			.filter(Boolean),
 		_original_sql: originalSql
 	}
 }
@@ -810,24 +777,21 @@ const translateCreateFunctionStmt = (funcStmt, originalSql) => {
  * Translate a pgsql-parser IndexStmt into the normalized shape.
  */
 const translateIndexStmt = (indexStmt, originalSql) => {
-	const rel = indexStmt.relation || {}
+	const rel = indexStmt.relation
 
-	const columns = (indexStmt.indexParams || [])
-		.map((param) => {
-			const ie = param.IndexElem
-			if (!ie) return null
+	const columns = indexStmt.indexParams.map((param) => {
+		const ie = param.IndexElem
 
-			let order = 'ASC'
-			if (ie.ordering === 'SORTBY_DESC') order = 'DESC'
+		let order = 'ASC'
+		if (ie.ordering === 'SORTBY_DESC') order = 'DESC'
 
-			return {
-				name: ie.name,
-				order,
-				// Compat shape
-				column: { column: { expr: { value: ie.name } } }
-			}
-		})
-		.filter(Boolean)
+		return {
+			name: ie.name,
+			order,
+			// Compat shape
+			column: { column: { expr: { value: ie.name } } }
+		}
+	})
 
 	return {
 		type: 'create',
@@ -854,11 +818,11 @@ const translateIndexStmt = (indexStmt, originalSql) => {
  * Translate a pgsql-parser CreateTrigStmt into the normalized shape.
  */
 const translateCreateTrigStmt = (trigStmt, originalSql) => {
-	const rel = trigStmt.relation || {}
+	const rel = trigStmt.relation
 
-	// Timing: 2 = BEFORE, 4 = AFTER, 64 = INSTEAD OF
-	const timingMap = { 2: 'BEFORE', 4: 'AFTER', 64: 'INSTEAD OF' }
-	const timing = timingMap[trigStmt.timing] || 'BEFORE'
+	// Timing: 2 = BEFORE, undefined = AFTER, 64 = INSTEAD OF
+	const timingMap = { 2: 'BEFORE', 64: 'INSTEAD OF' }
+	const timing = trigStmt.timing ? timingMap[trigStmt.timing] : 'AFTER'
 
 	// Events are bitmask: 4 = INSERT, 8 = DELETE, 16 = UPDATE, 32 = TRUNCATE
 	const events = []
@@ -867,7 +831,7 @@ const translateCreateTrigStmt = (trigStmt, originalSql) => {
 	if (trigStmt.events & 16) events.push('UPDATE')
 	if (trigStmt.events & 32) events.push('TRUNCATE')
 
-	const funcName = (trigStmt.funcname || []).map((n) => n.String?.sval).filter(Boolean)
+	const funcName = trigStmt.funcname.map((n) => n.String?.sval).filter(Boolean)
 
 	const funcSchema = funcName.length > 1 ? funcName[0] : null
 	const funcBaseName = funcName.length > 1 ? funcName[1] : funcName[0]
@@ -944,8 +908,6 @@ const translateCommentStmt = (commentStmt) => {
 		} else if (names.length === 2) {
 			tableName = names[0]
 			columnName = names[1]
-		} else {
-			columnName = names[0]
 		}
 
 		return {
@@ -983,8 +945,6 @@ const translateCommentStmt = (commentStmt) => {
  */
 const translatePgStmt = (pgStmt, originalSql) => {
 	const stmtWrapper = pgStmt.stmt
-	if (!stmtWrapper) return null
-
 	const stmtType = Object.keys(stmtWrapper)[0]
 	const stmtBody = stmtWrapper[stmtType]
 
@@ -1034,8 +994,7 @@ export const parse = (sql, options = {}) => {
 	// Try parsing the full SQL first (fastest path)
 	try {
 		const parsed = parseSync(sql)
-		const stmts = parsed.stmts || []
-		const result = stmts.map((pgStmt) => translatePgStmt(pgStmt, sql)).filter(Boolean)
+		const result = parsed.stmts.map((pgStmt) => translatePgStmt(pgStmt, sql)).filter(Boolean)
 
 		result._original_sql = sql
 		return result
@@ -1051,8 +1010,7 @@ export const parse = (sql, options = {}) => {
 	for (const stmt of statements) {
 		try {
 			const parsed = parseSync(stmt)
-			const stmts = parsed.stmts || []
-			for (const pgStmt of stmts) {
+			for (const pgStmt of parsed.stmts) {
 				const translated = translatePgStmt(pgStmt, sql)
 				if (translated) result.push(translated)
 			}
@@ -1099,23 +1057,14 @@ export const parseSearchPath = (stmt) => {
 export const validateSQL = (sql, options = {}) => {
 	return errorHandler.withConfig(
 		() => {
-			try {
-				const parsedStatements = parse(sql, options)
-				const valid = Array.isArray(parsedStatements) && parsedStatements.length > 0
-				const errors = errorHandler.getErrors()
+			const parsedStatements = parse(sql, options)
+			const valid = Array.isArray(parsedStatements) && parsedStatements.length > 0
+			const errors = errorHandler.getErrors()
 
-				return {
-					valid,
-					message: valid ? 'Valid SQL' : 'Error: Invalid or unsupported SQL',
-					errors
-				}
-			} catch (err) {
-				errorHandler.handleParsingError(err, sql, 'validation')
-				return {
-					valid: false,
-					message: `Error: ${err.message}`,
-					errors: errorHandler.getErrors()
-				}
+			return {
+				valid,
+				message: valid ? 'Valid SQL' : 'Error: Invalid or unsupported SQL',
+				errors
 			}
 		},
 		{ logToConsole: false, collectErrors: true }

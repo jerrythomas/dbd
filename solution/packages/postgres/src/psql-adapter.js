@@ -4,7 +4,6 @@ import { BaseDatabaseAdapter } from '@jerrythomas/dbd-db'
 import { extractDependencies } from './parser/index-functional.js'
 import { initParser } from './parser/parsers/sql.js'
 import { isInternal, matchesKnownExtension, resetCache } from './reference-classifier.js'
-import { parseEntityScriptRegex } from './regex-fallback.js'
 
 const TMP_SCRIPT = '_dbd_temp.sql'
 
@@ -202,8 +201,13 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 
 		try {
 			return this.#parseEntityAST(entity, content)
-		} catch {
-			return this.#parseEntityRegex(entity, content)
+		} catch (err) {
+			return {
+				...entity,
+				searchPaths: [],
+				references: [],
+				errors: [`Failed to parse: ${err.message}`]
+			}
 		}
 	}
 
@@ -219,7 +223,12 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		const searchPaths = result.searchPaths
 
 		if (!info || !info.name) {
-			return this.#parseEntityRegex(entity, content)
+			return {
+				...entity,
+				searchPaths,
+				references: [],
+				errors: ['Could not identify entity in script']
+			}
 		}
 
 		const schema = info.schema || searchPaths[0]
@@ -242,9 +251,5 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 			references,
 			errors
 		}
-	}
-
-	#parseEntityRegex(entity, content) {
-		return parseEntityScriptRegex(entity, content)
 	}
 }

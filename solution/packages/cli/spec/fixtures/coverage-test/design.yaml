@@ -1,0 +1,22 @@
+project:
+  name: CoverageTest
+  database: PostgreSQL
+  staging:
+    - staging
+schemas:
+  - app
+
+tables:
+  - name: app.orders
+    refers:
+      - app.customers
+
+import:
+  options:
+    truncate: true
+  tables:
+    - app.orders
+  after: []
+
+export:
+  - app.orders

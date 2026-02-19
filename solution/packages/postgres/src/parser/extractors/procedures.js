@@ -329,7 +329,7 @@ export const extractRoutinesFromSql = (sql, defaultSchema) => {
 		const params = match[4]
 		const returnType = match[5] || null
 		const language = match[6]?.toLowerCase() || 'plpgsql'
-		const body = match[7] || match[8] || ''
+		const body = match[7] || match[8]
 
 		// Parse parameters
 		const parameters = params

@@ -242,4 +242,101 @@ describe('Database Index Extractor - Functional API', () => {
 			expect(indexes[1].columns[1].order).toBe('DESC')
 		})
 	})
+
+	describe('extractIndexes — edge cases', () => {
+		it('returns empty array for null ast', () => {
+			expect(extractIndexes(null)).toEqual([])
+		})
+
+		it('returns empty array for non-array ast', () => {
+			expect(extractIndexes('not an array')).toEqual([])
+		})
+	})
+
+	describe('extractTableName — alternate shapes', () => {
+		it('extracts table name from on[0].table', () => {
+			expect(extractTableName({ on: [{ table: 'products' }] })).toBe('products')
+		})
+
+		it('extracts table name as direct string', () => {
+			expect(extractTableName({ table: 'orders' })).toBe('orders')
+		})
+
+		it('returns null when no recognizable table format', () => {
+			expect(extractTableName({})).toBeNull()
+		})
+	})
+
+	describe('Additional coverage — alternate AST shapes', () => {
+		it('should correct unique flag from _original_sql', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'index',
+					unique: false,
+					index: { name: 'idx_email' },
+					table: { table: 'users' },
+					columns: [{ column: { column: { expr: { value: 'email' } } } }]
+				}
+			]
+			ast._original_sql = 'CREATE UNIQUE INDEX idx_email ON users (email);'
+
+			const indexes = extractIndexes(ast)
+			expect(indexes[0].unique).toBe(true)
+		})
+
+		it('should extract index name as direct string', () => {
+			expect(extractIndexName({ index: 'idx_direct' })).toBe('idx_direct')
+		})
+
+		it('should extract index name from object with value', () => {
+			expect(extractIndexName({ index: { value: 'idx_val' } })).toBe('idx_val')
+		})
+
+		it('should return null for index object with no name or value', () => {
+			expect(extractIndexName({ index: { something: 'else' } })).toBeNull()
+		})
+
+		it('should extract table name as direct string', () => {
+			expect(extractTableName({ table: 'my_table' })).toBe('my_table')
+		})
+
+		it('should handle column with direction property', () => {
+			const stmt = {
+				columns: [{ name: 'created_at', direction: 'desc' }]
+			}
+			const cols = extractIndexColumns(stmt)
+			expect(cols[0].order).toBe('DESC')
+		})
+
+		it('should handle column with expr.column path', () => {
+			const stmt = {
+				columns: [{ expr: { column: 'email' } }]
+			}
+			const cols = extractIndexColumns(stmt)
+			expect(cols[0].name).toBe('email')
+		})
+
+		it('should return empty array for non-array columns', () => {
+			expect(extractIndexColumns({ columns: 'not-an-array' })).toEqual([])
+			expect(extractIndexColumns({ columns: null })).toEqual([])
+			expect(extractIndexColumns({})).toEqual([])
+		})
+
+		it('should prefer SQL indexes over AST when _original_sql exists', () => {
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'index',
+					index: { name: 'idx_ast' },
+					table: { table: 'users' },
+					columns: [{ column: { column: { expr: { value: 'id' } } } }]
+				}
+			]
+			ast._original_sql = 'CREATE INDEX idx_sql ON users (email);'
+
+			const indexes = extractIndexes(ast)
+			expect(indexes[0].name).toBe('idx_sql')
+		})
+	})
 })
