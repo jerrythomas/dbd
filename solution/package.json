@@ -1,15 +1,12 @@
 {
-  "name": "@jerrythomas/dbd",
+  "name": "dbd-workspace",
   "version": "2.0.2",
   "description": "Deploy databases using DDL scripts.",
-  "private": false,
+  "private": true,
   "type": "module",
   "workspaces": [
     "packages/*"
   ],
-  "bin": {
-    "dbd": "packages/cli/src/index.js"
-  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
@@ -27,26 +24,19 @@
     "test:clean": "docker stop pg-test && docker rm pg-test",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write .",
-    "release:next": "release-it --preRelease=next",
-    "release": "release-it"
+    "bump": "bumpp --no-push",
+    "bump:next": "bumpp --preid=next --no-push",
+    "publish:all": "find ./packages -type d -depth 1 -exec sh -c 'cd \"{}\" && bun publish' \\;",
+    "release": "bun run publish:all"
   },
   "author": "Jerry Thomas <me@jerrythomas.name>",
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
-  "release-it": {
-    "hooks": {
-      "before:init": "cp ../LICENSE ../README.md .",
-      "after:release": "rm LICENSE README.md"
-    }
-  },
   "devDependencies": {
     "@vanillaes/mock-console": "^3.0.0",
     "@vitest/coverage-v8": "^3.2.2",
+    "bumpp": "^10.4.1",
     "eslint": "^9.28.0",
     "prettier": "^3.5.3",
-    "release-it": "^19.0.3",
     "rimraf": "^6.0.1",
     "vite": "^6.3.5",
     "vitest": "^3.2.2"

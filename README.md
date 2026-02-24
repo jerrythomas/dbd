@@ -20,22 +20,19 @@ A CLI tool for managing SQL database schemas. Apply individual DDL scripts to da
 DBD is organized as a monorepo with focused packages:
 
 ```
-dbd/
+solution/
   packages/
-    parser/    @jerrythomas/dbd-parser   — SQL parsing & schema extraction
-    db/        @jerrythomas/dbd-db       — Database operations abstraction
-    dbml/      @jerrythomas/dbd-dbml     — DBML conversion & documentation
-    cli/       @jerrythomas/dbd-cli      — Command-line interface
-  adapters/
-    postgres/  @jerrythomas/dbd-postgres-adapter — PostgreSQL adapter (psql)
+    cli/       @jerrythomas/dbd                  — CLI, config, design orchestrator
+    db/        @jerrythomas/dbd-db               — Database operations abstraction
+    dbml/      @jerrythomas/dbd-dbml             — DBML conversion & documentation
+    postgres/  @jerrythomas/dbd-postgres-adapter — PostgreSQL adapter (parser + psql)
 ```
 
 ### Dependency Flow
 
 ```
-cli -> db -> adapters/postgres
-    -> dbml
-    -> parser
+dbd (cli) -> dbd-db -> dbd-postgres-adapter
+          -> dbd-dbml
 ```
 
 ## [Pre-requisites](docs/pre-requisites.md)
@@ -47,7 +44,7 @@ Refer to the pre-requisites document for setting up the dbd cli.
 Install the CLI globally using npm (or pnpm/yarn):
 
 ```bash
-npm i --global @jerrythomas/dbd-cli
+npm i --global @jerrythomas/dbd
 ```
 
 ### Folder Structure
@@ -73,24 +70,22 @@ Individual DDL scripts are expected to be placed under folders with names of the
 ## Development
 
 ```bash
+cd solution
+
 # Install dependencies
 bun install
 
 # Run all unit tests
-bun test:unit
-
-# Run workspace package tests
-bun test:workspaces
+bun run test
 
 # Run specific package tests
-bun test:parser
 bun test:cli
 bun test:db
 bun test:dbml
 bun test:postgres
 
-# Run compatibility tests
-bun test:compat
+# Coverage
+bun run coverage
 
 # Format and lint
 bun run format
@@ -99,10 +94,9 @@ bun run lint
 
 ## Packages
 
-| Package                                                | Description                                                            |
-| ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| [@jerrythomas/dbd-parser](packages/parser)             | SQL parsing with AST-based extraction and regex fallback               |
-| [@jerrythomas/dbd-db](packages/db)                     | Database adapter abstraction, entity processing, dependency resolution |
-| [@jerrythomas/dbd-dbml](packages/dbml)                 | DBML conversion via @dbml/core with schema qualification               |
-| [@jerrythomas/dbd-cli](packages/cli)                   | CLI commands, configuration loading, Design class orchestration        |
-| [@jerrythomas/dbd-postgres-adapter](adapters/postgres) | PostgreSQL adapter using psql CLI with plugin registration             |
+| Package | Description |
+| --- | --- |
+| [@jerrythomas/dbd](solution/packages/cli) | CLI commands, configuration loading, Design class orchestration |
+| [@jerrythomas/dbd-db](solution/packages/db) | Database adapter abstraction, entity processing, dependency resolution |
+| [@jerrythomas/dbd-dbml](solution/packages/dbml) | DBML conversion via @dbml/core with schema qualification |
+| [@jerrythomas/dbd-postgres-adapter](solution/packages/postgres) | PostgreSQL adapter with SQL parser and reference classifier |
