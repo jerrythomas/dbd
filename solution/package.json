@@ -2,7 +2,7 @@
   "name": "@jerrythomas/dbd",
   "version": "2.0.1",
   "description": "Deploy databases using DDL scripts.",
-  "private": true,
+  "private": false,
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -34,6 +34,12 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "release-it": {
+    "hooks": {
+      "before:init": "cp ../LICENSE ../README.md .",
+      "after:release": "rm LICENSE README.md"
+    }
   },
   "devDependencies": {
     "@vanillaes/mock-console": "^3.0.0",
