@@ -141,4 +141,16 @@ prog
 		;(await using(opts.config, opts.database)).dbml(opts.file)
 	})
 
+prog
+	.command('graph')
+	.option('-n, --name', 'Entity name to scope the subgraph to')
+	.describe('Output the dependency graph as JSON.')
+	.example('dbd graph')
+	.example('dbd graph -n config.users')
+	.action(async (opts) => {
+		const design = await using(opts.config, opts.database)
+		const result = design.graph(opts.name)
+		console.log(JSON.stringify(result, null, 2))
+	})
+
 prog.parse(process.argv)
