@@ -9,15 +9,16 @@ ddl/<type>/<schema>/<name>.ddl     # for types with schema
 ddl/<type>/<name>.ddl              # for types without schema (role only)
 ```
 
-| File path | Entity type | Entity name |
-|-----------|-------------|-------------|
-| `ddl/table/config/users.ddl` | `table` | `config.users` |
-| `ddl/view/config/active_users.ddl` | `view` | `config.active_users` |
-| `ddl/function/public/slugify.ddl` | `function` | `public.slugify` |
+| File path                                | Entity type | Entity name            |
+| ---------------------------------------- | ----------- | ---------------------- |
+| `ddl/table/config/users.ddl`             | `table`     | `config.users`         |
+| `ddl/view/config/active_users.ddl`       | `view`      | `config.active_users`  |
+| `ddl/function/public/slugify.ddl`        | `function`  | `public.slugify`       |
 | `ddl/procedure/staging/import_users.ddl` | `procedure` | `staging.import_users` |
-| `ddl/role/reporter.ddl` | `role` | `reporter` |
+| `ddl/role/reporter.ddl`                  | `role`      | `reporter`             |
 
 **Rules:**
+
 - Extension: `.ddl` (`.sql` also accepted)
 - Type folders: `table`, `view`, `function`, `procedure`, `role`
 - Schemas and extensions are NOT file-based — declare in `design.yaml`
@@ -45,6 +46,7 @@ comment on column users.email IS 'Login email address.';
 ```
 
 **Rules:**
+
 - Always start with `set search_path to <schema>[, extensions];`
   - Include `extensions` in the search path if the table uses extension functions (e.g. `uuid_generate_v4()`)
 - Use `create table if not exists` (never `create table`)
@@ -53,6 +55,7 @@ comment on column users.email IS 'Login email address.';
 - Column order: id first, FKs next, data columns, audit columns last
 
 **Foreign key referencing another schema:**
+
 ```sql
 set search_path to config, extensions;
 
@@ -78,6 +81,7 @@ select id
 ```
 
 **Rules:**
+
 - Use `create or replace view` (never `create view`)
 - Always specify column list explicitly when selecting from a join
 - Use `set search_path` to the view's own schema
@@ -97,6 +101,7 @@ $$;
 ```
 
 **PL/pgSQL function:**
+
 ```sql
 set search_path to config;
 
@@ -117,6 +122,7 @@ $$;
 ```
 
 **Rules:**
+
 - Use `create or replace function`
 - Declare volatility: `immutable`, `stable`, or `volatile`
 - Use `language sql` for simple expressions, `language plpgsql` for procedural logic
@@ -148,6 +154,7 @@ $$;
 ```
 
 **Rules:**
+
 - Use `create or replace procedure`
 - No return type (procedures use `OUT` parameters or return nothing)
 - Staging procedures typically upsert from staging schema into config/production schema
@@ -176,11 +183,12 @@ Do not create DDL files for roles.
 dbd automatically resolves the correct apply order using the `refers` field. The `refers` field is populated automatically by parsing DDL files for cross-entity references.
 
 You can also declare explicit dependencies in `design.yaml` under `roles`:
+
 ```yaml
 roles:
   - name: advanced
     refers:
-      - basic   # `advanced` is applied after `basic`
+      - basic # `advanced` is applied after `basic`
 ```
 
 For entities discovered from DDL files, references are extracted by the parser from `REFERENCES`, `FROM`, `JOIN`, and function/procedure call patterns in the DDL.
@@ -188,6 +196,7 @@ For entities discovered from DDL files, references are extracted by the parser f
 ## Common patterns
 
 ### UUID primary key with extension function
+
 ```sql
 set search_path to myschema, extensions;
 
@@ -196,33 +205,41 @@ create table if not exists my_table (
   -- ...
 );
 ```
+
 `extensions` must be in search_path; `uuid-ossp` must be declared in `design.yaml`.
 
 ### Audit columns
+
 ```sql
   modified_on  timestamp with time zone not null default now()
 , modified_by  varchar
 ```
 
 ### Soft delete
+
 ```sql
   deleted_at   timestamp with time zone
 , deleted_by   varchar
 ```
+
 Filter with `WHERE deleted_at IS NULL`.
 
 ### JSONB column
+
 ```sql
   metadata  jsonb default '{}'::jsonb
 ```
 
 ### Enum-like via foreign key
+
 ```sql
 , status_id  uuid not null references config.statuses(id)
 ```
+
 Prefer lookup tables over PostgreSQL `ENUM` types for forward compatibility.
 
 ### Staging table mirrors production table
+
 ```sql
 -- ddl/table/staging/users.ddl
 set search_path to staging;
@@ -234,6 +251,7 @@ create table if not exists users (
 , modified_on timestamp with time zone
 );
 ```
+
 Staging tables typically have no constraints, no PKs, and no FKs — they are throwaway load targets.
 
 ## What NOT to do

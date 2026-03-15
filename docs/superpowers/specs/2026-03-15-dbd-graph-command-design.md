@@ -25,18 +25,15 @@ Global options (`--config`, `--database`) still accepted but `--database` is not
 ```json
 {
   "nodes": [
-    { "name": "config.users",      "type": "table",    "schema": "config" },
-    { "name": "config.user_roles", "type": "table",    "schema": "config" },
-    { "name": "config.roles",      "type": "table",    "schema": "config" }
+    { "name": "config.users", "type": "table", "schema": "config" },
+    { "name": "config.user_roles", "type": "table", "schema": "config" },
+    { "name": "config.roles", "type": "table", "schema": "config" }
   ],
   "edges": [
     { "from": "config.user_roles", "to": "config.users" },
     { "from": "config.user_roles", "to": "config.roles" }
   ],
-  "layers": [
-    ["config.roles", "config.users"],
-    ["config.user_roles"]
-  ]
+  "layers": [["config.roles", "config.users"], ["config.user_roles"]]
 }
 ```
 
@@ -45,6 +42,7 @@ Global options (`--config`, `--database`) still accepted but `--database` is not
 - Layers are in safe-apply order
 
 For `--name` subgraph:
+
 - `nodes` = the named entity + all transitive forward dependencies + all transitive reverse dependants
 - `edges` = only edges where both endpoints are in the node set
 - `layers` = recalculated over the subgraph nodes only
@@ -127,12 +125,12 @@ design.yaml + ddl/ files
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `packages/db/src/dependency-resolver.js` | Add `graphFromEntities()` |
-| `packages/db/src/index.js` | Export `graphFromEntities` |
+| File                                           | Change                        |
+| ---------------------------------------------- | ----------------------------- |
+| `packages/db/src/dependency-resolver.js`       | Add `graphFromEntities()`     |
+| `packages/db/src/index.js`                     | Export `graphFromEntities`    |
 | `packages/db/spec/dependency-resolver.spec.js` | Tests for `graphFromEntities` |
-| `packages/cli/src/design.js` | Add `graph(name?)` method |
-| `packages/cli/spec/design.spec.js` | Tests for `graph()` method |
-| `packages/cli/src/index.js` | Register `graph` command |
-| `docs/llms/06-dependency-graph.md` | Update planned → implemented |
+| `packages/cli/src/design.js`                   | Add `graph(name?)` method     |
+| `packages/cli/spec/design.spec.js`             | Tests for `graph()` method    |
+| `packages/cli/src/index.js`                    | Register `graph` command      |
+| `docs/llms/06-dependency-graph.md`             | Update planned → implemented  |

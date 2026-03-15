@@ -110,9 +110,9 @@ All functions are in `packages/db/src/dependency-resolver.js`, exported from `@j
 Returns a `Map<string, Set<string>>` — entity name → set of its dependency names.
 
 ```js
-import { buildDependencyGraph } from "@jerrythomas/dbd-db";
+import { buildDependencyGraph } from '@jerrythomas/dbd-db'
 
-const graph = buildDependencyGraph(design.entities);
+const graph = buildDependencyGraph(design.entities)
 // graph.get("config.lookup_values") → Set { "config.lookups" }
 ```
 
@@ -127,9 +127,9 @@ Returns entities sorted in safe-apply order (topological sort).
 Cyclic entities are included but have `errors: ["Cyclic dependency found"]`.
 
 ```js
-import { sortByDependencies } from "@jerrythomas/dbd-db";
+import { sortByDependencies } from '@jerrythomas/dbd-db'
 
-const ordered = sortByDependencies(entities);
+const ordered = sortByDependencies(entities)
 // Guaranteed: for every entity, all its `refers` appear before it in the list
 ```
 
@@ -138,9 +138,9 @@ const ordered = sortByDependencies(entities);
 Returns `Array[]` — each inner array is one dependency layer.
 
 ```js
-import { groupByDependencyLevel } from "@jerrythomas/dbd-db";
+import { groupByDependencyLevel } from '@jerrythomas/dbd-db'
 
-const layers = groupByDependencyLevel(entities);
+const layers = groupByDependencyLevel(entities)
 // layers[0] — no dependencies (leaf tables)
 // layers[1] — depends only on layers[0]
 // layers[N] — depends on layers[0..N-1]
@@ -154,10 +154,10 @@ are foundational vs derived.
 Returns `string[][]` — one array per detected cycle group.
 
 ```js
-import { buildDependencyGraph, findCycles } from "@jerrythomas/dbd-db";
+import { buildDependencyGraph, findCycles } from '@jerrythomas/dbd-db'
 
-const graph = buildDependencyGraph(entities);
-const cycles = findCycles(graph);
+const graph = buildDependencyGraph(entities)
+const cycles = findCycles(graph)
 // cycles = [] — no cycles
 // cycles = [["a", "b"]] — a depends on b and b depends on a
 ```
@@ -168,9 +168,9 @@ Returns `{ isValid: boolean, cycles: string[][], warnings: string[] }`.
 Warnings list missing dependencies (referenced names not in the entity set).
 
 ```js
-import { validateDependencies } from "@jerrythomas/dbd-db";
+import { validateDependencies } from '@jerrythomas/dbd-db'
 
-const { isValid, cycles, warnings } = validateDependencies(entities);
+const { isValid, cycles, warnings } = validateDependencies(entities)
 ```
 
 ## Computing the reverse graph (what depends on X)
@@ -179,20 +179,20 @@ The API provides forward edges. Compute reverse edges yourself:
 
 ```js
 function buildReverseGraph(entities) {
-  const reverse = new Map();
+  const reverse = new Map()
   for (const entity of entities) {
-    if (!reverse.has(entity.name)) reverse.set(entity.name, new Set());
+    if (!reverse.has(entity.name)) reverse.set(entity.name, new Set())
     for (const dep of entity.refers ?? []) {
-      if (!reverse.has(dep)) reverse.set(dep, new Set());
-      reverse.get(dep).add(entity.name);
+      if (!reverse.has(dep)) reverse.set(dep, new Set())
+      reverse.get(dep).add(entity.name)
     }
   }
-  return reverse;
+  return reverse
 }
 
 // Usage:
-const reverse = buildReverseGraph(design.entities);
-reverse.get("config.lookups");
+const reverse = buildReverseGraph(design.entities)
+reverse.get('config.lookups')
 // → Set { "config.lookup_values", "config.active_lookups_view" }
 // "What entities reference config.lookups?"
 ```
@@ -205,25 +205,25 @@ The dependency graph acts as a call graph for the schema. Common LLM-assisted ta
 
 ```js
 function transitiveDeps(name, graph, visited = new Set()) {
-  if (visited.has(name)) return visited;
-  visited.add(name);
+  if (visited.has(name)) return visited
+  visited.add(name)
   for (const dep of graph.get(name) ?? []) {
-    transitiveDeps(dep, graph, visited);
+    transitiveDeps(dep, graph, visited)
   }
-  visited.delete(name); // exclude the entity itself
-  return visited;
+  visited.delete(name) // exclude the entity itself
+  return visited
 }
 
-const graph = buildDependencyGraph(design.entities);
-transitiveDeps("config.user_roles", graph);
+const graph = buildDependencyGraph(design.entities)
+transitiveDeps('config.user_roles', graph)
 // → Set { "config.users", "config.roles" }
 ```
 
 ### Finding all dependants (transitive reverse)
 
 ```js
-const reverse = buildReverseGraph(design.entities);
-transitiveDeps("config.users", reverse);
+const reverse = buildReverseGraph(design.entities)
+transitiveDeps('config.users', reverse)
 // → Set { "config.user_roles", "config.audit_log", "views using users..." }
 ```
 
@@ -256,34 +256,31 @@ apply                              (all entities)
 Access the graph through the `Design` instance after `using()`:
 
 ```js
-import { using } from "@jerrythomas/dbd-cli";
-import {
-  buildDependencyGraph,
-  groupByDependencyLevel,
-} from "@jerrythomas/dbd-db";
+import { using } from '@jerrythomas/dbd-cli'
+import { buildDependencyGraph, groupByDependencyLevel } from '@jerrythomas/dbd-db'
 
-const design = await using("design.yaml", process.env.DATABASE_URL);
+const design = await using('design.yaml', process.env.DATABASE_URL)
 
 // All resolved entities (schemas + extensions + roles + DDL entities)
-const allEntities = design.entities;
+const allEntities = design.entities
 
 // Only DDL entities (tables, views, functions, procedures)
-const ddlEntities = design.config.entities;
+const ddlEntities = design.config.entities
 
 // Dependency layers for DDL entities
-const layers = groupByDependencyLevel(ddlEntities);
+const layers = groupByDependencyLevel(ddlEntities)
 layers.forEach((layer, i) => {
   console.log(
     `Layer ${i}:`,
-    layer.map((e) => `${e.type}:${e.name}`),
-  );
-});
+    layer.map((e) => `${e.type}:${e.name}`)
+  )
+})
 
 // Forward graph
-const graph = buildDependencyGraph(ddlEntities);
+const graph = buildDependencyGraph(ddlEntities)
 
 // For a specific entity
-const deps = graph.get("config.lookup_values"); // → Set { "config.lookups" }
+const deps = graph.get('config.lookup_values') // → Set { "config.lookups" }
 ```
 
 ## `dbd graph` command

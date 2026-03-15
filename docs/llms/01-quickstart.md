@@ -52,6 +52,7 @@ export DATABASE_URL=postgres://user:pass@localhost:5432/mydb
 ```
 
 Or pass with `-d`:
+
 ```sh
 dbd apply -d postgres://user:pass@localhost:5432/mydb
 ```
@@ -63,10 +64,12 @@ dbd inspect
 ```
 
 Output:
+
 - `Everything looks ok` — ready to apply
 - Lists errors (blocking) and warnings (non-blocking) per entity
 
 To inspect a single entity:
+
 ```sh
 dbd inspect -n config.lookups
 ```
@@ -78,17 +81,20 @@ dbd apply
 ```
 
 Applies all entities in dependency order:
+
 1. Schemas (`CREATE SCHEMA IF NOT EXISTS`)
 2. Extensions (`CREATE EXTENSION IF NOT EXISTS`)
 3. Roles
 4. Tables, views, functions, procedures (topologically sorted)
 
 Apply only one entity:
+
 ```sh
 dbd apply -n config.lookups
 ```
 
 Dry run (print entities without executing):
+
 ```sh
 dbd apply --dry-run
 ```
@@ -103,6 +109,7 @@ Reads files from `import/<schema>/` and loads them into the database.
 After all files are loaded, runs any SQL listed in `import.after`.
 
 Load one table:
+
 ```sh
 dbd import -n staging.lookup_values
 ```
@@ -126,6 +133,7 @@ Writes `design.dbml` (one file per `dbdocs` key in config).
 ## 9. Combine all DDL into one file
 
 Useful for seeding a fresh database in CI:
+
 ```sh
 dbd combine -f init.sql
 ```

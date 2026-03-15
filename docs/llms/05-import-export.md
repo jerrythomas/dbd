@@ -2,10 +2,10 @@
 
 ## Overview
 
-| Direction | Command | Source/Dest | Purpose |
-|-----------|---------|-------------|---------|
-| Import | `dbd import` | `import/<schema>/<name>.<ext>` → database | Load staging data |
-| Export | `dbd export` | database → `export/<schema>/<name>.<ext>` | Extract table data |
+| Direction | Command      | Source/Dest                               | Purpose            |
+| --------- | ------------ | ----------------------------------------- | ------------------ |
+| Import    | `dbd import` | `import/<schema>/<name>.<ext>` → database | Load staging data  |
+| Export    | `dbd export` | database → `export/<schema>/<name>.<ext>` | Extract table data |
 
 ## Import
 
@@ -26,12 +26,12 @@ File path `import/staging/lookup_values.csv` maps to entity `staging.lookup_valu
 
 ### Supported formats
 
-| Format | Extension | Behaviour |
-|--------|-----------|-----------|
-| CSV | `.csv` | Comma-delimited with header row |
-| TSV | `.tsv` | Tab-delimited with header row |
-| JSON Lines | `.jsonl` | One JSON object per line |
-| JSON array | `.json` | Same as jsonl — each line loaded via JSONB staging |
+| Format     | Extension | Behaviour                                          |
+| ---------- | --------- | -------------------------------------------------- |
+| CSV        | `.csv`    | Comma-delimited with header row                    |
+| TSV        | `.tsv`    | Tab-delimited with header row                      |
+| JSON Lines | `.jsonl`  | One JSON object per line                           |
+| JSON array | `.json`   | Same as jsonl — each line loaded via JSONB staging |
 
 For JSON/JSONL: a temporary `_temp (data jsonb)` table is created, data is loaded into it, then `staging.import_jsonb_to_table('_temp', '<table>')` is called (you must provide this procedure).
 
@@ -39,22 +39,22 @@ For JSON/JSONL: a temporary `_temp (data jsonb)` table is created, data is loade
 
 ```yaml
 import:
-  options:              # Defaults applied to all tables
-    truncate: true      # Clear table before loading
-    nullValue: ''       # CSV value that represents NULL
-    format: csv         # Default format
+  options: # Defaults applied to all tables
+    truncate: true # Clear table before loading
+    nullValue: '' # CSV value that represents NULL
+    format: csv # Default format
 
-  tables:               # Optional: explicit list overrides auto-discovery
-    - staging.lookups                    # Use defaults
-    - staging.events:                    # Override per table
+  tables: # Optional: explicit list overrides auto-discovery
+    - staging.lookups # Use defaults
+    - staging.events: # Override per table
         format: jsonl
         truncate: false
 
-  schemas:              # Override options per schema
+  schemas: # Override options per schema
     staging:
       truncate: false
 
-  after:                # SQL files run after all imports
+  after: # SQL files run after all imports
     - import/loader.sql
 ```
 
@@ -65,6 +65,7 @@ import:
 ### Truncate behaviour
 
 When `truncate: true`:
+
 1. Try `TRUNCATE TABLE <name>` (fast)
 2. If that fails (e.g. FK constraint violation), fall back to `DELETE FROM <name>; COMMIT;`
 
@@ -78,6 +79,7 @@ Set `truncate: false` for append-only imports.
 ### Post-import SQL (`import.after`)
 
 SQL files listed under `after:` are executed in order after all table imports complete. Use for:
+
 - Calling stored procedures that move data from staging to production tables
 - Running aggregations or cleanup
 
@@ -110,8 +112,8 @@ dbd import --dry-run                    # Print what would be imported without e
 
 ```yaml
 export:
-  - config.lookups                      # Export as CSV (default)
-  - config.lookup_values:               # Override format
+  - config.lookups # Export as CSV (default)
+  - config.lookup_values: # Override format
       format: jsonl
   - config.events:
       format: tsv
@@ -131,11 +133,11 @@ The `export/` folder is created automatically. It is typically gitignored.
 
 ### Supported formats
 
-| Format | Extension | Behaviour |
-|--------|-----------|-----------|
-| CSV | `.csv` | `\copy (SELECT * FROM ...) TO 'file' WITH DELIMITER E',' CSV HEADER` |
-| TSV | `.tsv` | Same with tab delimiter |
-| JSON Lines | `.json` or `.jsonl` | `\copy (SELECT row_to_json(t) FROM ... t) TO 'file'` |
+| Format     | Extension           | Behaviour                                                            |
+| ---------- | ------------------- | -------------------------------------------------------------------- |
+| CSV        | `.csv`              | `\copy (SELECT * FROM ...) TO 'file' WITH DELIMITER E',' CSV HEADER` |
+| TSV        | `.tsv`              | Same with tab delimiter                                              |
+| JSON Lines | `.json` or `.jsonl` | `\copy (SELECT row_to_json(t) FROM ... t) TO 'file'`                 |
 
 ### Running export
 

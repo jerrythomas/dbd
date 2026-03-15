@@ -17,6 +17,7 @@
 ### Task 1: `graphFromEntities` — full graph
 
 **Files:**
+
 - Modify: `solution/packages/db/src/dependency-resolver.js`
 - Modify: `solution/packages/db/src/index.js`
 - Test: `solution/packages/db/spec/dependency-resolver.spec.js`
@@ -31,9 +32,14 @@ Add to the bottom of the `describe('dependency-resolver', ...)` block in
 ```js
 describe('graphFromEntities()', () => {
   const entities = [
-    { name: 'config.users',      type: 'table', schema: 'config', refers: [] },
-    { name: 'config.roles',      type: 'table', schema: 'config', refers: [] },
-    { name: 'config.user_roles', type: 'table', schema: 'config', refers: ['config.users', 'config.roles'] }
+    { name: 'config.users', type: 'table', schema: 'config', refers: [] },
+    { name: 'config.roles', type: 'table', schema: 'config', refers: [] },
+    {
+      name: 'config.user_roles',
+      type: 'table',
+      schema: 'config',
+      refers: ['config.users', 'config.roles']
+    }
   ]
 
   it('returns nodes with name, type, schema only', () => {
@@ -60,7 +66,7 @@ describe('graphFromEntities()', () => {
 
   it('layers contain only names (strings)', () => {
     const { layers } = graphFromEntities(entities)
-    layers.forEach(layer => layer.forEach(item => expect(typeof item).toBe('string')))
+    layers.forEach((layer) => layer.forEach((item) => expect(typeof item).toBe('string')))
   })
 
   it('returns empty result for empty input', () => {
@@ -141,17 +147,17 @@ describe('with --name filter', () => {
     { name: 'a', type: 'table', schema: 's', refers: [] },
     { name: 'b', type: 'table', schema: 's', refers: ['a'] },
     { name: 'c', type: 'table', schema: 's', refers: ['b'] },
-    { name: 'd', type: 'table', schema: 's', refers: [] }   // unrelated
+    { name: 'd', type: 'table', schema: 's', refers: [] } // unrelated
   ]
 
   it('includes the named entity', () => {
     const { nodes } = graphFromEntities(entities, 'b')
-    expect(nodes.map(n => n.name)).toContain('b')
+    expect(nodes.map((n) => n.name)).toContain('b')
   })
 
   it('includes transitive forward deps', () => {
     const { nodes } = graphFromEntities(entities, 'c')
-    const names = nodes.map(n => n.name)
+    const names = nodes.map((n) => n.name)
     expect(names).toContain('c')
     expect(names).toContain('b')
     expect(names).toContain('a')
@@ -159,21 +165,21 @@ describe('with --name filter', () => {
 
   it('includes transitive reverse dependants', () => {
     const { nodes } = graphFromEntities(entities, 'b')
-    const names = nodes.map(n => n.name)
+    const names = nodes.map((n) => n.name)
     expect(names).toContain('b')
-    expect(names).toContain('c')  // c depends on b
-    expect(names).toContain('a')  // b depends on a
+    expect(names).toContain('c') // c depends on b
+    expect(names).toContain('a') // b depends on a
   })
 
   it('excludes unrelated entities', () => {
     const { nodes } = graphFromEntities(entities, 'b')
-    expect(nodes.map(n => n.name)).not.toContain('d')
+    expect(nodes.map((n) => n.name)).not.toContain('d')
   })
 
   it('edges only reference nodes in the subgraph', () => {
     const { nodes, edges } = graphFromEntities(entities, 'b')
-    const names = new Set(nodes.map(n => n.name))
-    edges.forEach(e => {
+    const names = new Set(nodes.map((n) => n.name))
+    edges.forEach((e) => {
       expect(names.has(e.from)).toBe(true)
       expect(names.has(e.to)).toBe(true)
     })
@@ -284,6 +290,7 @@ git commit -m "feat(db): add graphFromEntities() to dependency-resolver"
 ### Task 3: `Design.graph()` method
 
 **Files:**
+
 - Modify: `solution/packages/cli/src/design.js`
 - Test: `solution/packages/cli/spec/design.spec.js`
 
@@ -307,7 +314,7 @@ describe('graph()', () => {
     const dx = await using('design.yaml')
     const { nodes } = dx.graph()
     expect(nodes.length).toBeGreaterThan(0)
-    nodes.forEach(node => {
+    nodes.forEach((node) => {
       expect(Object.keys(node).sort()).toEqual(['name', 'schema', 'type'])
     })
   })
@@ -315,8 +322,8 @@ describe('graph()', () => {
   it('edges reference names that exist in nodes', async () => {
     const dx = await using('design.yaml')
     const { nodes, edges } = dx.graph()
-    const nodeNames = new Set(nodes.map(n => n.name))
-    edges.forEach(e => {
+    const nodeNames = new Set(nodes.map((n) => n.name))
+    edges.forEach((e) => {
       expect(nodeNames.has(e.from)).toBe(true)
       expect(nodeNames.has(e.to)).toBe(true)
     })
@@ -326,9 +333,9 @@ describe('graph()', () => {
     const dx = await using('design.yaml')
     const { layers } = dx.graph()
     expect(Array.isArray(layers)).toBe(true)
-    layers.forEach(layer => {
+    layers.forEach((layer) => {
       expect(Array.isArray(layer)).toBe(true)
-      layer.forEach(item => expect(typeof item).toBe('string'))
+      layer.forEach((item) => expect(typeof item).toBe('string'))
     })
   })
 
@@ -338,7 +345,7 @@ describe('graph()', () => {
     if (nodes.length === 0) return // skip if example has no entities
     const firstName = nodes[0].name
     const sub = dx.graph(firstName)
-    expect(sub.nodes.map(n => n.name)).toContain(firstName)
+    expect(sub.nodes.map((n) => n.name)).toContain(firstName)
   })
 
   it('graph(unknown) returns empty result', async () => {
@@ -409,6 +416,7 @@ git commit -m "feat(cli): add Design.graph() method"
 ### Task 4: `dbd graph` CLI command
 
 **Files:**
+
 - Modify: `solution/packages/cli/src/index.js`
 
 No new test file needed — the command is a thin wrapper around `Design.graph()` which is already tested. One smoke test confirms the wiring.
@@ -466,6 +474,7 @@ git commit -m "feat(cli): add dbd graph command"
 ### Task 5: Update `06-dependency-graph.md`
 
 **Files:**
+
 - Modify: `docs/llms/06-dependency-graph.md`
 
 ---
@@ -502,32 +511,37 @@ Remove the "Proposed JSON output shape:" label — it's now the actual shape.
 
 Replace the "Proposed JSON output shape:" block with:
 
-```markdown
+````markdown
 **Full graph:**
+
 ```sh
 dbd graph
 dbd graph -c design.yaml
 ```
+````
 
 **Subgraph scoped to one entity (forward deps + reverse dependants, transitive):**
+
 ```sh
 dbd graph -n config.users
 ```
 
 **Pipe into jq:**
+
 ```sh
 dbd graph | jq '.nodes[] | select(.type == "table") | .name'
 dbd graph | jq '.layers'
 dbd graph -n config.users | jq '.edges'
 ```
-```
+
+````
 
 - [ ] **Step 3: Run lint**
 
 ```sh
 cd solution
 bun run lint
-```
+````
 
 Expected: 0 errors.
 

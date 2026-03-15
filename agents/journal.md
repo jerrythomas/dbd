@@ -65,7 +65,6 @@ Updated backlog with cherry-pick inventory, library evaluation criteria, and fut
 Wrote detailed design documents for review:
 
 - `docs/design/04-v2-architecture.md` — target architecture:
-
   - Package dependency diagram (cli → parser, db, dbml; db → no deps; adapters → db)
   - Full API specifications for each package (BaseDatabaseAdapter, entity-processor, dependency-resolver, factory)
   - Entity object shape (unchanged from v1)
@@ -163,12 +162,14 @@ All 222 existing tests remain green. New code is purely additive — `src/` unto
 Created `solution/` as monorepo workspace root, matching strategos pattern. Consolidated vitest config.
 
 **Structure changes:**
+
 - Created `solution/` — workspace root with `package.json`, `vitest.config.ts`, `eslint.config.js`, `.prettierrc`
 - Moved `packages/` → `solution/packages/`, `example/` → `solution/example/`
 - Deleted legacy `.eslintrc` (superseded by flat config), `pnpm-lock.yaml` (using bun), `bunfig.toml` (unnecessary)
 - Cleaned `.gitignore` — removed stale entries (`.nyc_output`, `.svelte-kit`)
 
 **Vitest consolidation:**
+
 - Replaced 5 identical per-package `vitest.config.js` files with single `solution/vitest.config.ts`
 - Uses inline `projects` with `extends: true` — each project inherits shared defaults (pool, globals, include, timeout)
 - Parser overrides `setupFiles` only; all other packages use pure inheritance
@@ -211,6 +212,7 @@ Replaced `node-sql-parser` with `pgsql-parser` (PostgreSQL C parser via WASM, li
 Reorganized the monorepo to use a single `packages/*` workspace with workspace-aware vitest.
 
 **Changes:**
+
 - Moved `adapters/postgres` → `packages/postgres` — single workspace root
 - Relocated root `spec/fixtures/` into owning packages (`db`, `cli`) — each package self-contained
 - Deleted orphaned fixtures: `references/`, `metadata/`, loose YAML files

@@ -29,7 +29,6 @@ Migrate from monolithic `src/` (v1.3.2) to a proper monorepo with packages and a
 Write tests against the current working v1.3.2 code that capture ALL existing behavior. These tests become the contract that every subsequent batch must satisfy.
 
 - [x] **0.1** Catalog all current behaviors from specs + manual testing
-
   - CLI commands: init, inspect, apply, combine, import, export, dbml
   - Configuration loading: design.yaml parsing, file discovery, entity merging
   - Reference resolution: function refs, table refs, trigger refs, CTE filtering
@@ -40,7 +39,6 @@ Write tests against the current working v1.3.2 code that capture ALL existing be
   - DBML generation: filtering, schema qualification, index removal
 
 - [x] **0.2** Write integration tests for `Design` class (collect.js)
-
   - spec/compat/design.spec.js — 37 tests
   - using() factory with example/ fixtures
   - validate() → report() round-trip
@@ -50,7 +48,6 @@ Write tests against the current working v1.3.2 code that capture ALL existing be
   - bad-example validation errors
 
 - [x] **0.3** Write snapshot tests for parser.js (legacy reference extractor)
-
   - spec/compat/references.spec.js — 29 tests
   - extractReferences() with known SQL → expected refs
   - extractTableReferences() with known SQL → expected table refs
@@ -59,7 +56,6 @@ Write tests against the current working v1.3.2 code that capture ALL existing be
   - cleanupDDLForDBML(), removeCommentBlocks(), normalizeComment()
 
 - [x] **0.4** Write snapshot tests for entity.js transformations
-
   - spec/compat/entity.spec.js — 42 tests
   - entityFromFile() for all path patterns
   - entityFrom\*Config() factories
@@ -70,7 +66,6 @@ Write tests against the current working v1.3.2 code that capture ALL existing be
   - entitiesForDBML() filtering
 
 - [x] **0.5** Write snapshot tests for config loading (metadata.js, filler.js)
-
   - spec/compat/config.spec.js — 28 tests
   - scan(), read(), clean(), merge(), organize(), regroup()
   - fillMissingInfoForEntities()

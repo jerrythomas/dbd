@@ -75,13 +75,13 @@ project:
 
 ### `project`
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `name` | string | yes | Project display name |
-| `database` | string | yes | Database type. Only `PostgreSQL` supported |
-| `extensionSchema` | string | no | Schema for extensions. Default: `public` |
-| `staging` | string[] | no | Schemas allowed for import. Default: `[]` |
-| `dbdocs` | object | no | DBML generation config. See below |
+| Field             | Type     | Required | Description                                |
+| ----------------- | -------- | -------- | ------------------------------------------ |
+| `name`            | string   | yes      | Project display name                       |
+| `database`        | string   | yes      | Database type. Only `PostgreSQL` supported |
+| `extensionSchema` | string   | no       | Schema for extensions. Default: `public`   |
+| `staging`         | string[] | no       | Schemas allowed for import. Default: `[]`  |
+| `dbdocs`          | object   | no       | DBML generation config. See below          |
 
 ### `schemas`
 
@@ -97,29 +97,29 @@ dbd runs `CREATE EXTENSION IF NOT EXISTS "<name>" WITH SCHEMA <extensionSchema>`
 
 List of role objects:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Role name |
+| Field    | Type     | Description                     |
+| -------- | -------- | ------------------------------- |
+| `name`   | string   | Role name                       |
 | `refers` | string[] | Roles that this role is GRANTed |
 
 Roles are sorted by dependency so grants always succeed.
 
 ### `import`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `options` | object | Default import options (see below) |
-| `tables` | array | Explicit table list (string or `{name: options}`) |
-| `schemas` | object | Per-schema option overrides |
-| `after` | string[] | SQL files to run after all imports |
+| Field     | Type     | Description                                       |
+| --------- | -------- | ------------------------------------------------- |
+| `options` | object   | Default import options (see below)                |
+| `tables`  | array    | Explicit table list (string or `{name: options}`) |
+| `schemas` | object   | Per-schema option overrides                       |
+| `after`   | string[] | SQL files to run after all imports                |
 
 **Import options:**
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `format` | `csv` | File format: `csv`, `tsv`, `json`, `jsonl` |
-| `truncate` | `true` | Truncate table before loading |
-| `nullValue` | `''` | String representing NULL in CSV/TSV |
+| Field       | Default | Description                                |
+| ----------- | ------- | ------------------------------------------ |
+| `format`    | `csv`   | File format: `csv`, `tsv`, `json`, `jsonl` |
+| `truncate`  | `true`  | Truncate table before loading              |
+| `nullValue` | `''`    | String representing NULL in CSV/TSV        |
 
 ### `export`
 
@@ -128,22 +128,23 @@ Writes to `export/<schema>/<name>.<format>`.
 
 **Export options:**
 
-| Field | Default | Description |
-|-------|---------|-------------|
-| `format` | `csv` | File format: `csv`, `tsv`, `json`, `jsonl` |
+| Field    | Default | Description                                |
+| -------- | ------- | ------------------------------------------ |
+| `format` | `csv`   | File format: `csv`, `tsv`, `json`, `jsonl` |
 
 ### `project.dbdocs`
 
 Each key is a DBML document name. The key `base` produces `design.dbml`; any other key `foo` produces `design-foo.dbml`.
 
 Each document can have:
+
 ```yaml
 include:
-  schemas: [list]    # Only include these schemas
-  tables: [list]     # Only include these tables (schema.name)
+  schemas: [list] # Only include these schemas
+  tables: [list] # Only include these tables (schema.name)
 exclude:
-  schemas: [list]    # Exclude these schemas
-  tables: [list]     # Exclude specific tables
+  schemas: [list] # Exclude these schemas
+  tables: [list] # Exclude specific tables
 ```
 
 `include` and `exclude` filters only apply to `table` entities. Views, functions, and procedures are excluded from DBML output.

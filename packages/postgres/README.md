@@ -35,8 +35,8 @@ const deps = extractDependencies(sqlString)
 ```js
 import { isInternal, isPostgres, isExtension } from '@jerrythomas/dbd-postgres-adapter'
 
-isInternal('public.users')   // true if defined in project
-isPostgres('pg_catalog')     // true
+isInternal('public.users') // true if defined in project
+isPostgres('pg_catalog') // true
 isExtension('uuid_generate_v4') // true if known extension function
 ```
 

@@ -4,16 +4,17 @@
 
 All commands accept these options:
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--config` | `-c` | `design.yaml` | Path to config file |
-| `--database` | `-d` | `$DATABASE_URL` | Database connection URL |
-| `--environment` | `-e` | `development` | Environment name |
-| `--preview` | `-p` | `false` | Preview mode |
-| `--version` | `-v` | | Print version |
-| `--help` | `-h` | | Print help |
+| Option          | Short | Default         | Description             |
+| --------------- | ----- | --------------- | ----------------------- |
+| `--config`      | `-c`  | `design.yaml`   | Path to config file     |
+| `--database`    | `-d`  | `$DATABASE_URL` | Database connection URL |
+| `--environment` | `-e`  | `development`   | Environment name        |
+| `--preview`     | `-p`  | `false`         | Preview mode            |
+| `--version`     | `-v`  |                 | Print version           |
+| `--help`        | `-h`  |                 | Print help              |
 
 **Database URL format:**
+
 ```
 postgres://user:pass@host:port/dbname
 ```
@@ -51,6 +52,7 @@ dbd inspect --no-cache               # Skip DB reference cache
 With a database URL, `inspect` also resolves references against the live database catalog.
 
 **Output:**
+
 - `Everything looks ok` — no issues
 - Errors: blocking issues (file missing, bad path, unresolved reference)
 - Warnings: non-blocking (unresolved optional references)
@@ -72,6 +74,7 @@ dbd apply -d postgres://...          # Use a specific database URL
 ```
 
 **Apply order** (always):
+
 1. Schemas
 2. Extensions
 3. Roles
@@ -80,6 +83,7 @@ dbd apply -d postgres://...          # Use a specific database URL
 Entities with errors are skipped. Errors are printed and execution continues.
 
 **Dry-run output format:**
+
 ```
 <type> => <name> [using "<file>"]
 ```
@@ -114,6 +118,7 @@ dbd import --dry-run                 # Print what would be imported
 ```
 
 **Execution order:**
+
 1. Import tables in entity dependency order
 2. Run SQL files listed in `import.after` (e.g. `import/loader.sql`)
 
@@ -151,6 +156,7 @@ dbd dbml -f schema.dbml              # Write to a specific file (single-doc proj
 ```
 
 For projects with multiple `dbdocs` keys in `design.yaml`, one file is generated per key:
+
 - Key `base` → `design.dbml`
 - Key `core` → `design-core.dbml`
 
@@ -161,13 +167,13 @@ Include/exclude filters from `design.yaml` apply per document.
 
 ## Exit codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success |
+| Code     | Meaning                                    |
+| -------- | ------------------------------------------ |
+| `0`      | Success                                    |
 | non-zero | Error (psql failure, missing config, etc.) |
 
 ## Environment variables
 
-| Variable | Used by |
-|----------|---------|
+| Variable       | Used by                                    |
+| -------------- | ------------------------------------------ |
 | `DATABASE_URL` | All commands needing a database connection |

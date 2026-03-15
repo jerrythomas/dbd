@@ -39,11 +39,11 @@ Individual DDL scripts are expected to be placed under folders with names of the
 
 ## Related Packages
 
-| Package | Description |
-| --- | --- |
-| [@jerrythomas/dbd-db](https://www.npmjs.com/package/@jerrythomas/dbd-db) | Database operations abstraction |
-| [@jerrythomas/dbd-dbml](https://www.npmjs.com/package/@jerrythomas/dbd-dbml) | DBML conversion & documentation |
-| [@jerrythomas/dbd-postgres-adapter](https://www.npmjs.com/package/@jerrythomas/dbd-postgres-adapter) | PostgreSQL adapter |
+| Package                                                                                              | Description                     |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------- |
+| [@jerrythomas/dbd-db](https://www.npmjs.com/package/@jerrythomas/dbd-db)                             | Database operations abstraction |
+| [@jerrythomas/dbd-dbml](https://www.npmjs.com/package/@jerrythomas/dbd-dbml)                         | DBML conversion & documentation |
+| [@jerrythomas/dbd-postgres-adapter](https://www.npmjs.com/package/@jerrythomas/dbd-postgres-adapter) | PostgreSQL adapter              |
 
 ## License
 
