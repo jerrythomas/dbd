@@ -57,16 +57,16 @@ Individual DDL scripts are expected to be placed under folders with names of the
 
 ### Commands
 
-| Command     | Action                              |
-| ----------- | ----------------------------------- |
-| dbd init    | Create an example repo              |
-| dbd inspect | Inspect and report issues           |
-| dbd combine | Combine all into single script      |
-| dbd apply   | Apply the creation scripts          |
-| dbd import  | Load seed/staging files             |
-| dbd export  | Export tables/views                 |
-| dbd dbml    | Generate DBML files                 |
-| dbd graph   | Output dependency graph as JSON     |
+| Command     | Action                          |
+| ----------- | ------------------------------- |
+| dbd init    | Create an example repo          |
+| dbd inspect | Inspect and report issues       |
+| dbd combine | Combine all into single script  |
+| dbd apply   | Apply the creation scripts      |
+| dbd import  | Load seed/staging files         |
+| dbd export  | Export tables/views             |
+| dbd dbml    | Generate DBML files             |
+| dbd graph   | Output dependency graph as JSON |
 
 ## LLM Documentation
 
@@ -97,8 +97,8 @@ bun run lint
 
 ## Packages
 
-| Package                                                         | Description                                                            |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Package                                                | Description                                                            |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- |
 | [@jerrythomas/dbd](packages/cli)                       | CLI commands, configuration loading, Design class orchestration        |
 | [@jerrythomas/dbd-db](packages/db)                     | Database adapter abstraction, entity processing, dependency resolution |
 | [@jerrythomas/dbd-dbml](packages/dbml)                 | DBML conversion via @dbml/core with schema qualification               |
