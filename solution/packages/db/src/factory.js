@@ -8,10 +8,7 @@
  * via `registerAdapter()`.
  */
 
-const ADAPTERS = {
-	postgres: () => import('@jerrythomas/dbd-postgres-adapter'),
-	postgresql: () => import('@jerrythomas/dbd-postgres-adapter')
-}
+const ADAPTERS = {}
 
 export const SUPPORTED_DATABASES = Object.keys(ADAPTERS)
 

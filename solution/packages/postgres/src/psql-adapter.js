@@ -85,7 +85,7 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 			return
 		}
 
-		this.log(`Applying ${entity.type}: ${entity.name}`)
+		console.info(`Applying ${entity.type}: ${entity.name}`)
 
 		if (entity.file) {
 			await this.executeFile(entity.file, options)

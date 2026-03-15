@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import {
 	createAdapter,
 	getAdapterInfo,
@@ -13,23 +13,16 @@ vi.mock('@jerrythomas/dbd-postgres-adapter', () => ({
 
 describe('factory', () => {
 	describe('SUPPORTED_DATABASES', () => {
-		it('includes postgres and postgresql', () => {
-			expect(SUPPORTED_DATABASES).toContain('postgres')
-			expect(SUPPORTED_DATABASES).toContain('postgresql')
+		it('starts empty — adapters must be registered by the caller', () => {
+			// postgres is NOT built-in; cli registers it before use
+			expect(SUPPORTED_DATABASES).not.toContain('postgres')
+			expect(SUPPORTED_DATABASES).not.toContain('postgresql')
 		})
 	})
 
 	describe('getAdapterInfo()', () => {
-		it('returns supported for postgres', () => {
-			expect(getAdapterInfo('postgres')).toEqual({ type: 'postgres', supported: true })
-		})
-
-		it('returns supported for postgresql (alias)', () => {
-			expect(getAdapterInfo('postgresql')).toEqual({ type: 'postgresql', supported: true })
-		})
-
-		it('is case-insensitive', () => {
-			expect(getAdapterInfo('POSTGRES')).toEqual({ type: 'postgres', supported: true })
+		it('returns unsupported for postgres before registration', () => {
+			expect(getAdapterInfo('postgres')).toEqual({ type: 'postgres', supported: false })
 		})
 
 		it('returns unsupported for unknown type', () => {
@@ -44,20 +37,10 @@ describe('factory', () => {
 			)
 		})
 
-		it('throws with helpful message listing supported databases', async () => {
+		it('throws before any adapter is registered', async () => {
 			await expect(createAdapter('sqlite', 'sqlite://test.db')).rejects.toThrow(
-				'Supported: postgres, postgresql'
+				'Unsupported database: sqlite'
 			)
-		})
-	})
-
-	describe('createAdapter() — built-in loader', () => {
-		it('uses the built-in postgres loader when no override registered', async () => {
-			const adapter = await createAdapter('postgres', 'pg://localhost')
-			expect(adapter).toBeDefined()
-			expect(adapter.type).toBe('mock-postgres')
-			expect(adapter.conn).toBe('pg://localhost')
-			expect(typeof adapter.initParser).toBe('function')
 		})
 	})
 
@@ -75,11 +58,18 @@ describe('factory', () => {
 			expect(adapter).toBeInstanceOf(BaseDatabaseAdapter)
 		})
 
-		it('can override a built-in adapter', async () => {
-			class CustomPg extends BaseDatabaseAdapter {}
-			const originalInfo = getAdapterInfo('postgres')
-			expect(originalInfo.supported).toBe(true)
+		it('can register the postgres adapter and create it', async () => {
+			registerAdapter('postgres', () => import('@jerrythomas/dbd-postgres-adapter'))
+			expect(getAdapterInfo('postgres').supported).toBe(true)
+			const adapter = await createAdapter('postgres', 'pg://localhost')
+			expect(adapter).toBeDefined()
+			expect(adapter.type).toBe('mock-postgres')
+			expect(adapter.conn).toBe('pg://localhost')
+			expect(typeof adapter.initParser).toBe('function')
+		})
 
+		it('can override a registered adapter', async () => {
+			class CustomPg extends BaseDatabaseAdapter {}
 			registerAdapter('postgres', () =>
 				Promise.resolve({
 					createAdapter: (conn, opts) => new CustomPg(conn, opts)
