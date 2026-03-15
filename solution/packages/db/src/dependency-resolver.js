@@ -104,7 +104,7 @@ export function groupByDependencyLevel(entities) {
 export function graphFromEntities(entities, name) {
 	if (!entities || entities.length === 0) return { nodes: [], edges: [], layers: [] }
 
-	const scope = name != null ? subgraphEntities(entities, name) : entities
+	const scope = name ? subgraphEntities(entities, name) : entities
 	if (scope.length === 0) return { nodes: [], edges: [], layers: [] }
 
 	const nodeSet = new Set(scope.map((e) => e.name))
