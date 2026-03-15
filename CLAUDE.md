@@ -29,17 +29,14 @@ dbd/
   docs/
     requirements/               <-- Feature requirements (the "what")
     design/                     <-- Module design documents (the "how")
-  solution/                      <-- Monorepo workspace root
-    package.json                <-- Workspace config, scripts, devDependencies
-    vitest.config.ts            <-- Single vitest config (all projects)
-    eslint.config.js            <-- ESLint flat config
-    .prettierrc                 <-- Prettier config
-    packages/
-      cli/                      <-- dbd — CLI, config, design orchestrator (dialect-agnostic)
-      dbml/                     <-- @dbd/dbml — DBML conversion
-      db/                       <-- @dbd/db — Database abstraction, entity processing, adapter factory
-      postgres/                 <-- @dbd/db-postgres — PostgreSQL adapter (includes parser + reference classifier)
-    example/                    <-- Example project structure
+  package.json                   <-- Workspace config, scripts, devDependencies
+  config/                        <-- Tool configs (vitest, eslint, prettier, bumpp)
+  packages/
+    cli/                         <-- dbd — CLI, config, design orchestrator (dialect-agnostic)
+    dbml/                        <-- @dbd/dbml — DBML conversion
+    db/                          <-- @dbd/db — Database abstraction, entity processing, adapter factory
+    postgres/                    <-- @dbd/db-postgres — PostgreSQL adapter (includes parser + reference classifier)
+  example/                       <-- Example project structure
 ```
 
 ## Key Design Principles
@@ -52,11 +49,10 @@ dbd/
 
 ## Commands
 
-All workspace commands run from `solution/`:
+All workspace commands run from repo root:
 
 ```bash
 # All tests (workspace-aware vitest)
-cd solution
 bun run test                      # All workspace tests (vitest run)
 bun run test:watch                # Watch mode
 
@@ -146,20 +142,20 @@ Design documents capture the "how" — extract them from implementation:
 
 ## Key Files Quick Reference
 
-| File                                      | Purpose                                         |
-| ----------------------------------------- | ----------------------------------------------- |
-| `agents/workflow.md`                      | Methodology and session lifecycle               |
-| `agents/memory.md`                        | Shared project knowledge                        |
-| `agents/plan.md`                          | Active plan/checklist                           |
-| `agents/journal.md`                       | Chronological progress log                      |
-| `agents/backlog.md`                       | Deferred items for future phases                |
-| `agents/design-patterns.md`              | Established patterns cookbook                    |
-| `solution/vitest.config.ts`              | Single vitest config for all projects           |
-| `solution/packages/cli/src/design.js`    | Design class — main orchestrator (async using()) |
-| `solution/packages/cli/src/config.js`    | YAML config loading & entity discovery          |
-| `solution/packages/cli/src/references.js`| Dialect-agnostic reference resolution           |
-| `solution/packages/cli/src/index.js`     | CLI entry point (sade commands)                 |
-| `solution/packages/db/src/`              | Entity processing, dependency resolver, adapter factory |
-| `solution/packages/dbml/src/`            | DBML generation from DDL entities               |
-| `solution/packages/postgres/src/`        | PostgreSQL adapter (parse, classify, apply, import, export) |
-| `solution/packages/postgres/src/parser/` | SQL parser (pgsql-parser WASM, extractors, AST) |
+| File                                      | Purpose                                                     |
+| ----------------------------------------- | ----------------------------------------------------------- |
+| `agents/workflow.md`                      | Methodology and session lifecycle                           |
+| `agents/memory.md`                        | Shared project knowledge                                    |
+| `agents/plan.md`                          | Active plan/checklist                                       |
+| `agents/journal.md`                       | Chronological progress log                                  |
+| `agents/backlog.md`                       | Deferred items for future phases                            |
+| `agents/design-patterns.md`               | Established patterns cookbook                               |
+| `config/vitest.config.ts`               | Single vitest config for all projects                       |
+| `packages/cli/src/design.js`            | Design class — main orchestrator (async using())            |
+| `packages/cli/src/config.js`            | YAML config loading & entity discovery                      |
+| `packages/cli/src/references.js`        | Dialect-agnostic reference resolution                       |
+| `packages/cli/src/index.js`             | CLI entry point (sade commands)                             |
+| `packages/db/src/`                      | Entity processing, dependency resolver, adapter factory     |
+| `packages/dbml/src/`                    | DBML generation from DDL entities                           |
+| `packages/postgres/src/`               | PostgreSQL adapter (parse, classify, apply, import, export) |
+| `packages/postgres/src/parser/`        | SQL parser (pgsql-parser WASM, extractors, AST)             |

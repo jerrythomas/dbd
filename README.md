@@ -20,12 +20,12 @@ A CLI tool for managing SQL database schemas. Apply individual DDL scripts to da
 DBD is organized as a monorepo with focused packages:
 
 ```
-solution/
-  packages/
-    cli/       @jerrythomas/dbd                  — CLI, config, design orchestrator
-    db/        @jerrythomas/dbd-db               — Database operations abstraction
-    dbml/      @jerrythomas/dbd-dbml             — DBML conversion & documentation
-    postgres/  @jerrythomas/dbd-postgres-adapter — PostgreSQL adapter (parser + psql)
+packages/
+  cli/       @jerrythomas/dbd                  — CLI, config, design orchestrator
+  db/        @jerrythomas/dbd-db               — Database operations abstraction
+  dbml/      @jerrythomas/dbd-dbml             — DBML conversion & documentation
+  postgres/  @jerrythomas/dbd-postgres-adapter — PostgreSQL adapter (parser + psql)
+config/      — Tool configs (vitest, eslint, prettier, bumpp)
 ```
 
 ### Dependency Flow
@@ -57,21 +57,24 @@ Individual DDL scripts are expected to be placed under folders with names of the
 
 ### Commands
 
-| Command     | Action                         |
-| ----------- | ------------------------------ |
-| dbd init    | Create an example repo         |
-| dbd inspect | Inspect and report issues      |
-| dbd combine | Combine all into single script |
-| dbd apply   | Apply the creation scripts     |
-| dbd import  | Load seed/staging files        |
-| dbd export  | Export tables/views            |
-| dbd dbml    | Generate DBML files            |
+| Command     | Action                              |
+| ----------- | ----------------------------------- |
+| dbd init    | Create an example repo              |
+| dbd inspect | Inspect and report issues           |
+| dbd combine | Combine all into single script      |
+| dbd apply   | Apply the creation scripts          |
+| dbd import  | Load seed/staging files             |
+| dbd export  | Export tables/views                 |
+| dbd dbml    | Generate DBML files                 |
+| dbd graph   | Output dependency graph as JSON     |
+
+## LLM Documentation
+
+Machine-readable docs for using dbd with AI assistants: [`docs/llms/`](docs/llms/)
 
 ## Development
 
 ```bash
-cd solution
-
 # Install dependencies
 bun install
 
@@ -94,9 +97,9 @@ bun run lint
 
 ## Packages
 
-| Package | Description |
-| --- | --- |
-| [@jerrythomas/dbd](solution/packages/cli) | CLI commands, configuration loading, Design class orchestration |
-| [@jerrythomas/dbd-db](solution/packages/db) | Database adapter abstraction, entity processing, dependency resolution |
-| [@jerrythomas/dbd-dbml](solution/packages/dbml) | DBML conversion via @dbml/core with schema qualification |
-| [@jerrythomas/dbd-postgres-adapter](solution/packages/postgres) | PostgreSQL adapter with SQL parser and reference classifier |
+| Package                                                         | Description                                                            |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [@jerrythomas/dbd](packages/cli)                       | CLI commands, configuration loading, Design class orchestration        |
+| [@jerrythomas/dbd-db](packages/db)                     | Database adapter abstraction, entity processing, dependency resolution |
+| [@jerrythomas/dbd-dbml](packages/dbml)                 | DBML conversion via @dbml/core with schema qualification               |
+| [@jerrythomas/dbd-postgres-adapter](packages/postgres) | PostgreSQL adapter with SQL parser and reference classifier            |

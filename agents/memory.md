@@ -16,12 +16,13 @@ This file is read at the start of every session.
 
 ## Architecture
 
-| Component           | Purpose                                                                |
-| ------------------- | ---------------------------------------------------------------------- |
-| `packages/cli`      | Command-line interface and orchestration (dialect-agnostic)             |
-| `packages/db`       | Database abstraction, entity processing, adapter factory               |
-| `packages/dbml`     | DBML conversion and dbdocs.io publishing                               |
+| Component           | Purpose                                                                   |
+| ------------------- | ------------------------------------------------------------------------- |
+| `packages/cli`      | Command-line interface and orchestration (dialect-agnostic)               |
+| `packages/db`       | Database abstraction, entity processing, adapter factory                  |
+| `packages/dbml`     | DBML conversion and dbdocs.io publishing                                  |
 | `packages/postgres` | PostgreSQL adapter — parse, classify, apply, import, export (owns parser) |
+| `config/`           | Tool configs: vitest.config.ts, eslint.config.js, .prettierrc, bumpp      |
 
 ### Dependency Flow
 
@@ -92,17 +93,17 @@ cli -> db -> postgres (includes parser, reference-classifier, regex-fallback)
 - CLI is fully dialect-agnostic — `using()` is async, adapter drives parsing
 - Root package: v2.0.0, private (workspace-only)
 - Test counts: 228 postgres + 104 db + 57 cli + 35 dbml = 432 workspace tests
-- Lint: 0 errors (prettier clean, ESLint config issue pre-existing)
+- Lint: 0 errors (prettier clean, ESLint running correctly from config/)
 - **Next phase:** Entity classes → Snapshots → Migrations
 
 ### Package Summary
 
-| Package             | Tests | Key Modules                                                                  |
-| ------------------- | ----- | ---------------------------------------------------------------------------- |
+| Package             | Tests | Key Modules                                                                                   |
+| ------------------- | ----- | --------------------------------------------------------------------------------------------- |
 | `packages/postgres` | 228   | psql-adapter (parse, classify, apply), parser/, reference-classifier, regex-fallback, scripts |
-| `packages/db`       | 104   | base-adapter, entity-processor, dependency-resolver, factory                 |
-| `packages/cli`      | 57    | config, references (dialect-agnostic), design (async using()), db-cache      |
-| `packages/dbml`     | 35    | converter (cleanup, conversion, generateDBML)                                |
+| `packages/db`       | 104   | base-adapter, entity-processor, dependency-resolver, factory                                  |
+| `packages/cli`      | 57    | config, references (dialect-agnostic), design (async using()), db-cache                       |
+| `packages/dbml`     | 35    | converter (cleanup, conversion, generateDBML)                                                 |
 
 ## Key Files for Resuming
 
