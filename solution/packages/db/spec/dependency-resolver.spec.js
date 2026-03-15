@@ -4,7 +4,8 @@ import {
 	findCycles,
 	validateDependencies,
 	sortByDependencies,
-	groupByDependencyLevel
+	groupByDependencyLevel,
+	graphFromEntities
 } from '../src/dependency-resolver.js'
 
 describe('dependency-resolver', () => {
@@ -200,6 +201,105 @@ describe('dependency-resolver', () => {
 			const firstNames = groups[0].map((e) => e.name)
 			expect(firstNames).toContain('a')
 			expect(firstNames).toContain('b')
+		})
+	})
+
+	describe('graphFromEntities()', () => {
+		const entities = [
+			{ name: 'config.users', type: 'table', schema: 'config', refers: [] },
+			{ name: 'config.roles', type: 'table', schema: 'config', refers: [] },
+			{
+				name: 'config.user_roles',
+				type: 'table',
+				schema: 'config',
+				refers: ['config.users', 'config.roles']
+			}
+		]
+
+		it('returns nodes with name, type, schema only', () => {
+			const { nodes } = graphFromEntities(entities)
+			expect(nodes.length).toBe(3)
+			for (const node of nodes) {
+				expect(Object.keys(node).sort()).toEqual(['name', 'schema', 'type'])
+			}
+		})
+
+		it('returns edges from refers relationships', () => {
+			const { edges } = graphFromEntities(entities)
+			expect(edges).toContainEqual({ from: 'config.user_roles', to: 'config.users' })
+			expect(edges).toContainEqual({ from: 'config.user_roles', to: 'config.roles' })
+			expect(edges.length).toBe(2)
+		})
+
+		it('returns layers in dependency order', () => {
+			const { layers } = graphFromEntities(entities)
+			expect(layers.length).toBeGreaterThanOrEqual(2)
+			const firstLayer = layers[0]
+			expect(firstLayer).toContain('config.users')
+			expect(firstLayer).toContain('config.roles')
+			const lastLayer = layers[layers.length - 1]
+			expect(lastLayer).toContain('config.user_roles')
+		})
+
+		it('layers contain only names (strings)', () => {
+			const { layers } = graphFromEntities(entities)
+			for (const layer of layers) {
+				for (const item of layer) {
+					expect(typeof item).toBe('string')
+				}
+			}
+		})
+
+		it('returns empty result for empty input', () => {
+			const result = graphFromEntities([])
+			expect(result).toEqual({ nodes: [], edges: [], layers: [] })
+		})
+
+		describe('with --name filter', () => {
+			const subEntities = [
+				{ name: 'a', type: 'table', schema: 's', refers: [] },
+				{ name: 'b', type: 'table', schema: 's', refers: ['a'] },
+				{ name: 'c', type: 'table', schema: 's', refers: ['b'] },
+				{ name: 'd', type: 'table', schema: 's', refers: [] }
+			]
+
+			it('includes the named entity', () => {
+				const { nodes } = graphFromEntities(subEntities, 'b')
+				const names = nodes.map((n) => n.name)
+				expect(names).toContain('b')
+			})
+
+			it('includes transitive forward deps', () => {
+				const { nodes } = graphFromEntities(subEntities, 'b')
+				const names = nodes.map((n) => n.name)
+				expect(names).toContain('a')
+			})
+
+			it('includes transitive reverse dependants', () => {
+				const { nodes } = graphFromEntities(subEntities, 'b')
+				const names = nodes.map((n) => n.name)
+				expect(names).toContain('c')
+			})
+
+			it('excludes unrelated entities', () => {
+				const { nodes } = graphFromEntities(subEntities, 'b')
+				const names = nodes.map((n) => n.name)
+				expect(names).not.toContain('d')
+			})
+
+			it('edges only reference nodes in the subgraph', () => {
+				const { nodes, edges } = graphFromEntities(subEntities, 'b')
+				const names = new Set(nodes.map((n) => n.name))
+				for (const edge of edges) {
+					expect(names.has(edge.from)).toBe(true)
+					expect(names.has(edge.to)).toBe(true)
+				}
+			})
+
+			it('returns empty result for unknown name', () => {
+				const result = graphFromEntities(subEntities, 'unknown')
+				expect(result).toEqual({ nodes: [], edges: [], layers: [] })
+			})
 		})
 	})
 })

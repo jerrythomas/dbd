@@ -94,7 +94,80 @@ export function groupByDependencyLevel(entities) {
 	return result.groups.map((names) => names.map((name) => fullLookup[name]))
 }
 
+/**
+ * Build a graph representation of entities for visualization or analysis.
+ *
+ * @param {Array} entities — each must have `name`, `type`, `schema`, and `refers`
+ * @param {string} [name] — optional entity name to scope to a subgraph
+ * @returns {{ nodes: Array, edges: Array, layers: string[][] }}
+ */
+export function graphFromEntities(entities, name) {
+	if (!entities || entities.length === 0) return { nodes: [], edges: [], layers: [] }
+
+	const scope = name != null ? subgraphEntities(entities, name) : entities
+	if (scope.length === 0) return { nodes: [], edges: [], layers: [] }
+
+	const nodeSet = new Set(scope.map((e) => e.name))
+
+	const nodes = scope.map(({ name: n, type, schema }) => ({ name: n, type, schema }))
+
+	const edges = scope.flatMap((entity) =>
+		(entity.refers || [])
+			.filter((dep) => nodeSet.has(dep))
+			.map((dep) => ({ from: entity.name, to: dep }))
+	)
+
+	const layers = groupByDependencyLevel(scope).map((layer) => layer.map((e) => e.name))
+
+	return { nodes, edges, layers }
+}
+
 // --- Internal helpers ---
+
+/**
+ * Return the subset of entities reachable from `name` in both directions (forward deps + reverse dependants).
+ *
+ * @param {Array} entities
+ * @param {string} name
+ * @returns {Array}
+ */
+function subgraphEntities(entities, name) {
+	const lookup = buildLookup(entities)
+	if (!(name in lookup)) return []
+
+	// Build reverse graph: dep → [entities that depend on dep]
+	const reverse = {}
+	for (const entity of entities) {
+		for (const dep of entity.refers || []) {
+			if (!reverse[dep]) reverse[dep] = []
+			reverse[dep].push(entity.name)
+		}
+	}
+
+	const visited = new Set()
+	const queue = [name]
+
+	while (queue.length > 0) {
+		const current = queue.shift()
+		if (visited.has(current)) continue
+		visited.add(current)
+
+		// Forward: dependencies of current
+		const entity = lookup[current]
+		if (entity) {
+			for (const dep of entity.refers || []) {
+				if (!visited.has(dep) && dep in lookup) queue.push(dep)
+			}
+		}
+
+		// Reverse: entities that depend on current
+		for (const dependent of reverse[current] || []) {
+			if (!visited.has(dependent)) queue.push(dependent)
+		}
+	}
+
+	return entities.filter((e) => visited.has(e.name))
+}
 
 function buildLookup(entities) {
 	return entities.reduce((obj, item) => ({ ...obj, [item.name]: item }), {})

@@ -39,5 +39,6 @@ export {
 	findCycles,
 	validateDependencies,
 	sortByDependencies,
-	groupByDependencyLevel
+	groupByDependencyLevel,
+	graphFromEntities
 } from './dependency-resolver.js'
