@@ -338,8 +338,8 @@ export const extractRoutinesFromSql = (sql, defaultSchema) => {
 			.map((paramStr) => {
 				const paramParts = paramStr.trim().split(/\s+/)
 				let mode = 'in'
-				let name = ''
-				let dataType = 'unknown'
+				let name
+				let dataType
 
 				if (/^IN(OUT)?$/i.test(paramParts[0]) || /^OUT$/i.test(paramParts[0])) {
 					mode = paramParts[0].toLowerCase()

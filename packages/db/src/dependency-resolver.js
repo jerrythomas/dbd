@@ -191,7 +191,7 @@ function addMissingDeps(entities, lookup) {
 function regroupLookup(lookup) {
 	let groups = [Object.keys(lookup)]
 	let errors = []
-	let length = groups.length
+	let length
 
 	do {
 		length = groups.length

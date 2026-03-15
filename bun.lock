@@ -5,6 +5,7 @@
     "": {
       "name": "@jerrythomas/dbd",
       "devDependencies": {
+        "@eslint/js": "^10.0.1",
         "@vanillaes/mock-console": "^3.0.0",
         "@vitest/coverage-v8": "^3.2.2",
         "bumpp": "^10.4.1",
@@ -17,7 +18,7 @@
     },
     "packages/cli": {
       "name": "@jerrythomas/dbd",
-      "version": "2.0.0",
+      "version": "2.0.3",
       "bin": {
         "dbd": "src/index.js",
       },
@@ -32,11 +33,11 @@
     },
     "packages/db": {
       "name": "@jerrythomas/dbd-db",
-      "version": "2.0.0",
+      "version": "2.0.3",
     },
     "packages/dbml": {
       "name": "@jerrythomas/dbd-dbml",
-      "version": "2.0.0",
+      "version": "2.0.3",
       "dependencies": {
         "@dbml/core": "^3.13.5",
         "@jerrythomas/dbd-db": "workspace:*",
@@ -44,7 +45,7 @@
     },
     "packages/postgres": {
       "name": "@jerrythomas/dbd-postgres-adapter",
-      "version": "2.0.0",
+      "version": "2.0.3",
       "dependencies": {
         "@jerrythomas/dbd-db": "workspace:*",
         "csvtojson": "^2.0.10",
@@ -134,7 +135,7 @@
 
     "@eslint/eslintrc": ["@eslint/eslintrc@3.3.3", "", { "dependencies": { "ajv": "^6.12.4", "debug": "^4.3.2", "espree": "^10.0.1", "globals": "^14.0.0", "ignore": "^5.2.0", "import-fresh": "^3.2.1", "js-yaml": "^4.1.1", "minimatch": "^3.1.2", "strip-json-comments": "^3.1.1" } }, "sha512-Kr+LPIUVKz2qkx1HAMH8q1q6azbqBAsXJUxBl/ODDuVPX45Z9DfwB8tPjTi6nNZ8BuM3nbJxC5zCAg5elnBUTQ=="],
 
-    "@eslint/js": ["@eslint/js@9.39.2", "", {}, "sha512-q1mjIoW1VX4IvSocvM/vbTiveKC4k9eLrajNEuSsmjymSDEbpGddtpfOoN7YGAqBK3NG+uqo8ia4PDTt8buCYA=="],
+    "@eslint/js": ["@eslint/js@10.0.1", "", { "peerDependencies": { "eslint": "^10.0.0" }, "optionalPeers": ["eslint"] }, "sha512-zeR9k5pd4gxjZ0abRoIaxdc7I3nDktoXZk2qOv9gCNWx3mVwEn32VRhyLaRsDiJjTs0xq/T8mfPtyuXu7GWBcA=="],
 
     "@eslint/object-schema": ["@eslint/object-schema@2.1.7", "", {}, "sha512-VtAOaymWVfZcmZbp6E2mympDIHvyjXs/12LqWYjVw6qjrfF+VK+fyG33kChz3nnK+SU5/NeHOqrTEHS8sXO3OA=="],
 
@@ -595,6 +596,8 @@
     "@eslint-community/eslint-utils/eslint-visitor-keys": ["eslint-visitor-keys@3.4.3", "", {}, "sha512-wpc+LXeiyiisxPlEkUzU6svyS1frIO3Mgxj1fdy7Pm8Ygzguax2N3Fa/D/ag1WqbOprdI+uY6wMUl8/a2G+iag=="],
 
     "@jerrythomas/dbd-postgres-adapter/ramda": ["ramda@0.29.1", "", {}, "sha512-OfxIeWzd4xdUNxlWhgFazxsA/nl3mS4/jGZI5n00uWOoSSFRhC1b6gl6xvmzUamgmqELraWp0J/qqVlXYPDPyA=="],
+
+    "eslint/@eslint/js": ["@eslint/js@9.39.2", "", {}, "sha512-q1mjIoW1VX4IvSocvM/vbTiveKC4k9eLrajNEuSsmjymSDEbpGddtpfOoN7YGAqBK3NG+uqo8ia4PDTt8buCYA=="],
 
     "glob/minimatch": ["minimatch@10.2.1", "", { "dependencies": { "brace-expansion": "^5.0.2" } }, "sha512-MClCe8IL5nRRmawL6ib/eT4oLyeKMGCghibcDWK+J0hh0Q8kqSdia6BvbRMVk6mPa6WqUa5uR2oxt6C5jd533A=="],
 
