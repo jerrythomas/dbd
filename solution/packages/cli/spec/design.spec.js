@@ -446,6 +446,62 @@ describe('Design class (packages/cli)', () => {
 		expect(adapter).toBeDefined()
 		expect(typeof adapter.applyEntities).toBe('function')
 	})
+
+	// --- graph() ---
+
+	describe('graph()', () => {
+		it('returns nodes, edges, layers', async () => {
+			const dx = await using('design.yaml')
+			const result = dx.graph()
+			expect(result).toHaveProperty('nodes')
+			expect(result).toHaveProperty('edges')
+			expect(result).toHaveProperty('layers')
+		})
+
+		it('nodes have exactly name, type, schema keys', async () => {
+			const dx = await using('design.yaml')
+			const { nodes } = dx.graph()
+			expect(nodes.length).toBeGreaterThan(0)
+			nodes.forEach((node) => {
+				expect(Object.keys(node).sort()).toEqual(['name', 'schema', 'type'])
+			})
+		})
+
+		it('edges reference names that exist in nodes', async () => {
+			const dx = await using('design.yaml')
+			const { nodes, edges } = dx.graph()
+			const nodeNames = new Set(nodes.map((n) => n.name))
+			edges.forEach((edge) => {
+				expect(nodeNames.has(edge.from)).toBe(true)
+				expect(nodeNames.has(edge.to)).toBe(true)
+			})
+		})
+
+		it('layers are arrays of strings', async () => {
+			const dx = await using('design.yaml')
+			const { layers } = dx.graph()
+			expect(Array.isArray(layers)).toBe(true)
+			layers.forEach((layer) => {
+				expect(Array.isArray(layer)).toBe(true)
+				layer.forEach((item) => expect(typeof item).toBe('string'))
+			})
+		})
+
+		it('graph(name) returns a subgraph for a known entity', async () => {
+			const dx = await using('design.yaml')
+			const { nodes } = dx.graph()
+			const knownName = nodes[nodes.length - 1].name
+			const sub = dx.graph(knownName)
+			expect(sub.nodes.length).toBeGreaterThan(0)
+			expect(sub.nodes.some((n) => n.name === knownName)).toBe(true)
+		})
+
+		it('graph(unknown) returns empty result', async () => {
+			const dx = await using('design.yaml')
+			const result = dx.graph('nonexistent.entity')
+			expect(result).toEqual({ nodes: [], edges: [], layers: [] })
+		})
+	})
 })
 
 describe('Design class — coverage-test fixture', () => {

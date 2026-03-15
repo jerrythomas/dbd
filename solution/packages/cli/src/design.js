@@ -16,7 +16,8 @@ import {
 	importScriptForEntity,
 	exportScriptForEntity,
 	filterEntitiesForDBML,
-	sortByDependencies
+	sortByDependencies,
+	graphFromEntities
 } from '@jerrythomas/dbd-db'
 import { generateDBML } from '@jerrythomas/dbd-dbml'
 import { read, clean } from './config.js'
@@ -260,6 +261,10 @@ class Design {
 	async getAdapter() {
 		return this.#adapter
 	}
+
+	graph(name) {
+		return graphFromEntities(this.config.entities, name)
+	}
 }
 
 /**
@@ -273,7 +278,9 @@ class Design {
 export async function using(file, databaseURL) {
 	const rawConfig = read(file)
 	const dbType = rawConfig.project?.database || 'PostgreSQL'
-	const { createAdapter } = await import('@jerrythomas/dbd-db')
+	const { createAdapter, registerAdapter } = await import('@jerrythomas/dbd-db')
+	registerAdapter('postgres', () => import('@jerrythomas/dbd-postgres-adapter'))
+	registerAdapter('postgresql', () => import('@jerrythomas/dbd-postgres-adapter'))
 	const adapter = await createAdapter(dbType.toLowerCase(), databaseURL)
 	await adapter.initParser()
 	return new Design(rawConfig, adapter, databaseURL)
