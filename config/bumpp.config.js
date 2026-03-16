@@ -1,3 +1,3 @@
 export default {
-	files: ['packages/*/package.json']
+	files: ['../packages/*/package.json']
 }
