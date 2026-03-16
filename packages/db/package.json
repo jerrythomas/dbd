@@ -15,6 +15,10 @@
     "operations",
     "transaction"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jerrythomas/dbd"
+  },
   "author": "Jerry Thomas <me@jerrythomas.name>",
   "license": "MIT",
   "dependencies": {},
