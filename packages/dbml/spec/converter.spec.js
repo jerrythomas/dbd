@@ -10,6 +10,7 @@ import {
 	removeIndexCreationStatements,
 	removeCommentOnStatements,
 	normalizeComment,
+	normalizeComments,
 	buildTableLookup,
 	qualifyTableNames,
 	cleanupDDLForDBML,
@@ -140,6 +141,43 @@ SELECT 1;`
 		})
 	})
 
+	describe('normalizeComments()', () => {
+		it('flattens multi-line COMMENT ON TABLE to single-line', () => {
+			const sql = `CREATE TABLE t (id uuid);\nCOMMENT ON TABLE t IS\n'line1\nline2';`
+			const result = normalizeComments(sql)
+			expect(result).toContain("'line1 line2'")
+			expect(result).toContain('COMMENT ON TABLE t IS')
+		})
+
+		it('flattens multi-line COMMENT ON COLUMN to single-line', () => {
+			const sql = `COMMENT ON COLUMN t.id IS\n'first line\nsecond line';`
+			const result = normalizeComments(sql)
+			expect(result).toContain("'first line second line'")
+			expect(result).toContain('COMMENT ON COLUMN t.id IS')
+		})
+
+		it("converts SQL escaped apostrophes ('') to Unicode right single quotation mark", () => {
+			const sql = `COMMENT ON TABLE t IS 'user''s table';`
+			const result = normalizeComments(sql)
+			expect(result).toContain("user\u2019s table")
+			expect(result).not.toContain("''")
+		})
+
+		it('removes COMMENT ON FUNCTION statements', () => {
+			const sql = `COMMENT ON FUNCTION foo IS 'A function';\nCREATE TABLE t (id uuid);`
+			const result = normalizeComments(sql)
+			expect(result).not.toContain('COMMENT ON FUNCTION')
+			expect(result).toContain('CREATE TABLE')
+		})
+
+		it('preserves COMMENT ON TABLE and COMMENT ON COLUMN', () => {
+			const sql = `CREATE TABLE t (id uuid);\nCOMMENT ON TABLE t IS 'A table';\nCOMMENT ON COLUMN t.id IS 'Primary key';`
+			const result = normalizeComments(sql)
+			expect(result).toContain("COMMENT ON TABLE t IS 'A table'")
+			expect(result).toContain("COMMENT ON COLUMN t.id IS 'Primary key'")
+		})
+	})
+
 	describe('cleanupDDLForDBML()', () => {
 		it('removes index statements from DDL', () => {
 			const sql = 'CREATE TABLE t (id int);\nCREATE INDEX idx ON t(id);'
@@ -148,10 +186,12 @@ SELECT 1;`
 			expect(result).toContain('CREATE TABLE')
 		})
 
-		it('removes COMMENT ON statements from DDL', () => {
-			const sql = "CREATE TABLE t (id int);\nCOMMENT ON TABLE t IS 'a table';"
+		it('preserves COMMENT ON TABLE/COLUMN but removes others', () => {
+			const sql =
+				"CREATE TABLE t (id int);\nCOMMENT ON TABLE t IS 'a table';\nCOMMENT ON FUNCTION f IS 'fn';"
 			const result = cleanupDDLForDBML(sql)
-			expect(result).not.toContain('COMMENT ON')
+			expect(result).toContain("COMMENT ON TABLE t IS 'a table'")
+			expect(result).not.toContain('COMMENT ON FUNCTION')
 			expect(result).toContain('CREATE TABLE')
 		})
 
