@@ -90,17 +90,45 @@ export function qualifyTableNames(ddlText, schema, tableLookup) {
 			return `${prefix}${schema}.${tableName}${suffix}`
 		}
 	)
-	// Qualify unqualified REFERENCES <table>(col) using table lookup
+	// Qualify unqualified REFERENCES <table> using table lookup.
+	// Lookahead handles both REFERENCES table(col) and bare REFERENCES table (no column spec).
 	if (tableLookup) {
 		result = result.replace(
-			/(references\s+)([a-z_][a-z0-9_]*)(\s*\()/gi,
-			(match, prefix, tableName, suffix) => {
+			/(\breferences\s+)([a-z_][a-z0-9_]*)(?=[\s(,;]|$)/gi,
+			(match, prefix, tableName) => {
 				const qualified = tableLookup[tableName] || `${schema}.${tableName}`
-				return `${prefix}${qualified}${suffix}`
+				return `${prefix}${qualified}`
 			}
 		)
 	}
 	return result
+}
+
+/**
+ * Remove inline REFERENCES clauses from column definitions that also appear in
+ * table-level FOREIGN KEY constraints. Prevents duplicate FK refs in @dbml/core.
+ *
+ * @param {string} ddlText - DDL text
+ * @returns {string} DDL with redundant inline refs removed
+ */
+export function removeRedundantInlineRefs(ddlText) {
+	const fkColumns = new Set()
+	const fkRegex = /\bforeign\s+key\s*\(([^)]+)\)/gi
+	let matchResult
+	while ((matchResult = fkRegex.exec(ddlText)) !== null) {
+		matchResult[1].split(',').forEach((col) => fkColumns.add(col.trim().toLowerCase()))
+	}
+	if (fkColumns.size === 0) return ddlText
+
+	return ddlText
+		.split('\n')
+		.map((line) => {
+			const colMatch = line.match(/^[ \t]*,?[ \t]*([a-z_][a-z0-9_]*)\s/i)
+			if (!colMatch) return line
+			if (!fkColumns.has(colMatch[1].toLowerCase())) return line
+			return line.replace(/\s+references\s+.+$/i, '')
+		})
+		.join('\n')
 }
 
 /**
@@ -118,6 +146,7 @@ export function cleanupDDLForDBML(ddlText, schema, tableLookup) {
 	if (schema) {
 		cleaned = qualifyTableNames(cleaned, schema, tableLookup)
 	}
+	cleaned = removeRedundantInlineRefs(cleaned)
 	return cleaned
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "@jerrythomas/dbd",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Command line interface for database design and deployment.",
   "type": "module",
   "main": "src/index.js",
