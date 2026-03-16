@@ -190,22 +190,23 @@ export function isPostgres(input) {
 	return matched ? 'internal' : null
 }
 
-export function isExtension(input, installed = []) {
-	let matched = false
-	for (let i = 0; i < installed.length && !matched; i++) {
-		const extension = extensions[installed[i]]
-		if (!extension) continue
-		if (Array.isArray(extension.entities)) {
-			matched = extension.entities.includes(input)
-		}
-		if (!matched && Array.isArray(extension.patterns)) {
-			for (let j = 0; j < extension.patterns.length && !matched; j++) {
-				let regex = new RegExp(extension.patterns[j])
-				matched = regex.test(input)
-			}
-		}
+/**
+ * Check if an input matches an extension's entities or patterns.
+ */
+const extensionMatchesInput = (extension, input) => {
+	if (Array.isArray(extension.entities) && extension.entities.includes(input)) return true
+	if (Array.isArray(extension.patterns)) {
+		return extension.patterns.some((pattern) => new RegExp(pattern).test(input))
 	}
-	return matched ? 'extension' : null
+	return false
+}
+
+export function isExtension(input, installed = []) {
+	for (const extKey of installed) {
+		const extension = extensions[extKey]
+		if (extension && extensionMatchesInput(extension, input)) return 'extension'
+	}
+	return null
 }
 
 export function matchesKnownExtension(input) {
