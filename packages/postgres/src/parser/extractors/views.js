@@ -97,6 +97,37 @@ export const extractIsReplace = (stmt) => {
 }
 
 /**
+ * Resolve view column name from alias, column, or expression
+ * @param {Object} col - Column from AST
+ * @returns {string} Resolved column name
+ */
+const resolveViewColumnName = (col) => {
+	if (col.as) return col.as
+	if (col.expr.column) return col.expr.column
+	if (col.expr.name) return col.expr.name
+	return '[EXPRESSION]'
+}
+
+/**
+ * Resolve view column source from AST node
+ * @param {Object} col - Column from AST
+ * @returns {Object} Structured source information
+ */
+const resolveViewColumnSource = (col) => {
+	if (col.expr.type === 'column_ref') return { table: col.expr.table, column: col.expr.column }
+	if (col.expr.type === 'binary_expr' && col.expr.operator === '->') {
+		return {
+			type: 'json_extract',
+			expression: `${col.expr.left.column} -> ${col.expr.right.value}`
+		}
+	}
+	if (col.expr.type === 'function') {
+		return { type: 'function', name: col.expr.name?.name?.[0]?.value || col.expr.name }
+	}
+	return { type: 'expression' }
+}
+
+/**
  * Extract view columns from a CREATE VIEW statement
  * @param {Object} stmt - CREATE VIEW statement
  * @returns {Array} Extracted view columns
@@ -104,46 +135,43 @@ export const extractIsReplace = (stmt) => {
 export const extractViewColumns = (stmt) => {
 	const selectStmt = stmt.select
 	if (!selectStmt || !selectStmt.columns) return []
+	return selectStmt.columns.map((col) => ({
+		name: resolveViewColumnName(col),
+		source: resolveViewColumnSource(col)
+	}))
+}
 
-	return selectStmt.columns.map((col) => {
-		let name, source
-
-		// Handle column alias
-		if (col.as) {
-			name = col.as
-		} else if (col.expr.column) {
-			name = col.expr.column
-		} else if (col.expr.name) {
-			name = col.expr.name
-		} else {
-			name = '[EXPRESSION]'
-		}
-
-		// Handle column source
-		if (col.expr.type === 'column_ref') {
-			source = {
-				table: col.expr.table,
-				column: col.expr.column
-			}
-		} else if (col.expr.type === 'binary_expr' && col.expr.operator === '->') {
-			// JSONB operator extraction
-			source = {
-				type: 'json_extract',
-				expression: `${col.expr.left.column} -> ${col.expr.right.value}`
-			}
-		} else if (col.expr.type === 'function') {
-			source = {
-				type: 'function',
-				name: col.expr.name?.name?.[0]?.value || col.expr.name
-			}
-		} else {
-			source = {
-				type: 'expression'
-			}
-		}
-
-		return { name, source }
+/**
+ * Add a table dependency, skipping CTEs
+ * @param {Object} table - Table object from AST
+ * @param {Array} dependencies - Dependencies accumulator
+ * @param {Set} cteNames - Set of CTE names to exclude
+ */
+const addViewDependency = (table, dependencies, cteNames) => {
+	if (!table || typeof table !== 'object') return
+	const tableName = table.table || table.name
+	if (cteNames.has(tableName)) return
+	dependencies.push({
+		table: tableName,
+		name: tableName,
+		schema: table.db || table.schema,
+		alias: table.as || null
 	})
+}
+
+/**
+ * Collect dependencies from FROM clause, including JOINs
+ * @param {Array} from - FROM items from AST
+ * @param {Array} dependencies - Dependencies accumulator
+ * @param {Set} cteNames - Set of CTE names to exclude
+ */
+const collectFromItems = (from, dependencies, cteNames) => {
+	if (!Array.isArray(from)) return
+	for (const item of from) {
+		if (item.table) addViewDependency(item, dependencies, cteNames)
+		else if (item.expr) dependencies.push({ type: 'subquery' })
+		if (item.join) addViewDependency(item.join, dependencies, cteNames)
+	}
 }
 
 /**
@@ -154,7 +182,6 @@ export const extractViewColumns = (stmt) => {
 export const extractViewDependencies = (stmt) => {
 	if (!stmt.select || !stmt.select.from) return []
 
-	// Collect CTE names to exclude from dependencies
 	const cteNames = new Set()
 	if (stmt.select.with && Array.isArray(stmt.select.with)) {
 		for (const cte of stmt.select.with) {
@@ -164,44 +191,14 @@ export const extractViewDependencies = (stmt) => {
 	}
 
 	const dependencies = []
-	const addDependency = (table) => {
-		if (table && typeof table === 'object') {
-			const tableName = table.table || table.name
-			// Skip CTE aliases — they are internal to the view, not real dependencies
-			if (cteNames.has(tableName)) return
-			dependencies.push({
-				table: tableName,
-				name: tableName,
-				schema: table.db || table.schema,
-				alias: table.as || null
-			})
-		}
-	}
 
-	const collectFromDeps = (from) => {
-		if (!Array.isArray(from)) return
-		from.forEach((item) => {
-			if (item.table) {
-				addDependency(item)
-			} else if (item.expr) {
-				dependencies.push({ type: 'subquery' })
-			}
-			if (item.join) {
-				addDependency(item.join)
-			}
-		})
-	}
-
-	// Collect dependencies from CTE bodies
 	if (stmt.select.with && Array.isArray(stmt.select.with)) {
 		for (const cte of stmt.select.with) {
-			if (cte.stmt?.from) collectFromDeps(cte.stmt.from)
+			if (cte.stmt?.from) collectFromItems(cte.stmt.from, dependencies, cteNames)
 		}
 	}
 
-	// Collect dependencies from the main SELECT
-	collectFromDeps(stmt.select.from)
-
+	collectFromItems(stmt.select.from, dependencies, cteNames)
 	return dependencies
 }
 

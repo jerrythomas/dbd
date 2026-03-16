@@ -115,19 +115,12 @@ export const extractIndexSchema = (stmt) => {
  * @returns {string} Table name
  */
 export const extractTableName = (stmt) => {
-	if (stmt.table?.table) {
-		return stmt.table.table
-	} else if (stmt.table_name?.[0]?.table) {
-		return stmt.table_name[0].table
-	} else if (stmt.relationName) {
-		return stmt.relationName
-	} else if (stmt.on?.[0]?.table) {
-		// Handle case where table is in 'on' property
-		return stmt.on[0].table
-	} else if (typeof stmt.table === 'string') {
-		// Handle case where table is a string directly
-		return stmt.table
-	}
+	const table = stmt.table
+	if (table && typeof table === 'object') return table.table || null
+	if (stmt.table_name && stmt.table_name[0]) return stmt.table_name[0].table || null
+	if (stmt.relationName) return stmt.relationName
+	if (stmt.on && stmt.on[0]) return stmt.on[0].table || null
+	if (typeof table === 'string') return table
 	return null
 }
 
@@ -145,6 +138,20 @@ export const extractTableSchema = (stmt) => {
 	return null
 }
 
+const resolveIndexColumnName = (col) => {
+	if (col.column?.column?.expr?.value) return col.column.column.expr.value
+	if (col.column?.column) return col.column.column
+	if (col.name) return col.name
+	if (col.expr?.column) return col.expr.column
+	return null
+}
+
+const resolveIndexColumnOrder = (col) => {
+	if (col.order) return col.order.toUpperCase()
+	if (col.direction) return col.direction.toUpperCase()
+	return 'ASC'
+}
+
 /**
  * Extract index columns from a CREATE INDEX statement
  * @param {Object} stmt - CREATE INDEX statement
@@ -152,35 +159,9 @@ export const extractTableSchema = (stmt) => {
  */
 export const extractIndexColumns = (stmt) => {
 	if (!stmt.columns || !Array.isArray(stmt.columns)) return []
-
 	return stmt.columns
-		.map((col) => {
-			let colName = null
-			let colOrder = 'ASC'
-
-			if (col.column?.column?.expr?.value) {
-				colName = col.column.column.expr.value
-			} else if (col.column?.column) {
-				colName = col.column.column
-			} else if (col.name) {
-				colName = col.name
-			} else if (col.expr?.column) {
-				colName = col.expr.column
-			}
-
-			// Extract ordering if available
-			if (col.order) {
-				colOrder = col.order.toUpperCase()
-			} else if (col.direction) {
-				colOrder = col.direction.toUpperCase()
-			}
-
-			return {
-				name: colName,
-				order: colOrder
-			}
-		})
-		.filter((col) => col.name) // Only include columns with names
+		.map((col) => ({ name: resolveIndexColumnName(col), order: resolveIndexColumnOrder(col) }))
+		.filter((col) => col.name)
 }
 
 /**
