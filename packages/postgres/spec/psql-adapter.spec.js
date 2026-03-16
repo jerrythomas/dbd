@@ -201,6 +201,29 @@ describe('PsqlAdapter', () => {
 		})
 	})
 
+	describe('executeScript() — existsSync false branch (line 68)', () => {
+		it('skips unlinkSync when temp file does not exist after error', async () => {
+			existsSync.mockReturnValue(false)
+			execSync.mockImplementation(() => {
+				throw new Error('syntax error')
+			})
+			await expect(adapter.executeScript('BAD SQL')).rejects.toThrow('syntax error')
+			// existsSync returns false → unlinkSync should NOT be called
+			expect(unlinkSync).not.toHaveBeenCalled()
+		})
+	})
+
+	describe('applyEntity() — ddl is falsy branch (line 101)', () => {
+		it('does not call executeScript when ddlFromEntity returns null', async () => {
+			// Entity with no file and a type that produces null DDL
+			// 'view' type has no ddlFromEntity implementation — returns null/undefined
+			const entity = { type: 'view', name: 'public.my_view' }
+			await adapter.applyEntity(entity)
+			// writeFileSync (used by executeScript) should NOT be called
+			expect(writeFileSync).not.toHaveBeenCalled()
+		})
+	})
+
 	describe('importData()', () => {
 		it('generates import script and executes', async () => {
 			const entity = {

@@ -81,6 +81,12 @@ describe('reference-classifier', () => {
 		it('returns null for unknown extension', () => {
 			expect(isExtension('uuid_generate_v4', ['nonexistent'])).toBeNull()
 		})
+
+		it('returns null when extension has only entities and input does not match (line 201: return false)', () => {
+			// timescaledb has only entities (no patterns) — reaching line 201
+			expect(isExtension('unknown_func', ['timescaledb'])).toBeNull()
+			expect(isExtension('unknown_func', ['pgcrypto'])).toBeNull()
+		})
 	})
 
 	describe('matchesKnownExtension()', () => {

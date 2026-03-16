@@ -159,7 +159,7 @@ SELECT 1;`
 		it("converts SQL escaped apostrophes ('') to Unicode right single quotation mark", () => {
 			const sql = `COMMENT ON TABLE t IS 'user''s table';`
 			const result = normalizeComments(sql)
-			expect(result).toContain("user\u2019s table")
+			expect(result).toContain('user\u2019s table')
 			expect(result).not.toContain("''")
 		})
 

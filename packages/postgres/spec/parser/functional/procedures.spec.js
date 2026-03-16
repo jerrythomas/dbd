@@ -447,5 +447,91 @@ describe('Procedure Extractor - Functional API', () => {
 			})
 			expect(refs).toContain('real_table')
 		})
+
+		it('extractParameterDataType handles nested dataType.dataType object', () => {
+			// Line 165: else if (param.dataType.dataType) branch
+			expect(extractParameterDataType({ dataType: { dataType: 'INTEGER' } })).toBe('integer')
+		})
+
+		it('extractParameterDataType returns unknown when dataType is object without dataType key', () => {
+			expect(extractParameterDataType({ dataType: {} })).toBe('unknown')
+		})
+
+		it('extractProcedureLanguage returns plpgsql when options has no LANGUAGE entry (line 132: false)', () => {
+			// Line 132: if (langOpt) — langOpt is undefined when no LANGUAGE in options
+			expect(
+				extractProcedureLanguage({
+					options: [{ prefix: 'AS', value: '...' }]
+				})
+			).toBe('plpgsql')
+		})
+
+		it('extractBodyReferencesFromAst handles table with db prefix in table array (line 224-225)', () => {
+			// Lines 222-224: schema-qualified table reference in node.table array
+			const refs = extractBodyReferencesFromAst({
+				options: [
+					{
+						type: 'as',
+						expr: [
+							{
+								table: [{ db: 'app', table: 'users' }]
+							}
+						]
+					}
+				]
+			})
+			expect(refs).toContain('app.users')
+		})
+
+		it('extractBodyReferencesFromAst handles FROM clause with db prefix (line 233)', () => {
+			// Line 233: schema-qualified table in FROM clause
+			const refs = extractBodyReferencesFromAst({
+				options: [
+					{
+						type: 'as',
+						expr: [
+							{
+								from: [{ db: 'reporting', table: 'metrics' }]
+							}
+						]
+					}
+				]
+			})
+			expect(refs).toContain('reporting.metrics')
+		})
+
+		it('extractBodyReferencesFromAst skips table entries without table name (line 224: false)', () => {
+			// t.table is falsy — skipped
+			const refs = extractBodyReferencesFromAst({
+				options: [
+					{
+						type: 'as',
+						expr: [
+							{
+								table: [{ db: 'app' }] // no table property
+							}
+						]
+					}
+				]
+			})
+			expect(refs).toHaveLength(0)
+		})
+
+		it('extractBodyReferencesFromAst skips FROM entries without table name (line 233: false)', () => {
+			// f.table is falsy — skipped
+			const refs = extractBodyReferencesFromAst({
+				options: [
+					{
+						type: 'as',
+						expr: [
+							{
+								from: [{ db: 'app' }] // no table property
+							}
+						]
+					}
+				]
+			})
+			expect(refs).toHaveLength(0)
+		})
 	})
 })
