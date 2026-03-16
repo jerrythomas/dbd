@@ -204,7 +204,8 @@ export const translateCreateStmt = (createStmt, originalSql) => {
 	// Apply table-level constraints to matching columns
 	for (const tc of tableConstraints) {
 		const con = tc.Constraint
-		if (con?.contype === 'CONSTR_FOREIGN' && con.fk_attrs?.length) applyTableForeignKey(columns, con)
+		if (con?.contype === 'CONSTR_FOREIGN' && con.fk_attrs?.length)
+			applyTableForeignKey(columns, con)
 		if (con?.contype === 'CONSTR_PRIMARY' && con.keys?.length) applyTablePrimaryKey(columns, con)
 	}
 
