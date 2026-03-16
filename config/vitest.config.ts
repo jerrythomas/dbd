@@ -14,6 +14,7 @@ export default defineConfig({
 		testTimeout: 10000,
 		coverage: {
 			provider: 'v8',
+			reporter: ['lcov', 'text'],
 			include: ['packages/*/src/**/*.js'],
 			exclude: ['packages/cli/src/index.js', 'packages/postgres/src/parser/parse-ddl.js'],
 			thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 }

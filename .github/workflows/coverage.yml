@@ -11,21 +11,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Set up bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
       - name: Install Dependencies
-        env:
-          BUN_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: bun install --frozen-lockfile
-
-      - name: Test & publish code coverage
-        uses: paambaati/codeclimate-action@v3.0.0
-        env:
-          CC_TEST_REPORTER_ID: ef29724f55a8c015f7349da5c7a5807e00e1706c81922b2194514b93bed14397
+      - name: Test
+        run: bun run coverage
+      - uses: qltysh/qlty-action/coverage@v2
         with:
-          coverageCommand: bun coverage
-          debug: true
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+          files: coverage/lcov.info
       - name: Report results to DeepSource
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
