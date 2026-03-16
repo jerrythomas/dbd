@@ -6,21 +6,21 @@
 import { translateFromItem, translateWhereExpr } from './where-expr.js'
 
 /**
+ * Translate a ColumnRef AST node to a column reference object.
+ */
+const translateColumnRef = (fields) => {
+	if (fields.length === 2) {
+		return { type: 'column_ref', table: fields[0].String?.sval, column: fields[1].String?.sval }
+	}
+	if (fields[0]?.A_Star) return { type: 'star', value: '*' }
+	return { type: 'column_ref', table: null, column: fields[0].String?.sval }
+}
+
+/**
  * Translate a single SELECT target expression (ColumnRef, FuncCall, or other).
  */
 const translateTargetExpr = (val) => {
-	if (val?.ColumnRef) {
-		const fields = val.ColumnRef.fields
-		if (fields.length === 2) {
-			return {
-				type: 'column_ref',
-				table: fields[0].String?.sval,
-				column: fields[1].String?.sval
-			}
-		}
-		if (fields[0]?.A_Star) return { type: 'star', value: '*' }
-		return { type: 'column_ref', table: null, column: fields[0].String?.sval }
-	}
+	if (val?.ColumnRef) return translateColumnRef(val.ColumnRef.fields)
 
 	if (val?.FuncCall) {
 		const funcName = val.FuncCall.funcname

@@ -6,47 +6,52 @@
 import { resolveTypeName, resolveDefaultExpr } from './types.js'
 
 /**
+ * Build a foreign key constraint object from pgsql-parser constraint.
+ */
+const buildForeignKeyConstraint = (con) => ({
+	type: 'FOREIGN KEY',
+	table: con.pktable.relname,
+	schema: con.pktable?.schemaname || null,
+	column: con.pk_attrs?.[0]?.String?.sval || 'id'
+})
+
+/**
+ * Dispatch map for column constraint handlers.
+ */
+const CONSTR_HANDLERS = {
+	CONSTR_NOTNULL: (state) => {
+		state.nullable = false
+	},
+	CONSTR_DEFAULT: (state, con) => {
+		state.defaultValue = resolveDefaultExpr(con.raw_expr)
+	},
+	CONSTR_PRIMARY: (state) => {
+		state.isPrimaryKey = true
+		state.nullable = false
+		state.constraints.push({ type: 'PRIMARY KEY' })
+	},
+	CONSTR_UNIQUE: (state) => {
+		state.constraints.push({ type: 'UNIQUE' })
+	},
+	CONSTR_FOREIGN: (state, con) => {
+		state.constraints.push(buildForeignKeyConstraint(con))
+	},
+	CONSTR_CHECK: (state) => {
+		state.constraints.push({ type: 'CHECK' })
+	}
+}
+
+/**
  * Process raw pgsql-parser constraints for a single column.
  * Returns { nullable, defaultValue, isPrimaryKey, constraints }.
  */
 const translateColumnConstraints = (rawConstraints) => {
-	let nullable = true
-	let defaultValue = null
-	let isPrimaryKey = false
-	const constraints = []
-
+	const state = { nullable: true, defaultValue: null, isPrimaryKey: false, constraints: [] }
 	for (const c of rawConstraints) {
-		const con = c.Constraint
-		switch (con.contype) {
-			case 'CONSTR_NOTNULL':
-				nullable = false
-				break
-			case 'CONSTR_DEFAULT':
-				defaultValue = resolveDefaultExpr(con.raw_expr)
-				break
-			case 'CONSTR_PRIMARY':
-				isPrimaryKey = true
-				nullable = false
-				constraints.push({ type: 'PRIMARY KEY' })
-				break
-			case 'CONSTR_UNIQUE':
-				constraints.push({ type: 'UNIQUE' })
-				break
-			case 'CONSTR_FOREIGN':
-				constraints.push({
-					type: 'FOREIGN KEY',
-					table: con.pktable.relname,
-					schema: con.pktable?.schemaname || null,
-					column: con.pk_attrs?.[0]?.String?.sval || 'id'
-				})
-				break
-			case 'CONSTR_CHECK':
-				constraints.push({ type: 'CHECK' })
-				break
-		}
+		const handler = CONSTR_HANDLERS[c.Constraint.contype]
+		if (handler) handler(state, c.Constraint)
 	}
-
-	return { nullable, defaultValue, isPrimaryKey, constraints }
+	return state
 }
 
 /**
@@ -158,6 +163,37 @@ export const translateTableConstraint = (constraint) => {
 	}
 }
 
+/**
+ * Apply a table-level foreign key constraint to matching column.
+ */
+const applyTableForeignKey = (columns, con) => {
+	const fkColName = con.fk_attrs[0].String?.sval
+	const col = columns.find((c) => c.name === fkColName)
+	if (!col) return
+	const fk = buildForeignKeyConstraint(con)
+	col.constraints.push(fk)
+	col.reference_definition = {
+		table: [{ table: fk.table, schema: fk.schema }],
+		definition: [{ column: { expr: { value: fk.column } } }]
+	}
+}
+
+/**
+ * Apply a table-level primary key constraint to matching columns.
+ */
+const applyTablePrimaryKey = (columns, con) => {
+	for (const key of con.keys) {
+		const colName = key.String?.sval
+		const col = columns.find((c) => c.name === colName)
+		if (!col) continue
+		col.nullable = false
+		if (!col.constraints.some((c) => c.type === 'PRIMARY KEY')) {
+			col.constraints.push({ type: 'PRIMARY KEY' })
+		}
+		col.primary_key = 'primary key'
+	}
+}
+
 export const translateCreateStmt = (createStmt, originalSql) => {
 	const rel = createStmt.relation
 	const columnDefs = createStmt.tableElts.filter((e) => e.ColumnDef)
@@ -165,39 +201,11 @@ export const translateCreateStmt = (createStmt, originalSql) => {
 
 	const columns = columnDefs.map(translateColumnDef).filter(Boolean)
 
-	// Apply table-level FK constraints to matching columns
+	// Apply table-level constraints to matching columns
 	for (const tc of tableConstraints) {
 		const con = tc.Constraint
-		if (con?.contype === 'CONSTR_FOREIGN' && con.fk_attrs?.length) {
-			const fkColName = con.fk_attrs[0].String?.sval
-			const col = columns.find((c) => c.name === fkColName)
-			if (col) {
-				const fk = {
-					type: 'FOREIGN KEY',
-					table: con.pktable.relname,
-					schema: con.pktable?.schemaname || null,
-					column: con.pk_attrs?.[0]?.String?.sval || 'id'
-				}
-				col.constraints.push(fk)
-				col.reference_definition = {
-					table: [{ table: fk.table, schema: fk.schema }],
-					definition: [{ column: { expr: { value: fk.column } } }]
-				}
-			}
-		}
-		if (con?.contype === 'CONSTR_PRIMARY' && con.keys?.length) {
-			for (const key of con.keys) {
-				const colName = key.String?.sval
-				const col = columns.find((c) => c.name === colName)
-				if (col) {
-					col.nullable = false
-					if (!col.constraints.some((c) => c.type === 'PRIMARY KEY')) {
-						col.constraints.push({ type: 'PRIMARY KEY' })
-					}
-					col.primary_key = 'primary key'
-				}
-			}
-		}
+		if (con?.contype === 'CONSTR_FOREIGN' && con.fk_attrs?.length) applyTableForeignKey(columns, con)
+		if (con?.contype === 'CONSTR_PRIMARY' && con.keys?.length) applyTablePrimaryKey(columns, con)
 	}
 
 	return {

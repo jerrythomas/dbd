@@ -69,17 +69,26 @@ export const resolveTypeName = (typeName) => {
 }
 
 /**
+ * Extract the literal value from an A_Const node.
+ * Handles pgsql-parser v17 double-nested wrappers.
+ * @returns {number|string|boolean|undefined} Literal value, or undefined if the subtype is unrecognised.
+ */
+const resolveAConstDefault = (ac) => {
+	if (ac.ival !== undefined && typeof ac.ival === 'object') return ac.ival.ival ?? 0
+	if (ac.sval?.sval !== undefined) return ac.sval.sval
+	if (ac.fval?.fval !== undefined) return ac.fval.fval
+	if (ac.boolval !== undefined && typeof ac.boolval === 'object') return ac.boolval.boolval ?? false
+	// undefined = no A_Const subtype recognised — caller falls through
+}
+
+/**
  * Extract a default value expression from a Constraint node's raw_expr.
  * Handles pgsql-parser v17 double-nested wrappers.
  */
 export const resolveDefaultExpr = (rawExpr) => {
 	if (rawExpr.A_Const) {
-		const ac = rawExpr.A_Const
-		if (ac.ival !== undefined && typeof ac.ival === 'object') return ac.ival.ival ?? 0
-		if (ac.sval?.sval !== undefined) return ac.sval.sval
-		if (ac.fval?.fval !== undefined) return ac.fval.fval
-		if (ac.boolval !== undefined && typeof ac.boolval === 'object')
-			return ac.boolval.boolval ?? false
+		const val = resolveAConstDefault(rawExpr.A_Const)
+		if (val !== undefined) return val
 	}
 
 	if (rawExpr.FuncCall) {

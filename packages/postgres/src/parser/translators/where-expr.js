@@ -26,6 +26,16 @@ const JOIN_TYPE_MAP = {
 }
 
 /**
+ * Translate an A_Const AST node to a normalized constant value.
+ */
+const translateAConst = (ac) => {
+	if (ac.sval) return { type: 'string', value: ac.sval.sval }
+	if (ac.ival !== undefined) return { type: 'number', value: ac.ival.ival ?? 0 }
+	if (ac.boolval !== undefined) return { type: 'bool', value: ac.boolval.boolval ?? false }
+	return { type: 'expression' }
+}
+
+/**
  * Translate a WHERE clause expression to a simplified normalized shape.
  */
 export const translateWhereExpr = (expr) => {
@@ -55,14 +65,7 @@ export const translateWhereExpr = (expr) => {
 		}
 	}
 
-	if (expr.A_Const) {
-		if (expr.A_Const.sval) return { type: 'string', value: expr.A_Const.sval.sval }
-		if (expr.A_Const.ival !== undefined)
-			return { type: 'number', value: expr.A_Const.ival.ival ?? 0 }
-		if (expr.A_Const.boolval !== undefined) {
-			return { type: 'bool', value: expr.A_Const.boolval.boolval ?? false }
-		}
-	}
+	if (expr.A_Const) return translateAConst(expr.A_Const)
 
 	if (expr.TypeCast) {
 		return translateWhereExpr(expr.TypeCast.arg)
