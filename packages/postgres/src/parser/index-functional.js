@@ -82,6 +82,37 @@ export const validateDDL = (sql, options = {}) => {
 
 // --- Dependency extraction API ---
 
+// Entity extractors per keyword
+const extractTableEntity = (stmt) => {
+	const info = stmt.table?.[0]
+	return info ? { name: info.table, schema: info.db || null } : null
+}
+
+const extractViewEntity = (stmt) => {
+	const info = stmt.view
+	return info ? { name: info.view, schema: info.db || null } : null
+}
+
+const extractProcedureEntity = (stmt) => {
+	const info = stmt.procedure
+	if (typeof info === 'object' && info !== null) {
+		return { name: info.procedure || info.name, schema: info.schema || null }
+	}
+	return info ? { name: info, schema: null } : null
+}
+
+const extractFunctionEntity = (stmt) => {
+	const info = stmt.name
+	return info?.name?.[0] ? { name: info.name[0].value, schema: info.schema || null } : null
+}
+
+const ENTITY_EXTRACTORS = {
+	table: extractTableEntity,
+	view: extractViewEntity,
+	procedure: extractProcedureEntity,
+	function: extractFunctionEntity
+}
+
 /**
  * Identify the primary entity (CREATE statement) from an AST.
  * Returns the first CREATE TABLE/VIEW/FUNCTION/PROCEDURE found.
@@ -93,44 +124,15 @@ export const identifyEntity = (ast, sql) => {
 	if (!ast || !Array.isArray(ast)) return null
 
 	const createStmt = find(
-		(stmt) =>
-			stmt.type === 'create' && ['table', 'view', 'procedure', 'function'].includes(stmt.keyword),
+		(stmt) => stmt.type === 'create' && stmt.keyword in ENTITY_EXTRACTORS,
 		ast
 	)
 
 	if (createStmt) {
-		const keyword = createStmt.keyword
-		let name, schema
-
-		if (keyword === 'table') {
-			const tableInfo = createStmt.table?.[0]
-			name = tableInfo?.table
-			schema = tableInfo?.db || null
-		} else if (keyword === 'view') {
-			const viewInfo = createStmt.view
-			name = viewInfo?.view
-			schema = viewInfo?.db || null
-		} else if (keyword === 'procedure') {
-			const procInfo = createStmt.procedure
-			if (typeof procInfo === 'object' && procInfo !== null) {
-				name = procInfo.procedure || procInfo.name
-				schema = procInfo.schema || null
-			} else {
-				name = procInfo
-			}
-		} else if (keyword === 'function') {
-			// Function AST uses stmt.name.name[0].value for the name
-			const nameInfo = createStmt.name
-			if (nameInfo?.name?.[0]) {
-				name = nameInfo.name[0].value
-				schema = nameInfo.schema || null
-			}
-		}
-
-		return name ? { name, schema, type: keyword } : null
+		const info = ENTITY_EXTRACTORS[createStmt.keyword](createStmt)
+		return info ? { ...info, type: createStmt.keyword } : null
 	}
 
-	// Fallback: try regex for CREATE FUNCTION/PROCEDURE (AST may not parse PL/pgSQL)
 	if (sql) {
 		const match = sql.match(
 			/CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(?:(\w+)\.)?(\w+)/i
@@ -144,15 +146,9 @@ export const identifyEntity = (ast, sql) => {
 	return null
 }
 
-/**
- * Collect all references from parsed entity structures into a flat {name, type} array.
- * @param {Object} parsed - {tables, views, procedures, triggers}
- * @returns {Array<{name: string, type: string|null}>}
- */
-export const collectReferences = ({ tables, views, procedures, triggers }) => {
+// Reference collectors per entity type
+const collectTableFKRefs = (tables) => {
 	const refs = []
-
-	// Table FK constraints → references to other tables
 	for (const table of tables) {
 		for (const col of table.columns || []) {
 			for (const constraint of col.constraints || []) {
@@ -165,26 +161,33 @@ export const collectReferences = ({ tables, views, procedures, triggers }) => {
 			}
 		}
 	}
+	return refs
+}
 
-	// View dependencies → references to tables/views
+const collectViewRefs = (views) => {
+	const refs = []
 	for (const view of views) {
 		for (const dep of view.dependencies || []) {
-			if (dep.type === 'subquery') continue
-			if (dep.table) {
-				const name = dep.schema ? `${dep.schema}.${dep.table}` : dep.table
-				refs.push({ name, type: 'table/view' })
-			}
+			if (dep.type === 'subquery' || !dep.table) continue
+			const name = dep.schema ? `${dep.schema}.${dep.table}` : dep.table
+			refs.push({ name, type: 'table/view' })
 		}
 	}
+	return refs
+}
 
-	// Procedure/function body references → tables
+const collectProcRefs = (procedures) => {
+	const refs = []
 	for (const proc of procedures) {
 		for (const tableRef of proc.tableReferences || []) {
 			refs.push({ name: tableRef, type: 'table/view' })
 		}
 	}
+	return refs
+}
 
-	// Trigger references → table and execute function
+const collectTriggerRefs = (triggers) => {
+	const refs = []
 	for (const trigger of triggers) {
 		if (trigger.table) {
 			const tableName = trigger.tableSchema
@@ -192,14 +195,26 @@ export const collectReferences = ({ tables, views, procedures, triggers }) => {
 				: trigger.table
 			refs.push({ name: tableName, type: 'table' })
 		}
-		if (trigger.executeFunction) {
-			refs.push({ name: trigger.executeFunction, type: 'function' })
-		}
+		if (trigger.executeFunction) refs.push({ name: trigger.executeFunction, type: 'function' })
 	}
+	return refs
+}
 
-	// Deduplicate by name
+/**
+ * Collect all references from parsed entity structures into a flat {name, type} array.
+ * @param {Object} parsed - {tables, views, procedures, triggers}
+ * @returns {Array<{name: string, type: string|null}>}
+ */
+export const collectReferences = ({ tables, views, procedures, triggers }) => {
+	const allRefs = [
+		...collectTableFKRefs(tables),
+		...collectViewRefs(views),
+		...collectProcRefs(procedures),
+		...collectTriggerRefs(triggers)
+	]
+
 	const seen = new Set()
-	return refs.filter((ref) => {
+	return allRefs.filter((ref) => {
 		if (seen.has(ref.name)) return false
 		seen.add(ref.name)
 		return true
