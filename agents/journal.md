@@ -14,6 +14,7 @@ Executed plan `docs/superpowers/plans/2026-03-15-complexity-reduction.md` — 14
 **Commits:** c4d4974 (translators), f7c277c (extractors), 5aff2dd (index-functional.js), 7506f28 (db/adapter/classifier)
 
 **Reductions achieved (highlights):**
+
 - extractors/tables.js `extractComments` 45→8, `extractColumnConstraints` 22→8
 - index-functional.js `identifyEntity` 28→~5 (ENTITY_EXTRACTORS dispatch map), `collectReferences` 22→~5
 - translators/create-table.js switch 14→dispatch + `translateCreateStmt` 25→~8
@@ -21,6 +22,7 @@ Executed plan `docs/superpowers/plans/2026-03-15-complexity-reduction.md` — 14
 - dependency-resolver.js `subgraphEntities` 16→~3
 
 **Gap / next iteration:** ESLint counts logical operators (`&&`, `||`, `??`, `?.`) as branching points, so plan estimates were optimistic. 15 functions in production code remain > 10:
+
 - `sql.js:41` splitStatements 36 (not in scope of this plan — from original sql.js)
 - `extractors/tables.js` 5 functions at 12-14 (different from the 2 we targeted; same file but other functions)
 - `extractors/views.js:182` 14, `extractors/procedures.js:219` 13

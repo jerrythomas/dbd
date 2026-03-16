@@ -7,6 +7,7 @@ remain > 10 in production code (down from 19+ in scope). Gap is due to ESLint co
 operators which inflates complexity beyond what the plan estimated.
 
 **Next phase (Pass 2):** Target remaining in descending order. Key candidates:
+
 - `sql.js:41` splitStatements 36
 - `extractors/tables.js` 5 functions at 12-14
 - `translators/create-view.js:22` translateTargetExpr 14
