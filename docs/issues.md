@@ -15,6 +15,7 @@
 In `packages/postgres/src/parser/translators/create-table.js`, `applyTableForeignKey` maps each table-level FK constraint to a column by taking `fk_attrs[0]` (the first FK column) and setting `reference_definition` on that column.
 
 When a table has both:
+
 1. A simple FK: `CONSTRAINT x FOREIGN KEY (tenant_id) REFERENCES core.tenants(id)`
 2. A composite FK on the same first column: `CONSTRAINT y FOREIGN KEY (tenant_id, parent_id) REFERENCES self_table(tenant_id, id)`
 
