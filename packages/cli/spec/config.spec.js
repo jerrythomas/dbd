@@ -13,7 +13,8 @@ import {
 	fillMissingInfoForEntities,
 	merge,
 	clean,
-	cleanDDLEntities
+	cleanDDLEntities,
+	normalizeEnv
 } from '../src/config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -237,6 +238,30 @@ describe('config', () => {
 
 			const result = cleanDDLEntities(data, parseEntity, matchRefs)
 			expect(result.length).toBeGreaterThan(0)
+		})
+	})
+
+	describe('normalizeEnv', () => {
+		it('maps "prod" to "prod"', () => {
+			expect(normalizeEnv('prod')).toBe('prod')
+		})
+		it('maps "production" to "prod"', () => {
+			expect(normalizeEnv('production')).toBe('prod')
+		})
+		it('maps "dev" to "dev"', () => {
+			expect(normalizeEnv('dev')).toBe('dev')
+		})
+		it('maps "development" to "dev"', () => {
+			expect(normalizeEnv('development')).toBe('dev')
+		})
+		it('returns "prod" for undefined', () => {
+			expect(normalizeEnv(undefined)).toBe('prod')
+		})
+		it('returns "prod" for null', () => {
+			expect(normalizeEnv(null)).toBe('prod')
+		})
+		it('throws for unrecognized value', () => {
+			expect(() => normalizeEnv('staging')).toThrow()
 		})
 	})
 })

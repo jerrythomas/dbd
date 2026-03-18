@@ -14,6 +14,27 @@ import {
 	allowedTypes
 } from '@jerrythomas/dbd-db'
 
+const ENV_ALIASES = {
+	prod: 'prod',
+	production: 'prod',
+	dev: 'dev',
+	development: 'dev'
+}
+
+/**
+ * Normalizes environment string to 'dev' or 'prod'.
+ * Returns 'prod' for null/undefined. Throws for unrecognized values.
+ *
+ * @param {string|null|undefined} value
+ * @returns {'dev'|'prod'}
+ */
+export function normalizeEnv(value) {
+	if (value == null) return 'prod'
+	const normalized = ENV_ALIASES[value]
+	if (!normalized) throw new Error(`Unknown environment: "${value}". Use dev, development, prod, or production.`)
+	return normalized
+}
+
 /**
  * Scans a folder recursively and returns a list of file paths.
  *
