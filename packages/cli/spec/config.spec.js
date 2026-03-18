@@ -3,7 +3,7 @@
  *
  * Mirrors spec/compat/config.spec.js but imports from the new package.
  */
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, beforeEach } from 'vitest'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { writeFileSync, unlinkSync } from 'fs'
