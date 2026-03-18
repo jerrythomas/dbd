@@ -504,6 +504,86 @@ describe('Design class (packages/cli)', () => {
 	})
 })
 
+describe('Design env filtering', () => {
+  let originalDir
+
+  beforeAll(() => {
+    originalDir = process.cwd()
+    process.chdir(join(__dirname, '../../../example'))
+  })
+
+  afterAll(() => {
+    process.chdir(originalDir)
+  })
+
+  it('defaults to prod env when no env arg given', async () => {
+    const dx = await using('design.yaml')
+    dx.validate()
+    const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
+    expect(devTable).toBeUndefined()
+  })
+
+  it('includes shared tables in prod env', async () => {
+    const dx = await using('design.yaml', undefined, 'prod')
+    dx.validate()
+    const shared = dx.importTables.find((t) => t.name === 'staging.lookups')
+    expect(shared).toBeDefined()
+  })
+
+  it('excludes dev-only folder table when env is prod', async () => {
+    const dx = await using('design.yaml', undefined, 'prod')
+    dx.validate()
+    const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
+    expect(devTable).toBeUndefined()
+  })
+
+  it('includes dev-only folder table when env is dev', async () => {
+    const dx = await using('design.yaml', undefined, 'dev')
+    dx.validate()
+    const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
+    expect(devTable).toBeDefined()
+  })
+
+  it('excludes prod-only folder table when env is dev', async () => {
+    const dx = await using('design.yaml', undefined, 'dev')
+    dx.validate()
+    const prodTable = dx.importTables.find((t) => t.name === 'staging.prod_seeds')
+    expect(prodTable).toBeUndefined()
+  })
+
+  it('includes prod-only folder table when env is prod', async () => {
+    const dx = await using('design.yaml', undefined, 'prod')
+    dx.validate()
+    const prodTable = dx.importTables.find((t) => t.name === 'staging.prod_seeds')
+    expect(prodTable).toBeDefined()
+  })
+
+  it('excludes dev YAML table when env is prod', async () => {
+    const dx = await using('design.yaml', undefined, 'prod')
+    dx.validate()
+    const devYaml = dx.importTables.find((t) => t.name === 'staging.dev_fixture_table')
+    expect(devYaml).toBeUndefined()
+  })
+
+  it('includes dev YAML table when env is dev', async () => {
+    const dx = await using('design.yaml', undefined, 'dev')
+    dx.validate()
+    const devYaml = dx.importTables.find((t) => t.name === 'staging.dev_fixture_table')
+    expect(devYaml).toBeDefined()
+  })
+
+  it('applies env filter in dry-run mode too', async () => {
+    const dx = await using('design.yaml', undefined, 'prod')
+    const infoCalls = []
+    vi.spyOn(console, 'info').mockImplementation((msg) => infoCalls.push(msg))
+    dx.importData(undefined, true)
+    vi.restoreAllMocks()
+    const names = infoCalls.filter((m) => typeof m === 'string' && m.startsWith('Importing')).map((m) => m.replace('Importing ', ''))
+    expect(names).not.toContain('staging.dev_fixtures')
+    expect(names).not.toContain('staging.dev_fixture_table')
+  })
+})
+
 describe('Design class — coverage-test fixture', () => {
 	let originalPath
 	const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'coverage-test')

@@ -31,8 +31,9 @@ class Design {
 	#databaseURL
 	#importTables
 	#adapter = null
+	#env = 'prod'
 
-	constructor(rawConfig, adapter, databaseURL) {
+	constructor(rawConfig, adapter, databaseURL, env = 'prod') {
 		const parseEntity = (entity) => adapter.parseEntityScript(entity)
 		const matchRefs = (entities, exts) =>
 			matchReferences(entities, exts, (name, installed) =>
@@ -57,6 +58,7 @@ class Design {
 		]
 
 		this.#importTables = this.organizeImports(config.importTables)
+		this.#env = env
 	}
 
 	get config() {
@@ -119,6 +121,7 @@ class Design {
 		this.#roles = this.config.roles.map((role) => validateEntity(role))
 		this.#entities = this.entities.map((entity) => validateEntity(entity, true, this.config.ignore))
 		this.#importTables = this.importTables
+			.filter((entity) => entity.env === null || entity.env === this.#env)
 			.map((entity) => validateEntity(entity, false))
 			.map((entity) => {
 				if (!allowedSchemas.includes(entity.schema))
@@ -275,7 +278,7 @@ class Design {
  * @param {string} databaseURL - database connection URL
  * @returns {Promise<Design>}
  */
-export async function using(file, databaseURL) {
+export async function using(file, databaseURL, env = 'prod') {
 	const rawConfig = read(file)
 	const dbType = rawConfig.project?.database || 'PostgreSQL'
 	const { createAdapter, registerAdapter } = await import('@jerrythomas/dbd-db')
@@ -283,5 +286,5 @@ export async function using(file, databaseURL) {
 	registerAdapter('postgresql', () => import('@jerrythomas/dbd-postgres-adapter'))
 	const adapter = await createAdapter(dbType.toLowerCase(), databaseURL)
 	await adapter.initParser()
-	return new Design(rawConfig, adapter, databaseURL)
+	return new Design(rawConfig, adapter, databaseURL, env)
 }
