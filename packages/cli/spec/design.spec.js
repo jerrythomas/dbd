@@ -505,149 +505,151 @@ describe('Design class (packages/cli)', () => {
 })
 
 describe('Design env filtering', () => {
-  let originalDir
+	let originalDir
 
-  beforeAll(() => {
-    originalDir = process.cwd()
-  })
+	beforeAll(() => {
+		originalDir = process.cwd()
+	})
 
-  beforeEach(() => {
-    process.chdir(join(__dirname, '../../../example'))
-    vi.spyOn(console, 'log').mockImplementation(() => {})
-    vi.spyOn(console, 'info').mockImplementation(() => {})
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-  })
+	beforeEach(() => {
+		process.chdir(join(__dirname, '../../../example'))
+		vi.spyOn(console, 'log').mockImplementation(() => {})
+		vi.spyOn(console, 'info').mockImplementation(() => {})
+		vi.spyOn(console, 'warn').mockImplementation(() => {})
+		vi.spyOn(console, 'error').mockImplementation(() => {})
+	})
 
-  afterEach(() => {
-    process.chdir(originalDir)
-    vi.restoreAllMocks()
-  })
+	afterEach(() => {
+		process.chdir(originalDir)
+		vi.restoreAllMocks()
+	})
 
-  it('defaults to prod env when no env arg given', async () => {
-    const dx = await using('design.yaml')
-    dx.validate()
-    const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
-    expect(devTable).toBeUndefined()
-  })
+	it('defaults to prod env when no env arg given', async () => {
+		const dx = await using('design.yaml')
+		dx.validate()
+		const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
+		expect(devTable).toBeUndefined()
+	})
 
-  it('includes shared tables in prod env', async () => {
-    const dx = await using('design.yaml', undefined, 'prod')
-    dx.validate()
-    const shared = dx.importTables.find((t) => t.name === 'staging.lookups')
-    expect(shared).toBeDefined()
-  })
+	it('includes shared tables in prod env', async () => {
+		const dx = await using('design.yaml', undefined, 'prod')
+		dx.validate()
+		const shared = dx.importTables.find((t) => t.name === 'staging.lookups')
+		expect(shared).toBeDefined()
+	})
 
-  it('excludes dev-only folder table when env is prod', async () => {
-    const dx = await using('design.yaml', undefined, 'prod')
-    dx.validate()
-    const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
-    expect(devTable).toBeUndefined()
-  })
+	it('excludes dev-only folder table when env is prod', async () => {
+		const dx = await using('design.yaml', undefined, 'prod')
+		dx.validate()
+		const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
+		expect(devTable).toBeUndefined()
+	})
 
-  it('includes dev-only folder table when env is dev', async () => {
-    const dx = await using('design.yaml', undefined, 'dev')
-    dx.validate()
-    const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
-    expect(devTable).toBeDefined()
-  })
+	it('includes dev-only folder table when env is dev', async () => {
+		const dx = await using('design.yaml', undefined, 'dev')
+		dx.validate()
+		const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
+		expect(devTable).toBeDefined()
+	})
 
-  it('excludes prod-only folder table when env is dev', async () => {
-    const dx = await using('design.yaml', undefined, 'dev')
-    dx.validate()
-    const prodTable = dx.importTables.find((t) => t.name === 'staging.prod_seeds')
-    expect(prodTable).toBeUndefined()
-  })
+	it('excludes prod-only folder table when env is dev', async () => {
+		const dx = await using('design.yaml', undefined, 'dev')
+		dx.validate()
+		const prodTable = dx.importTables.find((t) => t.name === 'staging.prod_seeds')
+		expect(prodTable).toBeUndefined()
+	})
 
-  it('includes prod-only folder table when env is prod', async () => {
-    const dx = await using('design.yaml', undefined, 'prod')
-    dx.validate()
-    const prodTable = dx.importTables.find((t) => t.name === 'staging.prod_seeds')
-    expect(prodTable).toBeDefined()
-  })
+	it('includes prod-only folder table when env is prod', async () => {
+		const dx = await using('design.yaml', undefined, 'prod')
+		dx.validate()
+		const prodTable = dx.importTables.find((t) => t.name === 'staging.prod_seeds')
+		expect(prodTable).toBeDefined()
+	})
 
-  it('excludes dev YAML table when env is prod', async () => {
-    const dx = await using('design.yaml', undefined, 'prod')
-    dx.validate()
-    const devYaml = dx.importTables.find((t) => t.name === 'staging.dev_fixture_table')
-    expect(devYaml).toBeUndefined()
-  })
+	it('excludes dev YAML table when env is prod', async () => {
+		const dx = await using('design.yaml', undefined, 'prod')
+		dx.validate()
+		const devYaml = dx.importTables.find((t) => t.name === 'staging.dev_fixture_table')
+		expect(devYaml).toBeUndefined()
+	})
 
-  it('includes dev YAML table when env is dev', async () => {
-    const dx = await using('design.yaml', undefined, 'dev')
-    dx.validate()
-    const devYaml = dx.importTables.find((t) => t.name === 'staging.dev_fixture_table')
-    expect(devYaml).toBeDefined()
-  })
+	it('includes dev YAML table when env is dev', async () => {
+		const dx = await using('design.yaml', undefined, 'dev')
+		dx.validate()
+		const devYaml = dx.importTables.find((t) => t.name === 'staging.dev_fixture_table')
+		expect(devYaml).toBeDefined()
+	})
 
-  it('applies env filter in dry-run mode too', async () => {
-    const dx = await using('design.yaml', undefined, 'prod')
-    const infoCalls = []
-    // Override shared mock to capture calls
-    vi.mocked(console.info).mockImplementation((msg) => infoCalls.push(msg))
-    dx.importData(undefined, true)
-    const names = infoCalls.filter((m) => typeof m === 'string' && m.startsWith('Importing')).map((m) => m.replace('Importing ', ''))
-    expect(names).not.toContain('staging.dev_fixtures')
-    expect(names).not.toContain('staging.dev_fixture_table')
-  })
+	it('applies env filter in dry-run mode too', async () => {
+		const dx = await using('design.yaml', undefined, 'prod')
+		const infoCalls = []
+		// Override shared mock to capture calls
+		vi.mocked(console.info).mockImplementation((msg) => infoCalls.push(msg))
+		dx.importData(undefined, true)
+		const names = infoCalls
+			.filter((m) => typeof m === 'string' && m.startsWith('Importing'))
+			.map((m) => m.replace('Importing ', ''))
+		expect(names).not.toContain('staging.dev_fixtures')
+		expect(names).not.toContain('staging.dev_fixture_table')
+	})
 })
 
 describe('importData env-scoped after scripts', () => {
-  let originalDir
+	let originalDir
 
-  beforeAll(() => {
-    originalDir = process.cwd()
-  })
+	beforeAll(() => {
+		originalDir = process.cwd()
+	})
 
-  beforeEach(() => {
-    process.chdir(join(__dirname, '../../../example'))
-    vi.spyOn(console, 'log').mockImplementation(() => {})
-    vi.spyOn(console, 'info').mockImplementation(() => {})
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-  })
+	beforeEach(() => {
+		process.chdir(join(__dirname, '../../../example'))
+		vi.spyOn(console, 'log').mockImplementation(() => {})
+		vi.spyOn(console, 'info').mockImplementation(() => {})
+		vi.spyOn(console, 'warn').mockImplementation(() => {})
+		vi.spyOn(console, 'error').mockImplementation(() => {})
+	})
 
-  afterEach(() => {
-    process.chdir(originalDir)
-    vi.restoreAllMocks()
-  })
+	afterEach(() => {
+		process.chdir(originalDir)
+		vi.restoreAllMocks()
+	})
 
-  it('always runs shared after scripts', async () => {
-    const dx = await using('design.yaml', undefined, 'prod')
-    const adapter = await dx.getAdapter()
-    const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
-    const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
-    await dx.importData()
-    expect(execSpy).toHaveBeenCalledWith('import/loader.sql')
-    importSpy.mockRestore()
-    execSpy.mockRestore()
-  })
+	it('always runs shared after scripts', async () => {
+		const dx = await using('design.yaml', undefined, 'prod')
+		const adapter = await dx.getAdapter()
+		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+		await dx.importData()
+		expect(execSpy).toHaveBeenCalledWith('import/loader.sql')
+		importSpy.mockRestore()
+		execSpy.mockRestore()
+	})
 
-  it('runs after.prod scripts in prod env', async () => {
-    const dx = await using('design.yaml', undefined, 'prod')
-    const adapter = await dx.getAdapter()
-    const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
-    const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
-    await dx.importData()
-    const calls = execSpy.mock.calls.map((c) => c[0])
-    expect(calls).toContain('import/prod_loader.sql')
-    expect(calls).not.toContain('import/dev_loader.sql')
-    importSpy.mockRestore()
-    execSpy.mockRestore()
-  })
+	it('runs after.prod scripts in prod env', async () => {
+		const dx = await using('design.yaml', undefined, 'prod')
+		const adapter = await dx.getAdapter()
+		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+		await dx.importData()
+		const calls = execSpy.mock.calls.map((c) => c[0])
+		expect(calls).toContain('import/prod_loader.sql')
+		expect(calls).not.toContain('import/dev_loader.sql')
+		importSpy.mockRestore()
+		execSpy.mockRestore()
+	})
 
-  it('runs after.dev scripts in dev env', async () => {
-    const dx = await using('design.yaml', undefined, 'dev')
-    const adapter = await dx.getAdapter()
-    const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
-    const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
-    await dx.importData()
-    const calls = execSpy.mock.calls.map((c) => c[0])
-    expect(calls).toContain('import/dev_loader.sql')
-    expect(calls).not.toContain('import/prod_loader.sql')
-    importSpy.mockRestore()
-    execSpy.mockRestore()
-  })
+	it('runs after.dev scripts in dev env', async () => {
+		const dx = await using('design.yaml', undefined, 'dev')
+		const adapter = await dx.getAdapter()
+		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+		await dx.importData()
+		const calls = execSpy.mock.calls.map((c) => c[0])
+		expect(calls).toContain('import/dev_loader.sql')
+		expect(calls).not.toContain('import/prod_loader.sql')
+		importSpy.mockRestore()
+		execSpy.mockRestore()
+	})
 })
 
 describe('Design class — coverage-test fixture', () => {
