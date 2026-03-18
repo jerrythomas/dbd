@@ -509,11 +509,19 @@ describe('Design env filtering', () => {
 
   beforeAll(() => {
     originalDir = process.cwd()
-    process.chdir(join(__dirname, '../../../example'))
   })
 
-  afterAll(() => {
+  beforeEach(() => {
+    process.chdir(join(__dirname, '../../../example'))
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
     process.chdir(originalDir)
+    vi.restoreAllMocks()
   })
 
   it('defaults to prod env when no env arg given', async () => {
@@ -575,9 +583,9 @@ describe('Design env filtering', () => {
   it('applies env filter in dry-run mode too', async () => {
     const dx = await using('design.yaml', undefined, 'prod')
     const infoCalls = []
-    vi.spyOn(console, 'info').mockImplementation((msg) => infoCalls.push(msg))
+    // Override shared mock to capture calls
+    vi.mocked(console.info).mockImplementation((msg) => infoCalls.push(msg))
     dx.importData(undefined, true)
-    vi.restoreAllMocks()
     const names = infoCalls.filter((m) => typeof m === 'string' && m.startsWith('Importing')).map((m) => m.replace('Importing ', ''))
     expect(names).not.toContain('staging.dev_fixtures')
     expect(names).not.toContain('staging.dev_fixture_table')
