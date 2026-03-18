@@ -266,7 +266,12 @@ describe('config', () => {
 	})
 
 	describe('cleanImportTables env annotation (folder-based)', () => {
-		const parseEntity = (entity) => ({ ...entity, searchPaths: ['public'], references: [], errors: [] })
+		const parseEntity = (entity) => ({
+			...entity,
+			searchPaths: ['public'],
+			references: [],
+			errors: []
+		})
 		const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
 
 		beforeEach(() => process.chdir(exampleDir))
@@ -294,6 +299,45 @@ describe('config', () => {
 			const sharedTable = result.importTables.find((t) => t.name === 'staging.lookups')
 			expect(sharedTable).toBeDefined()
 			expect(sharedTable.env).toBeNull()
+		})
+	})
+
+	describe('cleanImportTables env annotation (YAML)', () => {
+		const parseEntity = (entity) => ({
+			...entity,
+			searchPaths: ['public'],
+			references: [],
+			errors: []
+		})
+		const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+
+		beforeEach(() => process.chdir(exampleDir))
+
+		it('annotates YAML-listed table with env "dev" when env field is "dev"', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			// staging.dev_fixture_table is in import.tables with env: dev
+			const table = result.importTables.find((t) => t.name === 'staging.dev_fixture_table')
+			expect(table).toBeDefined()
+			expect(table.env).toBe('dev')
+		})
+
+		it('annotates YAML-listed table with env null when env is [dev, prod] (explicit shared)', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			// staging.lookup_values has env: [dev, prod] in design.yaml → shared
+			const table = result.importTables.find((t) => t.name === 'staging.lookup_values')
+			expect(table).toBeDefined()
+			expect(table.env).toBeNull()
+		})
+
+		it('annotates YAML-listed table with env null when no env field (implicitly shared)', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			// staging.lookups is discovered from filesystem with no YAML entry → env from path = null
+			const table = result.importTables.find((t) => t.name === 'staging.lookups')
+			expect(table).toBeDefined()
+			expect(table.env).toBeNull()
 		})
 	})
 })

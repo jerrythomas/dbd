@@ -35,7 +35,10 @@ import:
     truncate: true
     nullValue: ''
   tables:
-    - staging.lookup_values
+    - staging.lookup_values:
+        env: [dev, prod]
+    - staging.dev_fixture_table:
+        env: dev
   after:
     - import/loader.sql
 

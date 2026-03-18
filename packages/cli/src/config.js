@@ -29,10 +29,28 @@ const ENV_ALIASES = {
  * @returns {'dev'|'prod'}
  */
 export function normalizeEnv(value) {
-	if (value == null) return 'prod'
+	if (value === null || value === undefined) return 'prod'
 	const normalized = ENV_ALIASES[value]
-	if (!normalized) throw new Error(`Unknown environment: "${value}". Use dev, development, prod, or production.`)
+	if (!normalized)
+		throw new Error(`Unknown environment: "${value}". Use dev, development, prod, or production.`)
 	return normalized
+}
+
+/**
+ * Normalizes the env field from a YAML table entry.
+ * An array containing both dev and prod aliases → null (shared).
+ * A single value → normalize. Absent → null.
+ *
+ * @param {string|string[]|undefined} value
+ * @returns {'dev'|'prod'|null}
+ */
+function normalizeYamlEnv(value) {
+	if (value === null || value === undefined) return null
+	if (Array.isArray(value)) {
+		const normalized = [...new Set(value.map(normalizeEnv))]
+		return normalized.length === 2 ? null : normalized[0]
+	}
+	return normalizeEnv(value)
 }
 
 /**
@@ -187,14 +205,23 @@ function cleanImportTables(data) {
 	const schemaOptions = data.import.schemas ?? {}
 	let importTables = scan('import')
 		.filter((file) => ['.jsonl', '.csv', '.tsv'].includes(extname(file)))
-		.map((file) => ({ ...options, ...entityFromFile(normalizeImportPath(file)), env: envFromPath(file) }))
+		.map((file) => ({
+			...options,
+			...entityFromFile(normalizeImportPath(file)),
+			env: envFromPath(file)
+		}))
 		.map((table) => ({ ...table, ...schemaOptions[table.schema] }))
 
 	if (tables.length === 0) return importTables
 
 	importTables = merge(
 		importTables,
-		tables.map((table) => entityFromImportConfig(table, options))
+		tables.map((table) => {
+			const entity = entityFromImportConfig(table, options)
+			const rawEnv = typeof table === 'object' ? Object.values(table)[0]?.env : null
+			entity.env = normalizeYamlEnv(rawEnv)
+			return entity
+		})
 	)
 	return importTables
 }
