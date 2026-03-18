@@ -11,12 +11,12 @@ Add environment-aware import so that different tables and post-import scripts ru
 
 ## Environment Values
 
-| Input | Normalized |
-|-------|-----------|
-| `prod`, `production` | `'prod'` |
-| `dev`, `development` | `'dev'` |
+| Input                 | Normalized         |
+| --------------------- | ------------------ |
+| `prod`, `production`  | `'prod'`           |
+| `dev`, `development`  | `'dev'`            |
 | omitted / `undefined` | `'prod'` (default) |
-| anything else | throws |
+| anything else         | throws             |
 
 A `normalizeEnv(value)` utility handles this mapping.
 
@@ -28,22 +28,22 @@ A `normalizeEnv(value)` utility handles this mapping.
 
 Files under `import/` are annotated with an env based on their path:
 
-| Path | Env |
-|------|-----|
-| `import/dev/staging/fixtures.csv` | `'dev'` |
-| `import/prod/staging/seeds.csv` | `'prod'` |
-| `import/staging/lookups.csv` | `null` (shared) |
+| Path                              | Env             |
+| --------------------------------- | --------------- |
+| `import/dev/staging/fixtures.csv` | `'dev'`         |
+| `import/prod/staging/seeds.csv`   | `'prod'`        |
+| `import/staging/lookups.csv`      | `null` (shared) |
 
 ### YAML `import.tables` — optional `env` field
 
 ```yaml
 import:
   tables:
-    - staging.lookup_values               # shared (no env = both)
+    - staging.lookup_values # shared (no env = both)
     - staging.dev_fixtures:
-        env: dev                          # dev-only
+        env: dev # dev-only
     - staging.seed_data:
-        env: [dev, prod]                  # explicit shared
+        env: [dev, prod] # explicit shared
 ```
 
 `env` can be a string or array. No `env` field = shared (included in both envs).
@@ -53,11 +53,11 @@ import:
 ```yaml
 import:
   after:
-    - import/shared_loader.sql            # always runs (existing behavior preserved)
+    - import/shared_loader.sql # always runs (existing behavior preserved)
   after.dev:
-    - import/dev_loader.sql               # only in dev
+    - import/dev_loader.sql # only in dev
   after.prod:
-    - import/prod_loader.sql              # only in prod
+    - import/prod_loader.sql # only in prod
 ```
 
 ---
@@ -138,11 +138,11 @@ CLI: dbd import -e dev
 
 ## Tests
 
-| Area | Cases |
-|------|-------|
-| `normalizeEnv()` | `dev`, `development`, `prod`, `production`, `undefined` → default `prod`, invalid throws |
-| `cleanImportTables()` | env annotation from `/dev/` path, `/prod/` path, ungrouped path |
-| `cleanImportTables()` | env annotation from YAML: `env: dev`, `env: [dev, prod]`, no env field |
-| `Design.validate()` | dev entity excluded in prod; prod entity excluded in dev; shared entity included in both |
-| `Design.importData()` | shared `after` always runs; `after.dev` only in dev; `after.prod` only in prod |
-| CLI | `-e development` normalizes to `'dev'`; no flag defaults to `'prod'` |
+| Area                  | Cases                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| `normalizeEnv()`      | `dev`, `development`, `prod`, `production`, `undefined` → default `prod`, invalid throws |
+| `cleanImportTables()` | env annotation from `/dev/` path, `/prod/` path, ungrouped path                          |
+| `cleanImportTables()` | env annotation from YAML: `env: dev`, `env: [dev, prod]`, no env field                   |
+| `Design.validate()`   | dev entity excluded in prod; prod entity excluded in dev; shared entity included in both |
+| `Design.importData()` | shared `after` always runs; `after.dev` only in dev; `after.prod` only in prod           |
+| CLI                   | `-e development` normalizes to `'dev'`; no flag defaults to `'prod'`                     |

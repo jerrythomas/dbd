@@ -15,6 +15,7 @@
 ### Task 1: `normalizeEnv` — failing tests first
 
 **Files:**
+
 - Modify: `packages/cli/spec/config.spec.js`
 - Modify: `packages/cli/src/config.js`
 
@@ -84,7 +85,8 @@ const ENV_ALIASES = {
 export function normalizeEnv(value) {
   if (value == null) return 'prod'
   const normalized = ENV_ALIASES[value]
-  if (!normalized) throw new Error(`Unknown environment: "${value}". Use dev, development, prod, or production.`)
+  if (!normalized)
+    throw new Error(`Unknown environment: "${value}". Use dev, development, prod, or production.`)
   return normalized
 }
 ```
@@ -109,6 +111,7 @@ git commit -m "feat(cli): add normalizeEnv utility"
 ### Task 2: Env annotation in `cleanImportTables` — folder-based
 
 **Files:**
+
 - Modify: `packages/cli/src/config.js`
 - Modify: `packages/cli/spec/config.spec.js`
 - Create: `example/import/dev/staging/dev_fixtures.csv`
@@ -119,12 +122,14 @@ git commit -m "feat(cli): add normalizeEnv utility"
 - [ ] **Step 1: Add fixture CSV files for env folders**
 
 Create `example/import/dev/staging/dev_fixtures.csv`:
+
 ```
 id,label
 1,dev-only
 ```
 
 Create `example/import/prod/staging/prod_seeds.csv`:
+
 ```
 id,label
 1,prod-only
@@ -136,7 +141,12 @@ Use the same `parseEntity`/`matchRefs` stub pattern already used in `config.spec
 
 ```js
 describe('cleanImportTables env annotation (folder-based)', () => {
-  const parseEntity = (entity) => ({ ...entity, searchPaths: ['public'], references: [], errors: [] })
+  const parseEntity = (entity) => ({
+    ...entity,
+    searchPaths: ['public'],
+    references: [],
+    errors: []
+  })
   const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
 
   beforeEach(() => process.chdir(exampleDir))
@@ -233,6 +243,7 @@ git commit -m "feat(cli): annotate import entities with env from folder path"
 ### Task 3: Env annotation from YAML `env:` field
 
 **Files:**
+
 - Modify: `packages/cli/src/config.js`
 - Modify: `packages/cli/spec/config.spec.js`
 - Modify: `example/design.yaml`
@@ -244,7 +255,12 @@ Add a new describe block to `packages/cli/spec/config.spec.js`:
 
 ```js
 describe('cleanImportTables env annotation (YAML)', () => {
-  const parseEntity = (entity) => ({ ...entity, searchPaths: ['public'], references: [], errors: [] })
+  const parseEntity = (entity) => ({
+    ...entity,
+    searchPaths: ['public'],
+    references: [],
+    errors: []
+  })
   const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
 
   beforeEach(() => process.chdir(exampleDir))
@@ -295,6 +311,7 @@ import:
 ```
 
 Create the matching empty CSV `example/import/staging/dev_fixture_table.csv`:
+
 ```
 id,label
 ```
@@ -373,6 +390,7 @@ git commit -m "feat(cli): annotate YAML import table entries with env field"
 ### Task 4: Design class — store `#env`, filter in `validate()`
 
 **Files:**
+
 - Modify: `packages/cli/src/design.js`
 - Modify: `packages/cli/spec/design.spec.js`
 
@@ -457,7 +475,9 @@ describe('Design env filtering', () => {
     vi.spyOn(console, 'info').mockImplementation((msg) => infoCalls.push(msg))
     dx.importData(undefined, true)
     vi.restoreAllMocks()
-    const names = infoCalls.filter((m) => m.startsWith('Importing')).map((m) => m.replace('Importing ', ''))
+    const names = infoCalls
+      .filter((m) => m.startsWith('Importing'))
+      .map((m) => m.replace('Importing ', ''))
     expect(names).not.toContain('staging.dev_fixtures')
     expect(names).not.toContain('staging.dev_fixture_table')
   })
@@ -477,6 +497,7 @@ Expected: FAIL — `using` doesn't accept a third argument
 In `packages/cli/src/design.js`:
 
 1. Add `#env` private field:
+
 ```js
 class Design {
   #config = {}
@@ -490,6 +511,7 @@ class Design {
 ```
 
 2. Update constructor signature to accept `env`:
+
 ```js
 constructor(rawConfig, adapter, databaseURL, env = 'prod') {
   // ... all existing code unchanged ...
@@ -498,6 +520,7 @@ constructor(rawConfig, adapter, databaseURL, env = 'prod') {
 ```
 
 3. Update `validate()` — add env filter as the first filter before `validateEntity`:
+
 ```js
 validate() {
   const allowedSchemas = this.#config.project.staging
@@ -519,6 +542,7 @@ validate() {
 ```
 
 4. Update `using()` factory at the bottom of the file:
+
 ```js
 export async function using(file, databaseURL, env = 'prod') {
   const rawConfig = read(file)
@@ -552,6 +576,7 @@ git commit -m "feat(cli): add env filtering to Design class and using() factory"
 ### Task 5: `importData` — env-scoped `after` scripts
 
 **Files:**
+
 - Modify: `packages/cli/src/design.js`
 - Modify: `packages/cli/spec/design.spec.js`
 - Modify: `example/design.yaml`
@@ -583,11 +608,13 @@ import:
 Create placeholder files:
 
 `example/import/dev_loader.sql`:
+
 ```sql
 -- dev post-import processing
 ```
 
 `example/import/prod_loader.sql`:
+
 ```sql
 -- prod post-import processing
 ```
@@ -699,6 +726,7 @@ git commit -m "feat(cli): run env-scoped after scripts in importData"
 ### Task 6: Wire `-e` CLI flag through to `using()`
 
 **Files:**
+
 - Modify: `packages/cli/src/index.js`
 - Modify: `packages/cli/spec/config.spec.js` (CLI default test)
 
@@ -732,11 +760,13 @@ Expected: PASS — these use the already-implemented `normalizeEnv`
 In `packages/cli/src/index.js`:
 
 Add import:
+
 ```js
 import { normalizeEnv } from './config.js'
 ```
 
 Change the CLI default for `-e` from `'development'` to `'prod'`:
+
 ```js
 // Before:
 .option('-e, --environment', 'Environment to load data', 'development')
@@ -746,6 +776,7 @@ Change the CLI default for `-e` from `'development'` to `'prod'`:
 ```
 
 Update the import command action to normalize and pass env:
+
 ```js
 // Before:
 .action(async (opts) => {
