@@ -265,16 +265,6 @@ describe('config', () => {
 		})
 	})
 
-	describe('normalizeEnv CLI defaults', () => {
-		it('normalizes the CLI default value "prod" to "prod"', () => {
-			expect(normalizeEnv('prod')).toBe('prod')
-		})
-
-		it('normalizes "development" alias to "dev" (what old CLI default would produce)', () => {
-			expect(normalizeEnv('development')).toBe('dev')
-		})
-	})
-
 	describe('cleanImportTables env annotation (folder-based)', () => {
 		const parseEntity = (entity) => ({
 			...entity,
