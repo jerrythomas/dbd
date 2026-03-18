@@ -14,6 +14,45 @@ import {
 	allowedTypes
 } from '@jerrythomas/dbd-db'
 
+const ENV_ALIASES = {
+	prod: 'prod',
+	production: 'prod',
+	dev: 'dev',
+	development: 'dev'
+}
+
+/**
+ * Normalizes environment string to 'dev' or 'prod'.
+ * Returns 'prod' for null/undefined. Throws for unrecognized values.
+ *
+ * @param {string|null|undefined} value
+ * @returns {'dev'|'prod'}
+ */
+export function normalizeEnv(value) {
+	if (value === null || value === undefined) return 'prod'
+	const normalized = ENV_ALIASES[value]
+	if (!normalized)
+		throw new Error(`Unknown environment: "${value}". Use dev, development, prod, or production.`)
+	return normalized
+}
+
+/**
+ * Normalizes the env field from a YAML table entry.
+ * An array containing both dev and prod aliases → null (shared).
+ * A single value → normalize. Absent → null.
+ *
+ * @param {string|string[]|undefined} value
+ * @returns {'dev'|'prod'|null}
+ */
+function normalizeYamlEnv(value) {
+	if (value === null || value === undefined) return null
+	if (Array.isArray(value)) {
+		const normalized = [...new Set(value.map(normalizeEnv))]
+		return normalized.length === 2 ? null : normalized[0]
+	}
+	return normalizeEnv(value)
+}
+
 /**
  * Scans a folder recursively and returns a list of file paths.
  *
@@ -125,6 +164,36 @@ export function cleanDDLEntities(data, parseEntityScript, matchReferences) {
 }
 
 /**
+ * Derives import env from a file path by checking the second path segment.
+ * scan('import') produces paths like 'import/dev/...', 'import/prod/...', 'import/staging/...'
+ * Returns null for shared (ungrouped) files.
+ *
+ * @param {string} filePath
+ * @returns {'dev'|'prod'|null}
+ */
+function envFromPath(filePath) {
+	const parts = filePath.split('/')
+	if (parts[1] === 'dev') return 'dev'
+	if (parts[1] === 'prod') return 'prod'
+	return null
+}
+
+/**
+ * Normalizes a file path for entityFromFile by removing env folder if present.
+ * Converts 'import/dev/staging/file.csv' -> 'import/staging/file.csv'
+ *
+ * @param {string} filePath
+ * @returns {string}
+ */
+function normalizeImportPath(filePath) {
+	const parts = filePath.split('/')
+	if (parts[1] === 'dev' || parts[1] === 'prod') {
+		return [parts[0], ...parts.slice(2)].join('/')
+	}
+	return filePath
+}
+
+/**
  * Scan import folder and combine with configuration.
  *
  * @param {Object} data
@@ -136,14 +205,23 @@ function cleanImportTables(data) {
 	const schemaOptions = data.import.schemas ?? {}
 	let importTables = scan('import')
 		.filter((file) => ['.jsonl', '.csv', '.tsv'].includes(extname(file)))
-		.map((file) => ({ ...options, ...entityFromFile(file) }))
+		.map((file) => ({
+			...options,
+			...entityFromFile(normalizeImportPath(file)),
+			env: envFromPath(file)
+		}))
 		.map((table) => ({ ...table, ...schemaOptions[table.schema] }))
 
 	if (tables.length === 0) return importTables
 
 	importTables = merge(
 		importTables,
-		tables.map((table) => entityFromImportConfig(table, options))
+		tables.map((table) => {
+			const entity = entityFromImportConfig(table, options)
+			const rawEnv = typeof table === 'object' ? Object.values(table)[0]?.env : null
+			entity.env = normalizeYamlEnv(rawEnv)
+			return entity
+		})
 	)
 	return importTables
 }

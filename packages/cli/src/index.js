@@ -12,6 +12,7 @@ import { execSync } from 'child_process'
 import { using } from './design.js'
 import { resolveWarnings } from './references.js'
 import { DbReferenceCache } from './db-cache.js'
+import { normalizeEnv } from './config.js'
 
 const location = path.dirname(new URL(import.meta.url).pathname)
 const pkg = JSON.parse(fs.readFileSync(path.join(location, '../package.json'), 'utf8'))
@@ -22,7 +23,7 @@ prog
 	.version(pkg.version)
 	.option('-c, --config', 'Provide path to custom config', 'design.yaml')
 	.option('-d, --database', 'Database URL', (process.env.DATABASE_URL || '').replace(/\$/, '\\$'))
-	.option('-e, --environment', 'Environment to load data', 'development')
+	.option('-e, --environment', 'Environment to load data', 'prod')
 	.option('-p, --preview', 'Preview the action', false)
 
 prog
@@ -116,7 +117,8 @@ prog
 	.example('dbd import -n staging.lookups')
 	.example('dbd import -n import/staging/lookups.csv')
 	.action(async (opts) => {
-		await (await using(opts.config, opts.database)).importData(opts.name, opts['dry-run'])
+		const env = normalizeEnv(opts.environment)
+		await (await using(opts.config, opts.database, env)).importData(opts.name, opts['dry-run'])
 		console.log('Import complete.')
 	})
 

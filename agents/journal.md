@@ -422,3 +422,18 @@ Extracted CLI logic from `src/` into `packages/cli/`. Commit `abbb7aa`.
 - `spec/design.spec.js` — 16 tests: mirrors compat/design tests with new package imports
 
 All 222 existing tests remain green. New code is purely additive — `src/` untouched.
+
+### Import env mode (dev/prod) — COMPLETE (2026-03-18)
+
+Implemented environment-aware import so different tables and post-import scripts run per environment.
+
+**Features:**
+
+- `normalizeEnv()` utility maps `dev`/`development`/`prod`/`production` aliases; returns `'prod'` for null/undefined; throws on unknown values
+- `envFromPath()` annotates filesystem-discovered import entities (position-aware: `import/dev/` → `'dev'`, `import/prod/` → `'prod'`, other → `null`)
+- `normalizeYamlEnv()` handles YAML `env:` field — string, `[dev, prod]` array (→ null/shared), absent (→ null)
+- `Design#env` stores active environment; `validate()` filters import tables to matching env + shared (`env === null`)
+- `importData()` runs shared `after`, then env-specific `after.dev`/`after.prod` scripts
+- CLI `-e` default changed from `'development'` to `'prod'`; wired through `normalizeEnv()` to `using()`
+
+**Commits:** e6f723c ← d3d151e ← c2264f7 ← 1e37037 ← f9dcff9 ← 4fb18f6 ← 2b75c7a ← 2883395 (+ earlier)

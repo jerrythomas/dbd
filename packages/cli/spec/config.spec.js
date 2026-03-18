@@ -3,7 +3,7 @@
  *
  * Mirrors spec/compat/config.spec.js but imports from the new package.
  */
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, beforeEach } from 'vitest'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { writeFileSync, unlinkSync } from 'fs'
@@ -13,7 +13,8 @@ import {
 	fillMissingInfoForEntities,
 	merge,
 	clean,
-	cleanDDLEntities
+	cleanDDLEntities,
+	normalizeEnv
 } from '../src/config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -237,6 +238,106 @@ describe('config', () => {
 
 			const result = cleanDDLEntities(data, parseEntity, matchRefs)
 			expect(result.length).toBeGreaterThan(0)
+		})
+	})
+
+	describe('normalizeEnv', () => {
+		it('maps "prod" to "prod"', () => {
+			expect(normalizeEnv('prod')).toBe('prod')
+		})
+		it('maps "production" to "prod"', () => {
+			expect(normalizeEnv('production')).toBe('prod')
+		})
+		it('maps "dev" to "dev"', () => {
+			expect(normalizeEnv('dev')).toBe('dev')
+		})
+		it('maps "development" to "dev"', () => {
+			expect(normalizeEnv('development')).toBe('dev')
+		})
+		it('returns "prod" for undefined', () => {
+			expect(normalizeEnv(undefined)).toBe('prod')
+		})
+		it('returns "prod" for null', () => {
+			expect(normalizeEnv(null)).toBe('prod')
+		})
+		it('throws for unrecognized value', () => {
+			expect(() => normalizeEnv('staging')).toThrow()
+		})
+	})
+
+	describe('cleanImportTables env annotation (folder-based)', () => {
+		const parseEntity = (entity) => ({
+			...entity,
+			searchPaths: ['public'],
+			references: [],
+			errors: []
+		})
+		const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+
+		beforeEach(() => process.chdir(exampleDir))
+
+		it('annotates files under import/dev/ with env "dev"', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			const devTable = result.importTables.find((t) => t.name === 'staging.dev_fixtures')
+			expect(devTable).toBeDefined()
+			expect(devTable.env).toBe('dev')
+		})
+
+		it('annotates files under import/prod/ with env "prod"', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			const prodTable = result.importTables.find((t) => t.name === 'staging.prod_seeds')
+			expect(prodTable).toBeDefined()
+			expect(prodTable.env).toBe('prod')
+		})
+
+		it('annotates ungrouped import files with env null (shared)', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			// staging.lookups is at import/staging/lookups.csv — no dev/prod parent folder
+			const sharedTable = result.importTables.find((t) => t.name === 'staging.lookups')
+			expect(sharedTable).toBeDefined()
+			expect(sharedTable.env).toBeNull()
+		})
+	})
+
+	describe('cleanImportTables env annotation (YAML)', () => {
+		const parseEntity = (entity) => ({
+			...entity,
+			searchPaths: ['public'],
+			references: [],
+			errors: []
+		})
+		const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+
+		beforeEach(() => process.chdir(exampleDir))
+
+		it('annotates YAML-listed table with env "dev" when env field is "dev"', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			// staging.dev_fixture_table is in import.tables with env: dev
+			const table = result.importTables.find((t) => t.name === 'staging.dev_fixture_table')
+			expect(table).toBeDefined()
+			expect(table.env).toBe('dev')
+		})
+
+		it('annotates YAML-listed table with env null when env is [dev, prod] (explicit shared)', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			// staging.lookup_values has env: [dev, prod] in design.yaml → shared
+			const table = result.importTables.find((t) => t.name === 'staging.lookup_values')
+			expect(table).toBeDefined()
+			expect(table.env).toBeNull()
+		})
+
+		it('annotates YAML-listed table with env null when no env field (implicitly shared)', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			// staging.lookups is discovered from filesystem with no YAML entry → env from path = null
+			const table = result.importTables.find((t) => t.name === 'staging.lookups')
+			expect(table).toBeDefined()
+			expect(table.env).toBeNull()
 		})
 	})
 })
