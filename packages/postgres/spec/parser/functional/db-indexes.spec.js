@@ -338,5 +338,15 @@ describe('Database Index Extractor - Functional API', () => {
 			const indexes = extractIndexes(ast)
 			expect(indexes[0].name).toBe('idx_sql')
 		})
+
+		it('resolveIndexColumnName returns null filters out column (line 146)', () => {
+			// Line 146: return null from resolveIndexColumnName —
+			// extractIndexColumns filters out columns where name is null
+			const stmt = {
+				columns: [{ something_else: 'no_format' }]
+			}
+			const cols = extractIndexColumns(stmt)
+			expect(cols).toHaveLength(0)
+		})
 	})
 })

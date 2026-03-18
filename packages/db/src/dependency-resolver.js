@@ -125,6 +125,51 @@ export function graphFromEntities(entities, name) {
 // --- Internal helpers ---
 
 /**
+ * Build reverse graph: map of dependency → [names of entities that depend on it].
+ *
+ * @param {Array} entities
+ * @returns {Object} — map of dependency name → array of entity names
+ */
+function buildReverseGraph(entities) {
+	const reverse = {}
+	for (const entity of entities) {
+		for (const dep of entity.refers || []) {
+			if (!reverse[dep]) reverse[dep] = []
+			reverse[dep].push(entity.name)
+		}
+	}
+	return reverse
+}
+
+/**
+ * BFS visit: visit a starting entity and all reachable entities (forward deps + reverse dependants).
+ *
+ * @param {string} startName — entity name to start from
+ * @param {Object} lookup — map of name → entity
+ * @param {Object} reverse — reverse graph (dependency → dependants)
+ * @returns {Set<string>} — set of visited entity names
+ */
+function bfsVisit(startName, lookup, reverse) {
+	const visited = new Set()
+	const queue = [startName]
+	while (queue.length > 0) {
+		const current = queue.shift()
+		if (visited.has(current)) continue
+		visited.add(current)
+		const entity = lookup[current]
+		if (entity) {
+			for (const dep of entity.refers || []) {
+				if (!visited.has(dep) && dep in lookup) queue.push(dep)
+			}
+		}
+		for (const dependent of reverse[current] || []) {
+			if (!visited.has(dependent)) queue.push(dependent)
+		}
+	}
+	return visited
+}
+
+/**
  * Return the subset of entities reachable from `name` in both directions (forward deps + reverse dependants).
  *
  * @param {Array} entities
@@ -134,38 +179,8 @@ export function graphFromEntities(entities, name) {
 function subgraphEntities(entities, name) {
 	const lookup = buildLookup(entities)
 	if (!(name in lookup)) return []
-
-	// Build reverse graph: dep → [entities that depend on dep]
-	const reverse = {}
-	for (const entity of entities) {
-		for (const dep of entity.refers || []) {
-			if (!reverse[dep]) reverse[dep] = []
-			reverse[dep].push(entity.name)
-		}
-	}
-
-	const visited = new Set()
-	const queue = [name]
-
-	while (queue.length > 0) {
-		const current = queue.shift()
-		if (visited.has(current)) continue
-		visited.add(current)
-
-		// Forward: dependencies of current
-		const entity = lookup[current]
-		if (entity) {
-			for (const dep of entity.refers || []) {
-				if (!visited.has(dep) && dep in lookup) queue.push(dep)
-			}
-		}
-
-		// Reverse: entities that depend on current
-		for (const dependent of reverse[current] || []) {
-			if (!visited.has(dependent)) queue.push(dependent)
-		}
-	}
-
+	const reverse = buildReverseGraph(entities)
+	const visited = bfsVisit(name, lookup, reverse)
 	return entities.filter((e) => visited.has(e.name))
 }
 

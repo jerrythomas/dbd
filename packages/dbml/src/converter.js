@@ -34,6 +34,7 @@ export function removeIndexCreationStatements(ddlText) {
 
 /**
  * Normalize multi-line COMMENT ON TABLE statements to single-line.
+ * @deprecated Use normalizeComments() instead.
  */
 export function normalizeComment(inputString) {
 	const regex = /comment on table\s+(\w+)\s+IS\s*'([^']*)';/i
@@ -45,11 +46,49 @@ export function normalizeComment(inputString) {
 
 /**
  * Remove COMMENT ON statements from DDL text (including multi-line).
- * These cause @dbml/core to crash on functions, procedures, etc.
+ * @deprecated Use normalizeComments() instead.
  */
 export function removeCommentOnStatements(ddlText) {
 	const commentOnRegex = /comment\s+on\s+[\s\S]*?'[\s\S]*?'\s*;/gi
 	return ddlText.replace(commentOnRegex, '')
+}
+
+// SQL string literal pattern — handles '' as escaped apostrophe
+const SQL_STR = "'[^']*(?:''[^']*)*'"
+
+/**
+ * Normalize COMMENT ON TABLE and COMMENT ON COLUMN statements for @dbml/core:
+ * - Flattens multi-line comment strings to single-line
+ * - Converts SQL escaped apostrophes ('') to Unicode right single quotation mark
+ * - Removes COMMENT ON for other object types (function, procedure, etc.)
+ *
+ * @dbml/core v6 parses TABLE and COLUMN comments natively but crashes on
+ * multi-line strings and SQL apostrophe escapes.
+ *
+ * @param {string} ddlText - DDL text
+ * @returns {string} DDL with normalized COMMENT ON TABLE/COLUMN, others removed
+ */
+export function normalizeComments(ddlText) {
+	// Normalize COMMENT ON TABLE/COLUMN: flatten and sanitize the string value
+	const tableColPattern = new RegExp(
+		`(comment\\s+on\\s+(?:table|column)\\s+\\S+\\s+is\\s*)(${SQL_STR})\\s*;`,
+		'gi'
+	)
+	let result = ddlText.replace(tableColPattern, (match, prefix, quotedContent) => {
+		const content = quotedContent.slice(1, -1)
+		const normalized = content
+			.replace(/\r?\n/g, ' ')
+			.replace(/''/g, '\u2019') // SQL '' escape → Unicode right single quotation mark
+			.trim()
+		return `${prefix}'${normalized}';`
+	})
+
+	// Remove COMMENT ON for non-table/non-column object types
+	const otherPattern = new RegExp(
+		`comment\\s+on\\s+(?!table\\s|column\\s)\\S+[\\s\\S]*?${SQL_STR}\\s*;`,
+		'gi'
+	)
+	return result.replace(otherPattern, '')
 }
 
 /**
@@ -90,17 +129,55 @@ export function qualifyTableNames(ddlText, schema, tableLookup) {
 			return `${prefix}${schema}.${tableName}${suffix}`
 		}
 	)
-	// Qualify unqualified REFERENCES <table>(col) using table lookup
+	// Qualify unqualified COMMENT ON TABLE names
+	result = result.replace(
+		/(comment\s+on\s+table\s+)([a-z_][a-z0-9_]*)(\s+is)/gi,
+		(match, prefix, tableName, suffix) => `${prefix}${schema}.${tableName}${suffix}`
+	)
+	// Qualify unqualified COMMENT ON COLUMN table.column names
+	result = result.replace(
+		/(comment\s+on\s+column\s+)([a-z_][a-z0-9_]*)(\.[a-z_][a-z0-9_.]*\s+is)/gi,
+		(match, prefix, tableName, suffix) => `${prefix}${schema}.${tableName}${suffix}`
+	)
+	// Qualify unqualified REFERENCES <table> using table lookup.
+	// Lookahead handles both REFERENCES table(col) and bare REFERENCES table (no column spec).
 	if (tableLookup) {
 		result = result.replace(
-			/(references\s+)([a-z_][a-z0-9_]*)(\s*\()/gi,
-			(match, prefix, tableName, suffix) => {
+			/(\breferences\s+)([a-z_][a-z0-9_]*)(?=[\s(,;]|$)/gi,
+			(match, prefix, tableName) => {
 				const qualified = tableLookup[tableName] || `${schema}.${tableName}`
-				return `${prefix}${qualified}${suffix}`
+				return `${prefix}${qualified}`
 			}
 		)
 	}
 	return result
+}
+
+/**
+ * Remove inline REFERENCES clauses from column definitions that also appear in
+ * table-level FOREIGN KEY constraints. Prevents duplicate FK refs in @dbml/core.
+ *
+ * @param {string} ddlText - DDL text
+ * @returns {string} DDL with redundant inline refs removed
+ */
+export function removeRedundantInlineRefs(ddlText) {
+	const fkColumns = new Set()
+	const fkRegex = /\bforeign\s+key\s*\(([^)]+)\)/gi
+	let matchResult
+	while ((matchResult = fkRegex.exec(ddlText)) !== null) {
+		matchResult[1].split(',').forEach((col) => fkColumns.add(col.trim().toLowerCase()))
+	}
+	if (fkColumns.size === 0) return ddlText
+
+	return ddlText
+		.split('\n')
+		.map((line) => {
+			const colMatch = line.match(/^[ \t]*,?[ \t]*([a-z_][a-z0-9_]*)\s/i)
+			if (!colMatch) return line
+			if (!fkColumns.has(colMatch[1].toLowerCase())) return line
+			return line.replace(/\s+references\s+.+$/i, '')
+		})
+		.join('\n')
 }
 
 /**
@@ -114,10 +191,11 @@ export function qualifyTableNames(ddlText, schema, tableLookup) {
 export function cleanupDDLForDBML(ddlText, schema, tableLookup) {
 	if (!ddlText) return ddlText
 	let cleaned = removeIndexCreationStatements(ddlText)
-	cleaned = removeCommentOnStatements(cleaned)
+	cleaned = normalizeComments(cleaned)
 	if (schema) {
 		cleaned = qualifyTableNames(cleaned, schema, tableLookup)
 	}
+	cleaned = removeRedundantInlineRefs(cleaned)
 	return cleaned
 }
 
@@ -169,7 +247,8 @@ export function applyTableReplacements(dbml, replacements) {
  * @returns {string} DBML Project block
  */
 export function buildProjectBlock(projectName, database, note) {
-	return `Project "${projectName}" {\n database_type: '${database}'\n Note: "${note}" \n}\n`
+	const noteBlock = note ? `\n Note: "${note}"` : ''
+	return `Project "${projectName}" {\n database_type: '${database}'${noteBlock}\n}\n`
 }
 
 /**

@@ -6,7 +6,9 @@ import {
 	extractViewDefinitions,
 	extractProcedureDefinitions,
 	extractIndexDefinitions,
-	validateDDL
+	validateDDL,
+	identifyEntity,
+	collectReferences
 } from '../../../src/parser/index-functional.js'
 
 describe('SQL Parser - Functional API - Complete Workflow', () => {
@@ -177,5 +179,89 @@ describe('SQL Parser - Functional API - Complete Workflow', () => {
 			expect(result.valid).toBe(false)
 			expect(result.message).toContain('Error')
 		})
+	})
+})
+
+describe('identifyEntity — branch coverage', () => {
+	it('returns null for null/non-array ast (line 124)', () => {
+		expect(identifyEntity(null, '')).toBeNull()
+		expect(identifyEntity('not-array', '')).toBeNull()
+	})
+
+	it('returns null when no create stmt found in ast', () => {
+		const ast = [{ type: 'set', keyword: 'search_path' }]
+		expect(identifyEntity(ast, '')).toBeNull()
+	})
+
+	it('returns null when table extractor returns null (line 88: info falsy)', () => {
+		// stmt.table is undefined → extractTableEntity returns null
+		const ast = [{ type: 'create', keyword: 'table', table: [] }]
+		const result = identifyEntity(ast, '')
+		// extractTableEntity(stmt) returns null when table[0] is undefined
+		expect(result).toBeNull()
+	})
+
+	it('returns null when view extractor returns null (line 92)', () => {
+		const ast = [{ type: 'create', keyword: 'view', view: null }]
+		const result = identifyEntity(ast, '')
+		expect(result).toBeNull()
+	})
+
+	it('handles procedure info as non-object string (line 101: truthy non-object branch)', () => {
+		// info is a string (not object) → name: info, schema: null
+		const ast = [{ type: 'create', keyword: 'procedure', procedure: 'my_proc' }]
+		const result = identifyEntity(ast, '')
+		expect(result).not.toBeNull()
+		expect(result.name).toBe('my_proc')
+		expect(result.schema).toBeNull()
+	})
+
+	it('returns null when procedure info is null (line 101: null return branch)', () => {
+		// info is null/falsy → return null
+		const ast = [{ type: 'create', keyword: 'procedure', procedure: null }]
+		const result = identifyEntity(ast, '')
+		expect(result).toBeNull()
+	})
+
+	it('uses SQL fallback for function when AST has no function keyword (line 136-143)', () => {
+		// ast without function keyword → falls through to SQL regex match
+		const ast = [{ type: 'set', keyword: 'search_path' }]
+		const result = identifyEntity(ast, 'CREATE OR REPLACE FUNCTION public.my_func()')
+		expect(result).not.toBeNull()
+		expect(result.name).toBe('my_func')
+		expect(result.schema).toBe('public')
+		expect(result.type).toBe('function')
+	})
+})
+
+describe('collectReferences — branch coverage', () => {
+	it('collectTriggerRefs trigger without table skips table ref (line 192: false branch)', () => {
+		// trigger.table is falsy — no table ref pushed
+		const result = collectReferences({
+			tables: [],
+			views: [],
+			procedures: [],
+			triggers: [{ table: null, executeFunction: 'my_func' }]
+		})
+		const tableRef = result.find((r) => r.type === 'table')
+		expect(tableRef).toBeUndefined()
+		const funcRef = result.find((r) => r.type === 'function')
+		expect(funcRef).toBeDefined()
+		expect(funcRef.name).toBe('my_func')
+	})
+
+	it('collectTriggerRefs trigger without executeFunction skips function ref (line 198: false branch)', () => {
+		// trigger.executeFunction is falsy — no function ref pushed
+		const result = collectReferences({
+			tables: [],
+			views: [],
+			procedures: [],
+			triggers: [{ table: 'orders', tableSchema: 'public', executeFunction: null }]
+		})
+		const funcRef = result.find((r) => r.type === 'function')
+		expect(funcRef).toBeUndefined()
+		const tableRef = result.find((r) => r.type === 'table')
+		expect(tableRef).toBeDefined()
+		expect(tableRef.name).toBe('public.orders')
 	})
 })

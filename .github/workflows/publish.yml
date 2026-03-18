@@ -8,6 +8,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: write
       id-token: write
@@ -15,6 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -29,10 +32,30 @@ jobs:
         run: bun install
 
       - name: Publish packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+          NODE_NO_WARNINGS: 1
         run: |
-          for dir in ./packages/*/; do
-            grep -q '"private": true' "${dir}package.json" 2>/dev/null || \
-              (cd "$dir" && npm publish --provenance --access public)
+          # Publish in dependency order: db and dbml/postgres have no workspace deps,
+          # cli depends on all three so it must be last.
+          PACKAGES=(db dbml postgres cli)
+          for name in "${PACKAGES[@]}"; do
+            pkg="./packages/${name}/package.json"
+            [ -f "$pkg" ] || continue
+            grep -q '"private": true' "$pkg" 2>/dev/null && continue
+            # rewrite workspace:* to "latest" before publishing
+            node -e "
+              const fs = require('fs');
+              const p = JSON.parse(fs.readFileSync('$pkg', 'utf8'));
+              for (const section of ['dependencies','peerDependencies']) {
+                for (const [k,v] of Object.entries(p[section] || {})) {
+                  if (v.startsWith('workspace:')) p[section][k] = 'latest';
+                }
+              }
+              fs.writeFileSync('$pkg', JSON.stringify(p, null, 2) + '\n');
+            "
+            (cd "./packages/${name}" && npm publish --provenance --access public --tag latest)
+            git checkout -- "$pkg"
           done
 
       - name: Create GitHub release

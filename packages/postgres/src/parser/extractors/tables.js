@@ -269,6 +269,37 @@ export const extractDefaultValue = (columnDef) => {
 }
 
 /**
+ * Extract foreign key from reference definition
+ * @param {Object} ref - Reference definition
+ * @returns {Object} Foreign key constraint object
+ */
+const extractFKFromRefDef = (ref) => ({
+	type: 'FOREIGN KEY',
+	table: ref.table[0].table,
+	schema: ref.table[0].schema,
+	column: ref.definition?.[0]?.column?.expr?.value || ref.definition?.[0]?.column || 'id'
+})
+
+/**
+ * Extract foreign key from constraint list
+ * @param {Array} constraints - Constraint list
+ * @returns {Object|null} Foreign key constraint object or null
+ */
+const extractFKFromConstraintList = (constraints) => {
+	for (const constraint of constraints) {
+		if (constraint.Constraint?.contype === 'CONSTR_FOREIGN') {
+			return {
+				type: 'FOREIGN KEY',
+				table: constraint.Constraint.pktable.relname,
+				schema: constraint.Constraint.pktable.schemaname,
+				column: constraint.Constraint.pk_attrs?.[0]?.String?.str || 'id'
+			}
+		}
+	}
+	return null
+}
+
+/**
  * Extract column constraints from column definition
  * @param {Object} columnDef - Column definition
  * @returns {Array} Array of constraints
@@ -276,7 +307,6 @@ export const extractDefaultValue = (columnDef) => {
 export const extractColumnConstraints = (columnDef) => {
 	const constraints = []
 
-	// Primary key
 	if (columnDef.primary_key) {
 		constraints.push({ type: 'PRIMARY KEY' })
 	} else if (columnDef.constraints) {
@@ -291,39 +321,14 @@ export const extractColumnConstraints = (columnDef) => {
 		}
 	}
 
-	// Foreign key
-	if (columnDef.reference_definition) {
-		// Extract column name from the nested structure if present
-		let refColumn = 'id'
-		const refDefinition = columnDef.reference_definition.definition
-		if (refDefinition && refDefinition.length > 0) {
-			if (refDefinition[0].column?.expr?.value) {
-				refColumn = refDefinition[0].column.expr.value
-			} else if (refDefinition[0].column) {
-				refColumn = refDefinition[0].column
-			}
-		}
-
-		const fk = {
-			type: 'FOREIGN KEY',
-			table: columnDef.reference_definition.table[0].table,
-			schema: columnDef.reference_definition.table[0].schema,
-			column: refColumn
-		}
-		constraints.push(fk)
+	const normalizedFKs = (columnDef.constraints || []).filter((c) => c.type === 'FOREIGN KEY')
+	if (normalizedFKs.length > 0) {
+		constraints.push(...normalizedFKs)
+	} else if (columnDef.reference_definition) {
+		constraints.push(extractFKFromRefDef(columnDef.reference_definition))
 	} else if (columnDef.constraints) {
-		for (const constraint of columnDef.constraints) {
-			if (constraint.Constraint?.contype === 'CONSTR_FOREIGN') {
-				const fk = {
-					type: 'FOREIGN KEY',
-					table: constraint.Constraint.pktable.relname,
-					schema: constraint.Constraint.pktable.schemaname,
-					column: constraint.Constraint.pk_attrs?.[0]?.String?.str || 'id'
-				}
-				constraints.push(fk)
-				break
-			}
-		}
+		const fk = extractFKFromConstraintList(columnDef.constraints)
+		if (fk) constraints.push(fk)
 	}
 
 	return constraints
@@ -340,104 +345,100 @@ export const extractTableConstraints = (stmt) => {
 }
 
 /**
+ * Resolve comment value from various AST expression formats
+ * @param {*} expr - Expression to resolve value from
+ * @returns {string|null} Resolved comment value
+ */
+const resolveCommentValue = (expr) => {
+	if (expr.expr?.value) return expr.expr.value
+	if (typeof expr.value === 'string') return expr.value
+	if (typeof expr === 'string') return expr
+	return null
+}
+
+/**
+ * Resolve comment target (table name) from various AST formats
+ * @param {string|Object} name - Target name to resolve
+ * @returns {Object} Object with schemaName and tableName
+ */
+const resolveCommentTarget = (name) => {
+	if (typeof name === 'string') {
+		const parts = name.split('.')
+		return parts.length > 1
+			? { schemaName: parts[0], tableName: parts[1] }
+			: { schemaName: null, tableName: parts[0] }
+	}
+	return {
+		schemaName: name?.schema || name?.db || null,
+		tableName: name?.table
+	}
+}
+
+/**
+ * Resolve column target (table and column names) from various AST formats
+ * @param {string|Object} name - Target name to resolve
+ * @returns {Object} Object with schemaName, tableName, and columnName
+ */
+const resolveColumnTarget = (name) => {
+	if (typeof name === 'string') {
+		const parts = name.split('.')
+		if (parts.length === 3)
+			return {
+				schemaName: parts[0],
+				tableName: parts[1],
+				columnName: parts[2]
+			}
+		if (parts.length === 2) return { schemaName: null, tableName: parts[0], columnName: parts[1] }
+		return { schemaName: null, tableName: null, columnName: parts[0] }
+	}
+	const columnName = name?.column?.expr?.value ?? name?.column
+	return {
+		schemaName: name?.schema || name?.db || null,
+		tableName: name?.table,
+		columnName
+	}
+}
+
+/**
+ * Process a table comment statement
+ * @param {Object} stmt - Comment statement
+ * @param {Object} comments - Comments accumulator object
+ */
+const processTableComment = (stmt, comments) => {
+	const { schemaName, tableName } = resolveCommentTarget(stmt.target.name)
+	const comment = resolveCommentValue(stmt.expr)
+	const tableKey = schemaName ? `${schemaName}.${tableName}` : tableName
+	if (tableName && comment) comments.tables[tableKey] = comment
+}
+
+/**
+ * Process a column comment statement
+ * @param {Object} stmt - Comment statement
+ * @param {Object} comments - Comments accumulator object
+ */
+const processColumnComment = (stmt, comments) => {
+	const { schemaName, tableName, columnName } = resolveColumnTarget(stmt.target.name)
+	const comment = resolveCommentValue(stmt.expr)
+	const tableKey = schemaName ? `${schemaName}.${tableName}` : tableName
+	if (tableName && columnName && comment) {
+		if (!comments.columns[tableKey]) comments.columns[tableKey] = {}
+		comments.columns[tableKey][columnName] = comment
+	}
+}
+
+/**
  * Extract comment statements from AST
  * @param {Array} ast - Parsed SQL AST
  * @returns {Object} Object with table and column comments
  */
 export const extractComments = (ast) => {
-	const comments = {
-		tables: {},
-		columns: {}
-	}
-
+	const comments = { tables: {}, columns: {} }
 	if (!ast || !Array.isArray(ast)) return comments
 
 	for (const stmt of ast) {
-		if (stmt.type === 'comment' && stmt.keyword === 'on' && stmt.target && stmt.expr) {
-			// Table comment
-			if (stmt.target.type === 'table') {
-				let tableName, schemaName
-
-				if (typeof stmt.target.name === 'string') {
-					// Handle schema qualified names like "config.lookup_values"
-					const parts = stmt.target.name.split('.')
-					if (parts.length > 1) {
-						schemaName = parts[0]
-						tableName = parts[1]
-					} else {
-						tableName = parts[0]
-					}
-				} else {
-					// Handle object structured names
-					tableName = stmt.target.name?.table
-					schemaName = stmt.target.name?.schema || stmt.target.name?.db
-				}
-
-				// Get the comment value
-				let comment
-				if (stmt.expr.expr?.value) {
-					comment = stmt.expr.expr.value
-				} else if (typeof stmt.expr.value === 'string') {
-					comment = stmt.expr.value
-				} else if (typeof stmt.expr === 'string') {
-					comment = stmt.expr
-				}
-
-				// Store with schema qualification if available
-				const tableKey = schemaName ? `${schemaName}.${tableName}` : tableName
-				if (tableName && comment) {
-					comments.tables[tableKey] = comment
-				}
-			}
-			// Column comment
-			else if (stmt.target.type === 'column') {
-				let tableName, columnName, schemaName
-
-				if (typeof stmt.target.name === 'string') {
-					// Handle fully qualified names like "schema.table.column"
-					const parts = stmt.target.name.split('.')
-					if (parts.length === 3) {
-						schemaName = parts[0]
-						tableName = parts[1]
-						columnName = parts[2]
-					} else if (parts.length === 2) {
-						tableName = parts[0]
-						columnName = parts[1]
-					} else {
-						columnName = parts[0]
-					}
-				} else {
-					// Handle object structured names
-					tableName = stmt.target.name?.table
-					schemaName = stmt.target.name?.schema || stmt.target.name?.db
-
-					if (stmt.target.name?.column?.expr?.value) {
-						columnName = stmt.target.name.column.expr.value
-					} else if (stmt.target.name?.column) {
-						columnName = stmt.target.name.column
-					}
-				}
-
-				// Get the comment value
-				let comment
-				if (stmt.expr.expr?.value) {
-					comment = stmt.expr.expr.value
-				} else if (typeof stmt.expr.value === 'string') {
-					comment = stmt.expr.value
-				} else if (typeof stmt.expr === 'string') {
-					comment = stmt.expr
-				}
-
-				// Store with schema qualification if available
-				const tableKey = schemaName ? `${schemaName}.${tableName}` : tableName
-				if (tableName && columnName && comment) {
-					if (!comments.columns[tableKey]) {
-						comments.columns[tableKey] = {}
-					}
-					comments.columns[tableKey][columnName] = comment
-				}
-			}
-		}
+		if (stmt.type !== 'comment' || stmt.keyword !== 'on' || !stmt.target || !stmt.expr) continue
+		if (stmt.target.type === 'table') processTableComment(stmt, comments)
+		else if (stmt.target.type === 'column') processColumnComment(stmt, comments)
 	}
 
 	return comments

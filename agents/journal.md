@@ -5,6 +5,59 @@ Design details live in `docs/design/` — modular docs per module.
 
 ---
 
+## 2026-03-15
+
+### Complexity Reduction — Functions > 10
+
+Executed plan `docs/superpowers/plans/2026-03-15-complexity-reduction.md` — 14 tasks, 4 chunks.
+
+**Commits:** c4d4974 (translators), f7c277c (extractors), 5aff2dd (index-functional.js), 7506f28 (db/adapter/classifier)
+
+**Reductions achieved (highlights):**
+
+- extractors/tables.js `extractComments` 45→8, `extractColumnConstraints` 22→8
+- index-functional.js `identifyEntity` 28→~5 (ENTITY_EXTRACTORS dispatch map), `collectReferences` 22→~5
+- translators/create-table.js switch 14→dispatch + `translateCreateStmt` 25→~8
+- translators/create-view.js `translateTargetExpr` 20→14 (partial — ESLint counts `&&`/`||`/`??`/`?.` operators)
+- dependency-resolver.js `subgraphEntities` 16→~3
+
+**Gap / next iteration:** ESLint counts logical operators (`&&`, `||`, `??`, `?.`) as branching points, so plan estimates were optimistic. 15 functions in production code remain > 10:
+
+- `sql.js:41` splitStatements 36 (not in scope of this plan — from original sql.js)
+- `extractors/tables.js` 5 functions at 12-14 (different from the 2 we targeted; same file but other functions)
+- `extractors/views.js:182` 14, `extractors/procedures.js:219` 13
+- `translators/create-view.js:22` 14 (targeted, reduced from 20, plan expected ~7 but `&&`/`||` inflate count)
+- `translators/create-trigger.js:8` 12 (not in scope)
+- `translators/create-table.js:197` 13 (different function from what we targeted)
+- `entity-processor.js:207` validateEntity 12 (was 16, plan expected ~9)
+- `dependency-resolver.js:152` bfsVisit 11 (new helper we created — complex by necessity)
+- `translators/types.js:76` resolveAConstDefault 11 (new helper we created)
+- `db-indexes.js:117` extractTableName 12 (was 11, `&&`/`||` inflate the early-return style)
+
+All 684 workspace tests pass. Lint 0 errors.
+
+---
+
+### SQL Parser Modularization
+
+Refactored `packages/postgres/src/parser/parsers/sql.js` (1080 lines, total complexity 227) into focused translator modules.
+
+**New structure:** `packages/postgres/src/parser/translators/`
+
+- `types.js` — PG_TYPE_MAP, resolveTypeName, resolveDefaultExpr
+- `create-table.js` — translateCreateStmt + translateColumnConstraints + buildColumnCompatShape helpers
+- `where-expr.js` — translateWhereExpr, translateFromItem, flattenJoinExpr (JOIN_TYPE_MAP extracted as constant)
+- `create-view.js` — translateViewStmt + translateTargetExpr extracted
+- `create-function.js` — translateCreateFunctionStmt + extractFunctionOptions + translateFunctionParameter
+- `create-index.js`, `create-trigger.js`, `variable-set.js`, `comment.js` — single-responsibility translators
+- `index.js` — translatePgStmt dispatcher
+
+`parsers/sql.js` is now ~130 lines (public API only: parse, splitStatements, validateSQL, parseSearchPath, initParser) with scanDollarTag helper extracted from splitStatements.
+
+All 684 workspace tests pass, 0 lint errors. Commit: `b38ff3c`
+
+---
+
 ## 2026-02-17
 
 ### Agent Workflow Setup

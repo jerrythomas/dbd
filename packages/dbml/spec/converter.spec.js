@@ -10,9 +10,11 @@ import {
 	removeIndexCreationStatements,
 	removeCommentOnStatements,
 	normalizeComment,
+	normalizeComments,
 	buildTableLookup,
 	qualifyTableNames,
 	cleanupDDLForDBML,
+	removeRedundantInlineRefs,
 	buildTableReplacements,
 	applyTableReplacements,
 	buildProjectBlock,
@@ -104,6 +106,78 @@ SELECT 1;`
 		})
 	})
 
+	describe('removeRedundantInlineRefs()', () => {
+		it('removes inline references for columns covered by table-level FK constraints', () => {
+			const sql = `CREATE TABLE subscribers (
+  id uuid PRIMARY KEY,
+  user_id uuid references users(id),
+  CONSTRAINT subscribers_user_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);`
+			const result = removeRedundantInlineRefs(sql)
+			expect(result).not.toContain('references users(id)')
+			expect(result).toContain('user_id uuid')
+			expect(result).toContain('FOREIGN KEY (user_id)')
+		})
+
+		it('leaves inline references untouched when no table-level FK exists', () => {
+			const sql = 'CREATE TABLE t (\n  user_id uuid references users(id)\n);'
+			const result = removeRedundantInlineRefs(sql)
+			expect(result).toContain('references users(id)')
+		})
+
+		it('strips bare references (no column spec) for FK-covered columns', () => {
+			const sql = `CREATE TABLE t (
+  user_id uuid references users,
+  CONSTRAINT t_user_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);`
+			const result = removeRedundantInlineRefs(sql)
+			expect(result).not.toContain('references users')
+			expect(result).toContain('user_id uuid')
+		})
+
+		it('returns unchanged DDL when no table-level FKs present', () => {
+			const sql = 'CREATE TABLE t (id uuid PRIMARY KEY);'
+			expect(removeRedundantInlineRefs(sql)).toBe(sql)
+		})
+	})
+
+	describe('normalizeComments()', () => {
+		it('flattens multi-line COMMENT ON TABLE to single-line', () => {
+			const sql = `CREATE TABLE t (id uuid);\nCOMMENT ON TABLE t IS\n'line1\nline2';`
+			const result = normalizeComments(sql)
+			expect(result).toContain("'line1 line2'")
+			expect(result).toContain('COMMENT ON TABLE t IS')
+		})
+
+		it('flattens multi-line COMMENT ON COLUMN to single-line', () => {
+			const sql = `COMMENT ON COLUMN t.id IS\n'first line\nsecond line';`
+			const result = normalizeComments(sql)
+			expect(result).toContain("'first line second line'")
+			expect(result).toContain('COMMENT ON COLUMN t.id IS')
+		})
+
+		it("converts SQL escaped apostrophes ('') to Unicode right single quotation mark", () => {
+			const sql = `COMMENT ON TABLE t IS 'user''s table';`
+			const result = normalizeComments(sql)
+			expect(result).toContain('user\u2019s table')
+			expect(result).not.toContain("''")
+		})
+
+		it('removes COMMENT ON FUNCTION statements', () => {
+			const sql = `COMMENT ON FUNCTION foo IS 'A function';\nCREATE TABLE t (id uuid);`
+			const result = normalizeComments(sql)
+			expect(result).not.toContain('COMMENT ON FUNCTION')
+			expect(result).toContain('CREATE TABLE')
+		})
+
+		it('preserves COMMENT ON TABLE and COMMENT ON COLUMN', () => {
+			const sql = `CREATE TABLE t (id uuid);\nCOMMENT ON TABLE t IS 'A table';\nCOMMENT ON COLUMN t.id IS 'Primary key';`
+			const result = normalizeComments(sql)
+			expect(result).toContain("COMMENT ON TABLE t IS 'A table'")
+			expect(result).toContain("COMMENT ON COLUMN t.id IS 'Primary key'")
+		})
+	})
+
 	describe('cleanupDDLForDBML()', () => {
 		it('removes index statements from DDL', () => {
 			const sql = 'CREATE TABLE t (id int);\nCREATE INDEX idx ON t(id);'
@@ -112,10 +186,12 @@ SELECT 1;`
 			expect(result).toContain('CREATE TABLE')
 		})
 
-		it('removes COMMENT ON statements from DDL', () => {
-			const sql = "CREATE TABLE t (id int);\nCOMMENT ON TABLE t IS 'a table';"
+		it('preserves COMMENT ON TABLE/COLUMN but removes others', () => {
+			const sql =
+				"CREATE TABLE t (id int);\nCOMMENT ON TABLE t IS 'a table';\nCOMMENT ON FUNCTION f IS 'fn';"
 			const result = cleanupDDLForDBML(sql)
-			expect(result).not.toContain('COMMENT ON')
+			expect(result).toContain("COMMENT ON TABLE t IS 'a table'")
+			expect(result).not.toContain('COMMENT ON FUNCTION')
 			expect(result).toContain('CREATE TABLE')
 		})
 
@@ -177,6 +253,20 @@ describe('Schema qualification', () => {
 			const sql = ', ref_id uuid references unknown_table(id)'
 			const result = qualifyTableNames(sql, 'public', {})
 			expect(result).toContain('references public.unknown_table(')
+		})
+
+		it('qualifies bare REFERENCES without column spec', () => {
+			const sql = ', user_id uuid references users'
+			const lookup = { users: 'auth.users' }
+			const result = qualifyTableNames(sql, 'core', lookup)
+			expect(result).toContain('references auth.users')
+		})
+
+		it('does not qualify column names that contain the word "references"', () => {
+			const sql = ', preferences jsonb'
+			const lookup = { preferences: 'core.preferences' }
+			const result = qualifyTableNames(sql, 'core', lookup)
+			expect(result).toBe(', preferences jsonb')
 		})
 
 		it('does not qualify already schema-qualified FK references', () => {

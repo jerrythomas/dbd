@@ -8,6 +8,15 @@ import { isInternal, matchesKnownExtension, resetCache } from './reference-class
 const TMP_SCRIPT = '_dbd_temp.sql'
 
 /**
+ * Build a dry-run log message for an entity.
+ */
+const buildDryRunMessage = (entity) => {
+	const using =
+		entity.file || entity.type === 'extension' ? ` using "${entity.file || entity.schema}"` : ''
+	return `[dry-run] ${entity.type} => ${entity.name}${using}`
+}
+
+/**
  * PostgreSQL adapter that shells out to `psql`.
  *
  * This is the v1-compatible adapter — same mechanism as the legacy code.
@@ -79,9 +88,7 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		}
 
 		if (this.dryRun || options.dryRun) {
-			const using =
-				entity.file || entity.type === 'extension' ? ` using "${entity.file || entity.schema}"` : ''
-			this.log(`[dry-run] ${entity.type} => ${entity.name}${using}`)
+			this.log(buildDryRunMessage(entity))
 			return
 		}
 

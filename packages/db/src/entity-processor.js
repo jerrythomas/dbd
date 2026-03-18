@@ -187,13 +187,29 @@ export function filterEntitiesForDBML(entities, config) {
 
 // --- Validation ---
 
+function validateTypedSchema(entity) {
+	const errors = []
+	if (entity.name.split('.').length !== 2) errors.push('Use fully qualified name <schema>.<name>')
+	if (!entity.file) errors.push('File missing for import entity')
+	return errors
+}
+
+function validateEntityReferences(entity, ignore) {
+	const errors = []
+	if (!entity.references || entity.references.length === 0) return errors
+	entity.references
+		.filter((ref) => !ignore.includes(ref.name))
+		.filter((ref) => ref.error)
+		.forEach((ref) => errors.push(ref.error))
+	return errors
+}
+
 export function validateEntity(entity, ddl = true, ignore = []) {
 	let errors = []
 	ddl = ddl && entity.type !== 'import'
 
-	if (entity.name === null) {
-		errors.push('Location of the file is incorrect')
-	}
+	if (entity.name === null) errors.push('Location of the file is incorrect')
+
 	if (!allowedTypes.includes(entity.type)) {
 		errors.push('Unknown or unsupported entity type.')
 		if (entity.file) errors.push('Unknown or unsupported entity ddl script.')
@@ -204,23 +220,12 @@ export function validateEntity(entity, ddl = true, ignore = []) {
 	}
 
 	if (typesWithSchema.includes(entity.type)) {
-		if (entity.name.split('.').length !== 2) {
-			errors.push('Use fully qualified name <schema>.<name>')
-		}
-		if (!entity.file) {
-			errors.push('File missing for import entity')
-		}
-	}
-	if (entity.references && entity.references.length > 0) {
-		entity.references
-			.filter((ref) => !ignore.includes(ref.name))
-			.filter((ref) => ref.error)
-			.map((ref) => errors.push(ref.error))
+		errors = [...errors, ...validateTypedSchema(entity)]
 	}
 
-	if (entity.file) {
-		errors = [...errors, ...validateFiles(entity, ddl)]
-	}
+	errors = [...errors, ...validateEntityReferences(entity, ignore)]
+
+	if (entity.file) errors = [...errors, ...validateFiles(entity, ddl)]
 
 	return errors.length > 0 ? { ...entity, errors } : entity
 }

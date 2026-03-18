@@ -25,14 +25,22 @@ describe('Dependency Extraction', () => {
 			const ast = [{ type: 'set' }]
 			const sql = 'CREATE OR REPLACE FUNCTION staging.do_import() RETURNS void AS $$ BEGIN END; $$'
 			const result = identifyEntity(ast, sql)
-			expect(result).toEqual({ name: 'do_import', schema: 'staging', type: 'function' })
+			expect(result).toEqual({
+				name: 'do_import',
+				schema: 'staging',
+				type: 'function'
+			})
 		})
 
 		it('falls back to regex for CREATE PROCEDURE in raw SQL', () => {
 			const ast = [{ type: 'set' }]
 			const sql = 'CREATE OR REPLACE PROCEDURE my_proc() LANGUAGE plpgsql AS $$ BEGIN END; $$'
 			const result = identifyEntity(ast, sql)
-			expect(result).toEqual({ name: 'my_proc', schema: null, type: 'procedure' })
+			expect(result).toEqual({
+				name: 'my_proc',
+				schema: null,
+				type: 'procedure'
+			})
 		})
 
 		it('identifies a CREATE TABLE entity', () => {
@@ -97,7 +105,11 @@ describe('Dependency Extraction', () => {
 				}
 			]
 			const result = identifyEntity(ast, '')
-			expect(result).toEqual({ name: 'do_work', schema: 'batch', type: 'procedure' })
+			expect(result).toEqual({
+				name: 'do_work',
+				schema: 'batch',
+				type: 'procedure'
+			})
 		})
 
 		it('identifies procedure with object procInfo having .name', () => {
@@ -109,7 +121,11 @@ describe('Dependency Extraction', () => {
 				}
 			]
 			const result = identifyEntity(ast, '')
-			expect(result).toEqual({ name: 'run_job', schema: 'ops', type: 'procedure' })
+			expect(result).toEqual({
+				name: 'run_job',
+				schema: 'ops',
+				type: 'procedure'
+			})
 		})
 
 		it('returns null when function AST has no name info', () => {
@@ -289,6 +305,29 @@ describe('Dependency Extraction', () => {
 			expect(refNames).not.toContain('now')
 			expect(refNames).not.toContain('varchar')
 		})
+	})
+
+	it('captures all FK references when multiple named FKs target the same column', () => {
+		// Partitioned tables commonly have both a simple FK (tenant_id → core.tenants)
+		// and a composite FK (tenant_id, other_col) → other_table on the same tenant_id column.
+		// Both dependencies must appear in the output, not just the last one applied.
+		const sql = `
+			SET search_path to edge, core, extensions;
+
+			CREATE TABLE IF NOT EXISTS regions (
+			  tenant_id uuid NOT NULL,
+			  id uuid DEFAULT uuid_generate_v4(),
+			  level_id uuid,
+			  name varchar,
+			  CONSTRAINT regions_pkey PRIMARY KEY (tenant_id, id),
+			  CONSTRAINT regions_tenant_fkey FOREIGN KEY (tenant_id) REFERENCES core.tenants(id),
+			  CONSTRAINT regions_fkey FOREIGN KEY (tenant_id, level_id) REFERENCES region_levels(tenant_id, id)
+			) PARTITION BY LIST (tenant_id);
+		`
+		const { references } = extractDependencies(sql)
+		const refNames = references.map((r) => r.name)
+		expect(refNames).toContain('core.tenants')
+		expect(refNames).toContain('region_levels')
 	})
 
 	describe('extractDependencies() — view references', () => {

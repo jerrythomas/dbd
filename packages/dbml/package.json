@@ -1,6 +1,6 @@
 {
   "name": "@jerrythomas/dbd-dbml",
-  "version": "2.0.4",
+  "version": "2.0.6",
   "description": "DBML conversion and publishing utilities for DBD.",
   "type": "module",
   "main": "src/index.js",
@@ -24,7 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "@jerrythomas/dbd-db": "workspace:*",
-    "@dbml/core": "^3.13.5"
+    "@dbml/core": "^6.4.0"
   },
   "devDependencies": {},
   "publishConfig": {

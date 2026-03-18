@@ -374,5 +374,72 @@ describe('View Extractor - Functional API', () => {
 			expect(views[0].schema).toBe('myschema')
 			expect(views[0].replace).toBe(false)
 		})
+
+		it('addViewDependency skips null/non-object table argument', () => {
+			// Line 151: guard on addViewDependency — exercised via collectFromItems with bad join
+			const deps = extractViewDependencies({
+				select: {
+					from: [{ join: null }]
+				}
+			})
+			expect(deps).toHaveLength(0)
+		})
+
+		it('extractViewDependencies CTE with falsy name skips cteNames.add', () => {
+			// Line 189: if (name) cteNames.add(name) — name falsy case
+			const deps = extractViewDependencies({
+				select: {
+					with: [{ name: null, stmt: { from: [{ table: 'raw' }] } }],
+					from: [{ table: 'raw' }]
+				}
+			})
+			// raw is not excluded since CTE name was null
+			expect(deps.some((d) => d.table === 'raw')).toBe(true)
+		})
+
+		it('extractViewDependencies CTE without stmt.from is skipped', () => {
+			// Line 197: if (cte.stmt?.from) — cte without stmt
+			const deps = extractViewDependencies({
+				select: {
+					with: [{ name: { value: 'my_cte' }, stmt: {} }],
+					from: [{ table: 'other' }]
+				}
+			})
+			expect(deps.some((d) => d.table === 'other')).toBe(true)
+		})
+
+		it('extractViewDefinition fallback when regex does not match', () => {
+			// Line 218: if (match && match[2]) — no match
+			const def = extractViewDefinition({
+				view: 'some_view',
+				select: { columns: [] },
+				_original_sql: 'SELECT 1;'
+			})
+			expect(def).toBe('SELECT ...')
+		})
+
+		it('extractViewName falls through when view object has neither .view nor .table (line 64: false branch)', () => {
+			// stmt.view is an object but has neither .view nor .table properties
+			// → else if (stmt.view.table) is false → falls through to return stmt.view || ''
+			const result = extractViewName({ view: { schema: 'public' } })
+			// Falls through to line 68: return stmt.view || '' → returns the object
+			expect(typeof result).toBe('object')
+		})
+
+		it('extractViewDependencies with addViewDependency called with null table (line 151)', () => {
+			// The addViewDependency guard: !table (null) → return immediately
+			// This happens via collectFromItems when item.join is null
+			const deps = extractViewDependencies({
+				select: {
+					from: [
+						{ table: 'users' },
+						{ join: null, table: null } // join is null, but item.table is also null
+					]
+				}
+			})
+			// Only 'users' should appear since the null join is skipped
+			expect(deps).toHaveLength(1)
+			expect(deps[0].table).toBe('users')
+		})
 	})
 })

@@ -423,6 +423,43 @@ describe('Table Extractor - Functional API', () => {
 			})
 		})
 
+		it('returns all FK constraints when constraints array has multiple normalized FKs', () => {
+			const col = {
+				constraints: [
+					{
+						type: 'FOREIGN KEY',
+						table: 'tenants',
+						schema: 'core',
+						column: 'id'
+					},
+					{
+						type: 'FOREIGN KEY',
+						table: 'region_levels',
+						schema: null,
+						column: 'id'
+					}
+				],
+				reference_definition: {
+					table: [{ table: 'region_levels', schema: null }],
+					definition: [{ column: { expr: { value: 'id' } } }]
+				}
+			}
+			const result = extractColumnConstraints(col)
+			expect(result).toHaveLength(2)
+			expect(result[0]).toEqual({
+				type: 'FOREIGN KEY',
+				table: 'tenants',
+				schema: 'core',
+				column: 'id'
+			})
+			expect(result[1]).toEqual({
+				type: 'FOREIGN KEY',
+				table: 'region_levels',
+				schema: null,
+				column: 'id'
+			})
+		})
+
 		it('extracts FK with column string fallback in reference_definition', () => {
 			const col = {
 				reference_definition: {
@@ -540,7 +577,10 @@ describe('Table Extractor - Functional API', () => {
 				{
 					type: 'comment',
 					keyword: 'on',
-					target: { type: 'table', name: { table: 'lookups', schema: 'config' } },
+					target: {
+						type: 'table',
+						name: { table: 'lookups', schema: 'config' }
+					},
 					expr: { value: 'Lookup definitions' }
 				}
 			]
@@ -566,7 +606,11 @@ describe('Table Extractor - Functional API', () => {
 					keyword: 'on',
 					target: {
 						type: 'column',
-						name: { table: 'employees', schema: 'hr', column: { expr: { value: 'name' } } }
+						name: {
+							table: 'employees',
+							schema: 'hr',
+							column: { expr: { value: 'name' } }
+						}
 					},
 					expr: { value: 'Employee full name (object)' }
 				}
@@ -754,7 +798,10 @@ describe('Table Extractor - Functional API', () => {
 		it('extractColumnsFromStatement filters out rows without column or ColumnDef', () => {
 			const stmt = {
 				create_definitions: [
-					{ column: { column: { expr: { value: 'id' } } }, definition: { dataType: 'INT' } },
+					{
+						column: { column: { expr: { value: 'id' } } },
+						definition: { dataType: 'INT' }
+					},
 					{ resource: 'constraint', type: 'primary key' }
 				]
 			}
@@ -865,6 +912,32 @@ describe('Table Extractor - Functional API', () => {
 			expect(extractDataType(0)).toBeNull()
 		})
 
+		it('resolveCommentValue returns null when expr has no recognizable format', () => {
+			// Line 353: return null — expr is an object with no expr.value, .value, or string
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ table: 'things' }],
+					create_definitions: [
+						{
+							column: { column: { expr: { value: 'id' } } },
+							definition: { dataType: 'INT' }
+						}
+					]
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'table', name: { table: 'things' } },
+					expr: { someOtherProp: 42 }
+				}
+			]
+			const tables = extractTables(ast)
+			// Comment with null value should not be stored (returns null, not set to key)
+			expect(tables[0].comments.table).toBeFalsy()
+		})
+
 		it('extractDefaultValue uses array map+join when name.name[0].value is falsy', () => {
 			const col = {
 				default_val: {
@@ -877,6 +950,115 @@ describe('Table Extractor - Functional API', () => {
 				}
 			}
 			expect(extractDefaultValue(col)).toBe('pg_catalog.nextval()')
+		})
+
+		it('extractComments handles comment with unknown target type (line 427: false branch)', () => {
+			// target.type is neither 'table' nor 'column' — skipped
+			const ast = [
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'schema', name: 'public' },
+					expr: { value: 'My schema' }
+				}
+			]
+			const result = extractComments(ast)
+			expect(result).toEqual({ tables: {}, columns: {} })
+		})
+
+		it('processTableComments handles table with no columns (line 459: false branch)', () => {
+			// A table with no columns — updatedTable.columns is empty array
+			const ast = [
+				{
+					type: 'create',
+					keyword: 'table',
+					table: [{ table: 'empty_table' }],
+					create_definitions: []
+				},
+				{
+					type: 'comment',
+					keyword: 'on',
+					target: { type: 'table', name: { table: 'empty_table' } },
+					expr: { value: 'An empty table' }
+				}
+			]
+			const tables = extractTables(ast)
+			expect(tables[0].comments.table).toBe('An empty table')
+			expect(tables[0].columns).toHaveLength(0)
+		})
+
+		it('extractFKFromRefDef uses column string fallback (line 280: || column)', () => {
+			// ref.definition[0].column is a string, not object with .expr.value
+			const col = {
+				reference_definition: {
+					table: [{ table: 'users', schema: null }],
+					definition: [{ column: 'user_id' }]
+				}
+			}
+			const result = extractColumnConstraints(col)
+			expect(result[0].column).toBe('user_id')
+		})
+
+		it('extractFKFromRefDef falls back to id when no column info (line 280: || id)', () => {
+			// ref.definition[0].column is undefined — falls back to 'id'
+			const col = {
+				reference_definition: {
+					table: [{ table: 'roles', schema: null }],
+					definition: [{}]
+				}
+			}
+			const result = extractColumnConstraints(col)
+			expect(result[0].column).toBe('id')
+		})
+
+		it('extractDataType handles typmods where all values are undefined (line 185: false branch)', () => {
+			// typmods contains items where A_Const?.val?.Integer?.ival is undefined
+			// → filter returns empty → length === 0 → no type spec appended
+			const col = {
+				typeName: {
+					names: [{ String: { str: 'text' } }],
+					typmods: [{ A_Const: { val: { String: { str: 'foo' } } } }] // no Integer
+				}
+			}
+			const result = extractDataType(col)
+			// Should not have parentheses since all typmods filtered out
+			expect(result).not.toContain('(')
+		})
+
+		it('extractDefaultValue function arg with no value returns empty string (line 257/259)', () => {
+			// arg is an object with no .value — returns ''
+			const col = {
+				default_val: {
+					type: 'default',
+					value: {
+						type: 'function',
+						name: { name: [{ value: 'coalesce' }] },
+						args: { value: [{ type: 'column_ref' }] } // arg is object without .value
+					}
+				}
+			}
+			expect(extractDefaultValue(col)).toBe('coalesce()')
+		})
+
+		it('extractDefaultValue returns null when default_val has unknown type (line 241: false)', () => {
+			// defaultExpr.type is not 'default' — falls through to return null
+			const col = { default_val: { type: 'expression', expr: 'something' } }
+			expect(extractDefaultValue(col)).toBeNull()
+		})
+
+		it('extractDefaultValue handles string arg in function args (line 257: true branch)', () => {
+			// arg is a plain string — returns arg directly
+			const col = {
+				default_val: {
+					type: 'default',
+					value: {
+						type: 'function',
+						name: { name: [{ value: 'format' }] },
+						args: { value: ['hello', 'world'] }
+					}
+				}
+			}
+			expect(extractDefaultValue(col)).toBe('format(hello, world)')
 		})
 	})
 })

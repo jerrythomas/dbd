@@ -309,6 +309,27 @@ export const extractProceduresFromSql = (sql, defaultSchema) =>
 	extractRoutinesFromSql(sql, defaultSchema)
 
 /**
+ * Parse a raw parameter string into structured parameter object
+ * @param {string} paramStr - Parameter string (e.g., "IN param_name text" or "param_name integer")
+ * @returns {Object} Structured parameter with mode, name, dataType
+ */
+const parseRawParameter = (paramStr) => {
+	const paramParts = paramStr.trim().split(/\s+/)
+	if (/^IN(OUT)?$/i.test(paramParts[0]) || /^OUT$/i.test(paramParts[0])) {
+		return {
+			mode: paramParts[0].toLowerCase(),
+			name: paramParts[1],
+			dataType: paramParts.slice(2).join(' ').toLowerCase()
+		}
+	}
+	return {
+		mode: 'in',
+		name: paramParts[0],
+		dataType: paramParts.slice(1).join(' ').toLowerCase()
+	}
+}
+
+/**
  * Extract procedures and functions from SQL string when AST parsing fails
  * @param {string} sql - Original SQL string
  * @param {string|null} defaultSchema - Default schema
@@ -332,26 +353,7 @@ export const extractRoutinesFromSql = (sql, defaultSchema) => {
 		const body = match[7] || match[8]
 
 		// Parse parameters
-		const parameters = params
-			.split(',')
-			.filter(Boolean)
-			.map((paramStr) => {
-				const paramParts = paramStr.trim().split(/\s+/)
-				let mode = 'in'
-				let name
-				let dataType
-
-				if (/^IN(OUT)?$/i.test(paramParts[0]) || /^OUT$/i.test(paramParts[0])) {
-					mode = paramParts[0].toLowerCase()
-					name = paramParts[1]
-					dataType = paramParts.slice(2).join(' ').toLowerCase()
-				} else {
-					name = paramParts[0]
-					dataType = paramParts.slice(1).join(' ').toLowerCase()
-				}
-
-				return { name, dataType, mode }
-			})
+		const parameters = params.split(',').filter(Boolean).map(parseRawParameter)
 
 		procedures.push({
 			name: procName,

@@ -302,4 +302,44 @@ describe('dependency-resolver', () => {
 			})
 		})
 	})
+
+	describe('graphFromEntities — null entities guard', () => {
+		it('returns empty result for null entities', () => {
+			// Line 105: if (!entities || entities.length === 0)
+			const result = graphFromEntities(null)
+			expect(result).toEqual({ nodes: [], edges: [], layers: [] })
+		})
+	})
+
+	describe('bfsVisit — entity.refers undefined (lines 160-161)', () => {
+		it('handles entity with no refers property during subgraph traversal (line 161: || [] branch)', () => {
+			// An entity in the subgraph has no 'refers' property at all (undefined)
+			// This triggers: entity.refers || [] at line 161 — the || [] fallback
+			const entities = [
+				{ name: 'a', type: 'table', schema: 's' }, // no refers property
+				{ name: 'b', type: 'table', schema: 's', refers: ['a'] }
+			]
+			const result = graphFromEntities(entities, 'b')
+			const names = result.nodes.map((n) => n.name)
+			expect(names).toContain('b')
+			expect(names).toContain('a')
+		})
+	})
+
+	describe('buildReverseGraph — entity.refers undefined (line 136)', () => {
+		it('handles entity with undefined refers in reverse graph build (|| [] branch)', () => {
+			// subgraphEntities → buildReverseGraph iterates entities.
+			// entity.refers || [] at line 136 fires when refers is undefined.
+			const entities = [
+				{ name: 'x', type: 'table', schema: 's' }, // no refers
+				{ name: 'y', type: 'table', schema: 's', refers: ['x'] },
+				{ name: 'z', type: 'table', schema: 's', refers: ['y'] }
+			]
+			// Get subgraph starting from 'x' — buildReverseGraph processes all entities
+			// including 'x' which has no refers
+			const result = graphFromEntities(entities, 'x')
+			const names = result.nodes.map((n) => n.name)
+			expect(names).toContain('x')
+		})
+	})
 })
