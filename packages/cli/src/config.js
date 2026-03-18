@@ -146,6 +146,36 @@ export function cleanDDLEntities(data, parseEntityScript, matchReferences) {
 }
 
 /**
+ * Derives import env from a file path by checking the second path segment.
+ * scan('import') produces paths like 'import/dev/...', 'import/prod/...', 'import/staging/...'
+ * Returns null for shared (ungrouped) files.
+ *
+ * @param {string} filePath
+ * @returns {'dev'|'prod'|null}
+ */
+function envFromPath(filePath) {
+	const parts = filePath.split('/')
+	if (parts[1] === 'dev') return 'dev'
+	if (parts[1] === 'prod') return 'prod'
+	return null
+}
+
+/**
+ * Normalizes a file path for entityFromFile by removing env folder if present.
+ * Converts 'import/dev/staging/file.csv' -> 'import/staging/file.csv'
+ *
+ * @param {string} filePath
+ * @returns {string}
+ */
+function normalizeImportPath(filePath) {
+	const parts = filePath.split('/')
+	if (parts[1] === 'dev' || parts[1] === 'prod') {
+		return [parts[0], ...parts.slice(2)].join('/')
+	}
+	return filePath
+}
+
+/**
  * Scan import folder and combine with configuration.
  *
  * @param {Object} data
@@ -157,7 +187,7 @@ function cleanImportTables(data) {
 	const schemaOptions = data.import.schemas ?? {}
 	let importTables = scan('import')
 		.filter((file) => ['.jsonl', '.csv', '.tsv'].includes(extname(file)))
-		.map((file) => ({ ...options, ...entityFromFile(file) }))
+		.map((file) => ({ ...options, ...entityFromFile(normalizeImportPath(file)), env: envFromPath(file) }))
 		.map((table) => ({ ...table, ...schemaOptions[table.schema] }))
 
 	if (tables.length === 0) return importTables

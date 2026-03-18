@@ -264,4 +264,36 @@ describe('config', () => {
 			expect(() => normalizeEnv('staging')).toThrow()
 		})
 	})
+
+	describe('cleanImportTables env annotation (folder-based)', () => {
+		const parseEntity = (entity) => ({ ...entity, searchPaths: ['public'], references: [], errors: [] })
+		const matchRefs = (entities) => entities.map((e) => ({ ...e, warnings: [], refers: [] }))
+
+		beforeEach(() => process.chdir(exampleDir))
+
+		it('annotates files under import/dev/ with env "dev"', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			const devTable = result.importTables.find((t) => t.name === 'staging.dev_fixtures')
+			expect(devTable).toBeDefined()
+			expect(devTable.env).toBe('dev')
+		})
+
+		it('annotates files under import/prod/ with env "prod"', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			const prodTable = result.importTables.find((t) => t.name === 'staging.prod_seeds')
+			expect(prodTable).toBeDefined()
+			expect(prodTable.env).toBe('prod')
+		})
+
+		it('annotates ungrouped import files with env null (shared)', () => {
+			const data = read('design.yaml')
+			const result = clean(data, parseEntity, matchRefs)
+			// staging.lookups is at import/staging/lookups.csv — no dev/prod parent folder
+			const sharedTable = result.importTables.find((t) => t.name === 'staging.lookups')
+			expect(sharedTable).toBeDefined()
+			expect(sharedTable.env).toBeNull()
+		})
+	})
 })
