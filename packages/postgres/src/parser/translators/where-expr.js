@@ -35,43 +35,36 @@ const translateAConst = (ac) => {
 	return { type: 'expression' }
 }
 
-/**
- * Translate a WHERE clause expression to a simplified normalized shape.
- */
-export const translateWhereExpr = (expr) => {
-	if (expr.BoolExpr) {
-		return {
-			type: 'binary_expr',
-			operator: BOOL_OP_MAP[expr.BoolExpr.boolop],
-			args: expr.BoolExpr.args.map(translateWhereExpr)
-		}
-	}
-
-	if (expr.A_Expr) {
-		return {
-			type: 'binary_expr',
-			operator: expr.A_Expr.name[0].String.sval,
-			left: translateWhereExpr(expr.A_Expr.lexpr),
-			right: translateWhereExpr(expr.A_Expr.rexpr)
-		}
-	}
-
-	if (expr.ColumnRef) {
+const EXPR_HANDLERS = {
+	BoolExpr: (expr) => ({
+		type: 'binary_expr',
+		operator: BOOL_OP_MAP[expr.BoolExpr.boolop],
+		args: expr.BoolExpr.args.map(translateWhereExpr)
+	}),
+	A_Expr: (expr) => ({
+		type: 'binary_expr',
+		operator: expr.A_Expr.name[0].String.sval,
+		left: translateWhereExpr(expr.A_Expr.lexpr),
+		right: translateWhereExpr(expr.A_Expr.rexpr)
+	}),
+	ColumnRef: (expr) => {
 		const fields = expr.ColumnRef.fields
 		return {
 			type: 'column_ref',
 			table: fields.length > 1 ? fields[0].String?.sval : null,
 			column: fields[fields.length - 1]?.String?.sval
 		}
-	}
+	},
+	A_Const: (expr) => translateAConst(expr.A_Const),
+	TypeCast: (expr) => translateWhereExpr(expr.TypeCast.arg)
+}
 
-	if (expr.A_Const) return translateAConst(expr.A_Const)
-
-	if (expr.TypeCast) {
-		return translateWhereExpr(expr.TypeCast.arg)
-	}
-
-	return { type: 'expression' }
+/**
+ * Translate a WHERE clause expression to a simplified normalized shape.
+ */
+export const translateWhereExpr = (expr) => {
+	const key = Object.keys(EXPR_HANDLERS).find((k) => k in expr)
+	return key ? EXPR_HANDLERS[key](expr) : { type: 'expression' }
 }
 
 /**

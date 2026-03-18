@@ -55,6 +55,36 @@ const translateColumnConstraints = (rawConstraints) => {
 }
 
 /**
+ * Build the default_val compat shape from a default value expression.
+ */
+const buildDefaultValShape = (defaultValue) => {
+	if (defaultValue === null) return {}
+	const isFunc = typeof defaultValue === 'string' && defaultValue.includes('(')
+	const value = isFunc
+		? {
+				type: 'function',
+				name: { name: [{ value: defaultValue.replace(/\(\)$/, '') }] },
+				args: { type: 'expr_list', value: [] }
+			}
+		: defaultValue
+	return { default_val: { type: 'default', value } }
+}
+
+/**
+ * Build the reference_definition compat shape from a FK constraint, if present.
+ */
+const buildFKRefShape = (constraints) => {
+	const fk = constraints.find((c) => c.type === 'FOREIGN KEY')
+	if (!fk) return {}
+	return {
+		reference_definition: {
+			table: [{ table: fk.table, schema: fk.schema }],
+			definition: [{ column: { expr: { value: fk.column } } }]
+		}
+	}
+}
+
+/**
  * Build the compat spread properties expected by extractors.
  */
 const buildColumnCompatShape = (
@@ -64,39 +94,14 @@ const buildColumnCompatShape = (
 	defaultValue,
 	isPrimaryKey,
 	constraints
-) => {
-	const fk = constraints.find((c) => c.type === 'FOREIGN KEY')
-
-	return {
-		column: { column: { expr: { type: 'default', value: name } } },
-		definition: { dataType: dataType.toUpperCase() },
-		...(isPrimaryKey ? { primary_key: 'primary key' } : {}),
-		...(nullable ? {} : { nullable: { type: 'not null', value: 'not null' } }),
-		...(defaultValue !== null
-			? {
-					default_val: {
-						type: 'default',
-						value:
-							typeof defaultValue === 'string' && defaultValue.includes('(')
-								? {
-										type: 'function',
-										name: { name: [{ value: defaultValue.replace(/\(\)$/, '') }] },
-										args: { type: 'expr_list', value: [] }
-									}
-								: defaultValue
-					}
-				}
-			: {}),
-		...(fk
-			? {
-					reference_definition: {
-						table: [{ table: fk.table, schema: fk.schema }],
-						definition: [{ column: { expr: { value: fk.column } } }]
-					}
-				}
-			: {})
-	}
-}
+) => ({
+	column: { column: { expr: { type: 'default', value: name } } },
+	definition: { dataType: dataType.toUpperCase() },
+	...(isPrimaryKey ? { primary_key: 'primary key' } : {}),
+	...(nullable ? {} : { nullable: { type: 'not null', value: 'not null' } }),
+	...buildDefaultValShape(defaultValue),
+	...buildFKRefShape(constraints)
+})
 
 export const translateColumnDef = (colDef) => {
 	const cd = colDef.ColumnDef
@@ -122,45 +127,34 @@ export const translateColumnDef = (colDef) => {
 	}
 }
 
+const TABLE_CONSTRAINT_HANDLERS = {
+	CONSTR_PRIMARY: (con) => ({
+		type: 'primary_key',
+		constraint: 'PRIMARY KEY',
+		conname: con.conname,
+		keys: con.keys.map((k) => k.String?.sval).filter(Boolean)
+	}),
+	CONSTR_UNIQUE: (con) => ({
+		type: 'unique',
+		constraint: 'UNIQUE',
+		conname: con.conname,
+		keys: con.keys.map((k) => k.String?.sval).filter(Boolean)
+	}),
+	CONSTR_FOREIGN: (con) => ({
+		type: 'foreign_key',
+		constraint: 'FOREIGN KEY',
+		conname: con.conname,
+		fk_attrs: con.fk_attrs.map((k) => k.String?.sval).filter(Boolean),
+		pktable: { relname: con.pktable?.relname, schemaname: con.pktable?.schemaname },
+		pk_attrs: (con.pk_attrs || []).map((k) => k.String?.sval).filter(Boolean)
+	}),
+	CONSTR_CHECK: (con) => ({ type: 'check', constraint: 'CHECK', conname: con.conname })
+}
+
 export const translateTableConstraint = (constraint) => {
 	const con = constraint.Constraint
-	const base = { resource: 'constraint' }
-
-	switch (con.contype) {
-		case 'CONSTR_PRIMARY':
-			return {
-				...base,
-				type: 'primary_key',
-				constraint: 'PRIMARY KEY',
-				conname: con.conname,
-				keys: con.keys.map((k) => k.String?.sval).filter(Boolean)
-			}
-		case 'CONSTR_UNIQUE':
-			return {
-				...base,
-				type: 'unique',
-				constraint: 'UNIQUE',
-				conname: con.conname,
-				keys: con.keys.map((k) => k.String?.sval).filter(Boolean)
-			}
-		case 'CONSTR_FOREIGN':
-			return {
-				...base,
-				type: 'foreign_key',
-				constraint: 'FOREIGN KEY',
-				conname: con.conname,
-				fk_attrs: con.fk_attrs.map((k) => k.String?.sval).filter(Boolean),
-				pktable: {
-					relname: con.pktable?.relname,
-					schemaname: con.pktable?.schemaname
-				},
-				pk_attrs: (con.pk_attrs || []).map((k) => k.String?.sval).filter(Boolean)
-			}
-		case 'CONSTR_CHECK':
-			return { ...base, type: 'check', constraint: 'CHECK', conname: con.conname }
-		default:
-			return null
-	}
+	const handler = TABLE_CONSTRAINT_HANDLERS[con.contype]
+	return handler ? { resource: 'constraint', ...handler(con) } : null
 }
 
 /**
