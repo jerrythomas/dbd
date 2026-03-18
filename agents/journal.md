@@ -428,6 +428,7 @@ All 222 existing tests remain green. New code is purely additive — `src/` unto
 Implemented environment-aware import so different tables and post-import scripts run per environment.
 
 **Features:**
+
 - `normalizeEnv()` utility maps `dev`/`development`/`prod`/`production` aliases; returns `'prod'` for null/undefined; throws on unknown values
 - `envFromPath()` annotates filesystem-discovered import entities (position-aware: `import/dev/` → `'dev'`, `import/prod/` → `'prod'`, other → `null`)
 - `normalizeYamlEnv()` handles YAML `env:` field — string, `[dev, prod]` array (→ null/shared), absent (→ null)
