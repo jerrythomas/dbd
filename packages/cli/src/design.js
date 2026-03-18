@@ -234,7 +234,10 @@ class Design {
 				await adapter.importData(table)
 			}
 
-			for (const file of this.config.import.after) {
+			const sharedAfter = this.config.import.after ?? []
+			const envAfter = this.config.import[`after.${this.#env}`] ?? []
+
+			for (const file of [...sharedAfter, ...envAfter]) {
 				console.info(`Processing ${file}`)
 				await adapter.executeFile(file)
 			}

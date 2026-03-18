@@ -592,6 +592,64 @@ describe('Design env filtering', () => {
   })
 })
 
+describe('importData env-scoped after scripts', () => {
+  let originalDir
+
+  beforeAll(() => {
+    originalDir = process.cwd()
+  })
+
+  beforeEach(() => {
+    process.chdir(join(__dirname, '../../../example'))
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'info').mockImplementation(() => {})
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    process.chdir(originalDir)
+    vi.restoreAllMocks()
+  })
+
+  it('always runs shared after scripts', async () => {
+    const dx = await using('design.yaml', undefined, 'prod')
+    const adapter = await dx.getAdapter()
+    const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+    const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+    await dx.importData()
+    expect(execSpy).toHaveBeenCalledWith('import/loader.sql')
+    importSpy.mockRestore()
+    execSpy.mockRestore()
+  })
+
+  it('runs after.prod scripts in prod env', async () => {
+    const dx = await using('design.yaml', undefined, 'prod')
+    const adapter = await dx.getAdapter()
+    const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+    const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+    await dx.importData()
+    const calls = execSpy.mock.calls.map((c) => c[0])
+    expect(calls).toContain('import/prod_loader.sql')
+    expect(calls).not.toContain('import/dev_loader.sql')
+    importSpy.mockRestore()
+    execSpy.mockRestore()
+  })
+
+  it('runs after.dev scripts in dev env', async () => {
+    const dx = await using('design.yaml', undefined, 'dev')
+    const adapter = await dx.getAdapter()
+    const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+    const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+    await dx.importData()
+    const calls = execSpy.mock.calls.map((c) => c[0])
+    expect(calls).toContain('import/dev_loader.sql')
+    expect(calls).not.toContain('import/prod_loader.sql')
+    importSpy.mockRestore()
+    execSpy.mockRestore()
+  })
+})
+
 describe('Design class — coverage-test fixture', () => {
 	let originalPath
 	const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'coverage-test')
