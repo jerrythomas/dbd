@@ -300,6 +300,14 @@ describe('Design class (packages/cli)', () => {
 		expect(lookupValuesIdx).toBeLessThan(lookupsIdx)
 	})
 
+	it('importTables entries have a targets array', async () => {
+		const dx = await using('design.yaml')
+		for (const table of dx.importTables) {
+			expect(table).toHaveProperty('targets')
+			expect(Array.isArray(table.targets)).toBe(true)
+		}
+	})
+
 	// --- validate on importTables ---
 
 	it('validate flags import tables with non-staging schema', async () => {

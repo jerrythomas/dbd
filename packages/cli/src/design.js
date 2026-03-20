@@ -80,9 +80,10 @@ class Design {
 		return this.#databaseURL
 	}
 	get importTables() {
-		return this.#importTables.map(({ table, procedure, warnings: planWarnings }) => ({
+		return this.#importTables.map(({ table, procedure, targets, warnings: planWarnings }) => ({
 			...table,
 			procedure,
+			targets,
 			warnings: [...(table.warnings || []), ...planWarnings]
 		}))
 	}
