@@ -178,4 +178,9 @@ prog
 		await (await using(opts.config, opts.database)).grants(opts.target, opts['dry-run'])
 	})
 
+process.on('unhandledRejection', (err) => {
+	console.error(err instanceof Error ? err.message : String(err))
+	process.exit(1)
+})
+
 prog.parse(process.argv)
