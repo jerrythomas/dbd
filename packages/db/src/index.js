@@ -46,3 +46,5 @@ export {
 	groupByDependencyLevel,
 	graphFromEntities
 } from './dependency-resolver.js'
+
+export { buildResetScript, buildGrantsScript } from './script-builder.js'
