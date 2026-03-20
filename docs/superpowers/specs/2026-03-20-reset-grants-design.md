@@ -102,15 +102,17 @@ Schemas without `grants` declared are skipped by `dbd grants` (no warning).
 
 ### `buildResetScript(schemas, roles, target)`
 
+`schemas` is `string[]` (schema names). `roles` is an array of role objects with `.name` (pre-sorted by dependency; reversed here for correct drop order).
+
 ```js
 export function buildResetScript(schemas, roles, target = 'supabase') {
   if (target === 'supabase') {
     return schemas
-      .filter(s => !SUPABASE_PROTECTED.includes(s.name))
-      .map(s => `DROP SCHEMA IF EXISTS ${s.name} CASCADE;`)
+      .filter(s => !SUPABASE_PROTECTED.includes(s))
+      .map(s => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
       .join('\n')
   }
-  const dropSchemas = schemas.map(s => `DROP SCHEMA IF EXISTS ${s.name} CASCADE;`)
+  const dropSchemas = schemas.map(s => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
   const dropRoles = [...roles].reverse().map(r => `DROP ROLE IF EXISTS ${r.name};`)
   return [...dropSchemas, ...dropRoles].join('\n')
 }
@@ -196,6 +198,7 @@ async reset(target = 'supabase', dryRun = false) {
   }
   const adapter = await this.getAdapter()
   await adapter.executeScript(script)
+  console.info('Reset complete.')
   return this
 }
 ```
@@ -220,11 +223,12 @@ async grants(target = 'supabase', dryRun = false) {
   }
   const adapter = await this.getAdapter()
   await adapter.executeScript(script)
+  console.info('Grants applied.')
   return this
 }
 ```
 
-Both methods return `this` without calling `executeScript` when the script is empty. The `index.js` success message (`'Reset complete.'` / `'Grants applied.'`) is only printed when `!opts['dry-run']` — the method itself handles the empty-script messaging, so no misleading output occurs.
+Both methods print their own success message after `executeScript`. No-op paths (empty script, postgres target) print an informational message and return without calling the adapter. `index.js` actions print nothing — all output is owned by the method.
 
 ## CLI Commands — `index.js`
 
@@ -239,7 +243,6 @@ prog
   .example('dbd reset --dry-run')
   .action(async (opts) => {
     await (await using(opts.config, opts.database)).reset(opts.target, opts['dry-run'])
-    if (!opts['dry-run']) console.info('Reset complete.')
   })
 
 prog
@@ -251,9 +254,10 @@ prog
   .example('dbd grants --dry-run')
   .action(async (opts) => {
     await (await using(opts.config, opts.database)).grants(opts.target, opts['dry-run'])
-    if (!opts['dry-run']) console.info('Grants applied.')
   })
 ```
+
+All success/info/no-op messages are handled inside `reset()` and `grants()`, not in `index.js`. This avoids printing "Reset complete." or "Grants applied." when the method did nothing (empty schemas, no grants configured, postgres target).
 
 ## Documentation Updates
 
@@ -286,7 +290,8 @@ The following docs require updates in the same plan (all features since v2.1.0):
 
 **`script-builder.spec.js` — `buildResetScript`:**
 - Supabase target: protected schemas skipped, user schemas dropped
-- Supabase target: schema in `SUPABASE_PROTECTED` list produces no output
+- Supabase target: only protected schemas → returns `''`
+- Supabase target: mix of protected + user schemas → only user schemas in output
 - Postgres target: all schemas dropped, roles dropped in reverse order
 - Empty schemas array: returns `''`
 - Roles are reversed (pre-sorted input, verify order in output)
