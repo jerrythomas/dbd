@@ -106,6 +106,11 @@ describe('config', () => {
 			const entry = { config: { grants: { anon: ['usage', 'seelct'] } } }
 			expect(() => normalizeSchema(entry)).toThrow('Unknown grant permissions')
 		})
+
+		it('throws when permissions is not an array', () => {
+			const entry = { config: { grants: { anon: 'usage' } } }
+			expect(() => normalizeSchema(entry)).toThrow('must be an array')
+		})
 	})
 
 	describe('read() schemaGrants', () => {

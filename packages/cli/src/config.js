@@ -52,6 +52,8 @@ export function normalizeSchema(entry) {
 	const grants = config?.grants ?? null
 	if (grants) {
 		for (const [role, perms] of Object.entries(grants)) {
+			if (!Array.isArray(perms))
+				throw new Error(`Grant permissions for ${name}.${role} must be an array`)
 			const invalid = perms.filter((p) => !VALID_GRANT_PERMS.includes(p))
 			if (invalid.length)
 				throw new Error(`Unknown grant permissions for ${name}.${role}: ${invalid.join(', ')}`)
