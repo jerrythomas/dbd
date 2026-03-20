@@ -33,22 +33,29 @@ Replace the flat `tableReferences: string[]` with two classified arrays on the p
 }
 ```
 
-Both `extractBodyReferencesFromAst` and `extractTableReferencesFromBody` change their return type from `string[]` to `{ reads: string[], writes: string[] }`. The call site (which merges into `tableReferences` today) changes to spread `reads` and `writes` onto the entity directly.
+Both extractors change their return type from `string[]` to `{ reads: string[], writes: string[] }`. The call site in `procDefFromStatement` (which assigns to `tableReferences` today) changes to spread the result directly onto the entity as `reads` and `writes`. `extractRoutinesFromSql` (the regex-only fallback path) also spreads the result instead of assigning `tableReferences`.
 
-#### `extractBodyReferencesFromAst` — AST path
+#### Two extraction paths
 
-The current traversal walks `asOpt.expr` entries with a flat `collectTables(node)` helper. Change to statement-type-aware traversal:
+`procDefFromStatement` chooses between paths based on whether the body text is available:
 
-Each entry in `asOpt.expr` is a top-level AST node whose key is the statement type (e.g. `{ InsertStmt: {...} }`, `{ SelectStmt: {...} }`). Classify by statement type:
+```js
+// stmt.as is present → PL/pgSQL procedure with raw body text
+// stmt.as is absent  → SQL function whose body was parsed into AST nodes
+const { reads, writes } = stmt.as
+  ? extractTableReferencesFromBody(stmt.as)
+  : extractBodyReferencesFromAst(stmt)
+```
 
-- `InsertStmt` — the `relation` field is a **write**; any `selectStmt` within it has **reads** (via FROM)
-- `UpdateStmt` — the `relation` field is a **write**; any `fromClause` entries are **reads**
-- `DeleteStmt` — the `relation` field is a **write**; any `usingClause` entries are **reads**
-- `SelectStmt` — all `fromClause` entries are **reads**
+**Import procedures are always PL/pgSQL** — they always go through the regex path.
 
-Return `{ reads: string[], writes: string[] }` (deduplicated).
+#### `extractBodyReferencesFromAst` — SQL function path only
 
-#### `extractTableReferencesFromBody` — regex fallback
+This path handles SQL functions (not PL/pgSQL), which are predominantly read-only SELECT bodies. The existing flat traversal looks for `node.table[]` and `node.from[]` in the parsed options. Since SQL function bodies are SELECT expressions, all table references are classified as **reads**. `writes` is always `[]` for this path.
+
+Change: return `{ reads: Array.from(tables), writes: [] }` instead of `Array.from(tables)`.
+
+#### `extractTableReferencesFromBody` — regex path (primary for import procedures)
 
 The current function builds a single `Set` and returns `string[]`. Change to build two sets and return `{ reads: string[], writes: string[] }`.
 
@@ -164,6 +171,8 @@ return this.#importTables.map(({ table, procedure, targets, warnings: planWarnin
 }))
 ```
 
+Note: `targetTable` (singular) is present on each `buildImportPlan` entry for dependency-ordering purposes only and is intentionally not forwarded through the getter. `targets` (plural, derived from `procedure.writes`) is the externally visible field for production table information.
+
 ## What This Enables
 
 - **Cross-schema disambiguation** — two procedures writing to `config.users` vs `audit.users` are unambiguously distinct; only reads-based matching reveals the correct staging→target flow
@@ -182,7 +191,7 @@ return this.#importTables.map(({ table, procedure, targets, warnings: planWarnin
 
 | File | Change |
 |------|--------|
-| `packages/postgres/src/parser/extractors/procedures.js` | `extractBodyReferencesFromAst` and `extractTableReferencesFromBody` return `{ reads, writes }` instead of `string[]`; entity gains `reads`/`writes`, `tableReferences` removed |
+| `packages/postgres/src/parser/extractors/procedures.js` | `extractBodyReferencesFromAst` and `extractTableReferencesFromBody` return `{ reads, writes }` instead of `string[]`; `procDefFromStatement` and `extractRoutinesFromSql` spread `reads`/`writes` onto entity; `tableReferences` removed |
 | `packages/postgres/src/parser/index-functional.js` | `collectProcRefs` iterates `[...reads, ...writes]` instead of `tableReferences` |
 | `packages/postgres/spec/` | Update procedure extractor tests for `reads`/`writes` shape |
 | `packages/db/src/entity-processor.js` | `findImportProcedure` uses reads; `buildImportPlan` adds `targets` to plan entries |
