@@ -155,4 +155,27 @@ prog
 		console.log(JSON.stringify(result, null, 2))
 	})
 
+prog
+	.command('reset')
+	.option('--target', 'Target platform: supabase or postgres', 'supabase')
+	.option('--dry-run', 'Print what would be dropped without executing', false)
+	.describe('Drop all design.yaml schemas (bare state). Run dbd apply to rebuild.')
+	.example('dbd reset')
+	.example('dbd reset --target postgres')
+	.example('dbd reset --dry-run')
+	.action(async (opts) => {
+		await (await using(opts.config, opts.database)).reset(opts.target, opts['dry-run'])
+	})
+
+prog
+	.command('grants')
+	.option('--target', 'Target platform: supabase or postgres', 'supabase')
+	.option('--dry-run', 'Print what would be granted without executing', false)
+	.describe('Apply schema grants declared in design.yaml (Supabase only).')
+	.example('dbd grants')
+	.example('dbd grants --dry-run')
+	.action(async (opts) => {
+		await (await using(opts.config, opts.database)).grants(opts.target, opts['dry-run'])
+	})
+
 prog.parse(process.argv)
