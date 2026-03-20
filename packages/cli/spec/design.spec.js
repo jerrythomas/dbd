@@ -505,6 +505,19 @@ describe('Design class (packages/cli)', () => {
 			const infoCalls = console.info.mock.calls.map((c) => c[0])
 			expect(infoCalls.some((c) => c === 'No schemas to reset.')).toBe(true)
 		})
+
+		it('non-dry-run calls adapter.executeScript with reset script', async () => {
+			const dx = await using('design.yaml')
+			const adapter = await dx.getAdapter()
+			const spy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+
+			await dx.reset('supabase', false)
+
+			expect(spy).toHaveBeenCalledTimes(1)
+			expect(spy.mock.calls[0][0]).toContain('DROP SCHEMA IF EXISTS')
+
+			spy.mockRestore()
+		})
 	})
 
 	// --- grants ---
@@ -541,6 +554,20 @@ describe('Design class (packages/cli)', () => {
 			const dx = await using('design.yaml')
 			const result = await dx.grants('supabase', true)
 			expect(result).toBe(dx)
+		})
+
+		it('non-dry-run calls adapter.executeScript with grants script', async () => {
+			const dx = await using('design.yaml')
+			dx.config.schemaGrants = [{ name: 'config', grants: { anon: ['usage', 'select'] } }]
+			const adapter = await dx.getAdapter()
+			const spy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+
+			await dx.grants('supabase', false)
+
+			expect(spy).toHaveBeenCalledTimes(1)
+			expect(spy.mock.calls[0][0]).toContain('GRANT USAGE ON SCHEMA config TO anon;')
+
+			spy.mockRestore()
 		})
 	})
 
