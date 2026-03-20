@@ -281,9 +281,7 @@ export function findTargetTable(importTable, entities) {
 	return (
 		entities.find(
 			(e) =>
-				e.type === 'table' &&
-				e.name.split('.')[1] === baseName &&
-				e.schema !== importTable.schema
+				e.type === 'table' && e.name.split('.')[1] === baseName && e.schema !== importTable.schema
 		) ?? null
 	)
 }
@@ -297,9 +295,11 @@ export function findTargetTable(importTable, entities) {
  * @returns {Object|null}
  */
 export function findImportProcedure(importTable, entities) {
-	const [schema, baseName] = importTable.name.split('.')
-	const procedureName = `${schema}.import_${baseName}`
-	return entities.find((e) => e.type === 'procedure' && e.name === procedureName) ?? null
+	return (
+		entities.find(
+			(e) => e.type === 'procedure' && (e.reads ?? []).includes(importTable.name)
+		) ?? null
+	)
 }
 
 /**
@@ -313,14 +313,20 @@ export function findImportProcedure(importTable, entities) {
  */
 export function buildImportPlan(importTables, entities) {
 	const tables = entities.filter((e) => e.type === 'table')
+	const stagingSchemas = [...new Set(importTables.map((t) => t.name.split('.')[0]))]
 
 	return importTables
 		.map((table) => {
 			const targetTable = findTargetTable(table, entities)
 			const procedure = findImportProcedure(table, entities)
 			const warnings = procedure ? [] : [`no import procedure for ${table.name}`]
+			const targets = procedure
+				? (procedure.writes ?? []).filter(
+						(name) => !stagingSchemas.includes(name.split('.')[0])
+					)
+				: []
 			const order = targetTable ? tables.findIndex((t) => t.name === targetTable.name) : Infinity
-			return { table, targetTable, procedure, warnings, order }
+			return { table, targetTable, procedure, targets, warnings, order }
 		})
 		.sort((a, b) => a.order - b.order)
 		.map(({ order: _order, ...entry }) => entry)

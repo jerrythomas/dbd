@@ -20,7 +20,10 @@ import {
 	typesWithoutSchema,
 	allowedTypes,
 	defaultExportOptions,
-	defaultImportOptions
+	defaultImportOptions,
+	findTargetTable,
+	findImportProcedure,
+	buildImportPlan
 } from '../src/entity-processor.js'
 import { ddlScripts, validations, importScripts, exportScripts } from './fixtures/entities/index.js'
 import { join, dirname } from 'path'
@@ -402,6 +405,201 @@ describe('entity-processor', () => {
 			expect(groups.unknown.length).toBe(1)
 			expect(groups.unknown[0].name).toBe('a')
 			expect(groups.table.length).toBe(1)
+		})
+	})
+
+	// --- buildImportPlan helpers ---
+
+	describe('findTargetTable', () => {
+		const entities = [
+			{ type: 'table', name: 'config.lookups', schema: 'config', refers: [] },
+			{ type: 'table', name: 'config.lookup_values', schema: 'config', refers: ['config.lookups'] },
+			{ type: 'table', name: 'staging.lookups', schema: 'staging', refers: [] },
+			{ type: 'procedure', name: 'staging.import_lookups', schema: 'staging', refers: [] }
+		]
+
+		it('finds target table by base name in non-staging schema', () => {
+			const importTable = { name: 'staging.lookups', schema: 'staging' }
+			const result = findTargetTable(importTable, entities)
+			expect(result).not.toBeNull()
+			expect(result.name).toBe('config.lookups')
+		})
+
+		it('returns null when no target table exists', () => {
+			const importTable = { name: 'staging.dev_fixtures', schema: 'staging' }
+			const result = findTargetTable(importTable, entities)
+			expect(result).toBeNull()
+		})
+
+		it('does not match staging tables in the same schema', () => {
+			const importTable = { name: 'staging.lookups', schema: 'staging' }
+			const result = findTargetTable(importTable, entities)
+			expect(result?.schema).not.toBe('staging')
+		})
+	})
+
+	describe('findImportProcedure', () => {
+		const entities = [
+			{
+				type: 'procedure',
+				name: 'staging.import_lookups',
+				schema: 'staging',
+				reads: ['staging.lookups'],
+				writes: ['config.lookups'],
+				refers: []
+			},
+			{ type: 'table', name: 'config.lookups', schema: 'config', refers: [] }
+		]
+
+		it('finds procedure that reads from the staging table', () => {
+			const importTable = { name: 'staging.lookups', schema: 'staging' }
+			const result = findImportProcedure(importTable, entities)
+			expect(result).not.toBeNull()
+			expect(result.name).toBe('staging.import_lookups')
+		})
+
+		it('returns null when no procedure reads from the table', () => {
+			const importTable = { name: 'staging.dev_fixtures', schema: 'staging' }
+			const result = findImportProcedure(importTable, entities)
+			expect(result).toBeNull()
+		})
+
+		it('does not match non-procedure entities even if they have reads', () => {
+			const importTable = { name: 'staging.lookups', schema: 'staging' }
+			const result = findImportProcedure(importTable, [
+				{ type: 'table', name: 'staging.import_lookups', reads: ['staging.lookups'] }
+			])
+			expect(result).toBeNull()
+		})
+
+		it('returns first match when multiple procedures read from same table', () => {
+			const multi = [
+				{
+					type: 'procedure',
+					name: 'staging.import_a',
+					reads: ['staging.lookups'],
+					writes: ['config.lookups']
+				},
+				{
+					type: 'procedure',
+					name: 'staging.import_b',
+					reads: ['staging.lookups'],
+					writes: ['audit.lookups']
+				}
+			]
+			const result = findImportProcedure({ name: 'staging.lookups' }, multi)
+			expect(result.name).toBe('staging.import_a')
+		})
+	})
+
+	describe('buildImportPlan', () => {
+		const entities = [
+			{ type: 'table', name: 'config.lookups', schema: 'config', refers: [] },
+			{ type: 'table', name: 'config.lookup_values', schema: 'config', refers: ['config.lookups'] },
+			{ type: 'table', name: 'staging.lookups', schema: 'staging', refers: [] },
+			{ type: 'table', name: 'staging.lookup_values', schema: 'staging', refers: [] },
+			{
+				type: 'procedure',
+				name: 'staging.import_lookups',
+				schema: 'staging',
+				reads: ['staging.lookups'],
+				writes: ['config.lookups'],
+				refers: []
+			},
+			{
+				type: 'procedure',
+				name: 'staging.import_lookup_values',
+				schema: 'staging',
+				reads: ['staging.lookup_values'],
+				writes: ['config.lookup_values'],
+				refers: []
+			}
+		]
+
+		const importTables = [
+			{ name: 'staging.lookup_values', schema: 'staging', file: 'import/staging/lookup_values.csv' },
+			{ name: 'staging.lookups', schema: 'staging', file: 'import/staging/lookups.csv' }
+		]
+
+		it('returns one entry per import table', () => {
+			const plan = buildImportPlan(importTables, entities)
+			expect(plan).toHaveLength(2)
+		})
+
+		it('each entry has table, targetTable, procedure, targets, and warnings fields', () => {
+			const plan = buildImportPlan(importTables, entities)
+			for (const entry of plan) {
+				expect(entry).toHaveProperty('table')
+				expect(entry).toHaveProperty('targetTable')
+				expect(entry).toHaveProperty('procedure')
+				expect(entry).toHaveProperty('targets')
+				expect(entry).toHaveProperty('warnings')
+				expect(Array.isArray(entry.warnings)).toBe(true)
+				expect(Array.isArray(entry.targets)).toBe(true)
+			}
+		})
+
+		it('orders staging.lookups before staging.lookup_values (dependency order)', () => {
+			const plan = buildImportPlan(importTables, entities)
+			const names = plan.map((e) => e.table.name)
+			expect(names.indexOf('staging.lookups')).toBeLessThan(names.indexOf('staging.lookup_values'))
+		})
+
+		it('attaches the matched procedure to each entry via reads-based matching', () => {
+			const plan = buildImportPlan(importTables, entities)
+			const lookupsEntry = plan.find((e) => e.table.name === 'staging.lookups')
+			expect(lookupsEntry.procedure?.name).toBe('staging.import_lookups')
+			expect(lookupsEntry.warnings).toEqual([])
+		})
+
+		it('targets contains non-staging writes of matched procedure', () => {
+			const plan = buildImportPlan(importTables, entities)
+			const lookupsEntry = plan.find((e) => e.table.name === 'staging.lookups')
+			expect(lookupsEntry.targets).toContain('config.lookups')
+		})
+
+		it('targets excludes staging-schema writes', () => {
+			const withStagingWrite = [
+				...entities.slice(0, 4),
+				{
+					type: 'procedure',
+					name: 'staging.import_lookups',
+					schema: 'staging',
+					reads: ['staging.lookups'],
+					writes: ['staging.temp', 'config.lookups'],
+					refers: []
+				}
+			]
+			const plan = buildImportPlan(
+				[{ name: 'staging.lookups', schema: 'staging', file: 'import/staging/lookups.csv' }],
+				withStagingWrite
+			)
+			expect(plan[0].targets).toContain('config.lookups')
+			expect(plan[0].targets).not.toContain('staging.temp')
+		})
+
+		it('targets is empty array when no procedure matched', () => {
+			const noProc = [
+				{ name: 'staging.dev_fixtures', schema: 'staging', file: 'import/staging/dev_fixtures.csv' }
+			]
+			const plan = buildImportPlan(noProc, entities)
+			expect(plan[0].procedure).toBeNull()
+			expect(plan[0].targets).toEqual([])
+			expect(plan[0].warnings).toContain('no import procedure for staging.dev_fixtures')
+		})
+
+		it('tables with no matching target go last', () => {
+			const mixed = [
+				{ name: 'staging.dev_fixtures', schema: 'staging', file: 'import/staging/dev_fixtures.csv' },
+				{ name: 'staging.lookups', schema: 'staging', file: 'import/staging/lookups.csv' }
+			]
+			const plan = buildImportPlan(mixed, entities)
+			const names = plan.map((e) => e.table.name)
+			expect(names.indexOf('staging.lookups')).toBeLessThan(names.indexOf('staging.dev_fixtures'))
+		})
+
+		it('returns empty array for empty importTables', () => {
+			expect(buildImportPlan([], entities)).toEqual([])
 		})
 	})
 })
