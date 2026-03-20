@@ -470,6 +470,80 @@ describe('Design class (packages/cli)', () => {
 		batchSpy.mockRestore()
 	})
 
+	// --- reset ---
+
+	describe('reset()', () => {
+		it('dry-run prints DROP SCHEMA statements', async () => {
+			const dx = await using('design.yaml')
+			await dx.reset('supabase', true)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] reset script:'))).toBe(true)
+			expect(infoCalls.some((c) => typeof c === 'string' && c.includes('DROP SCHEMA IF EXISTS'))).toBe(true)
+		})
+
+		it('dry-run supabase: protected schemas absent from output', async () => {
+			const dx = await using('design.yaml')
+			await dx.reset('supabase', true)
+
+			const allOutput = console.info.mock.calls.map((c) => c[0]).join('\n')
+			expect(allOutput).not.toContain('DROP SCHEMA IF EXISTS auth')
+			expect(allOutput).not.toContain('DROP SCHEMA IF EXISTS storage')
+		})
+
+		it('dry-run returns this (chainable)', async () => {
+			const dx = await using('design.yaml')
+			const result = await dx.reset('supabase', true)
+			expect(result).toBe(dx)
+		})
+
+		it('prints "No schemas to reset." when nothing to drop on supabase target', async () => {
+			const dx = await using('design.yaml')
+			dx.config.schemas = ['auth', 'storage']
+			await dx.reset('supabase', true)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => c === 'No schemas to reset.')).toBe(true)
+		})
+	})
+
+	// --- grants ---
+
+	describe('grants()', () => {
+		it('prints info when postgres target', async () => {
+			const dx = await using('design.yaml')
+			await dx.grants('postgres', false)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => c === 'Grants are not applicable for --target postgres')).toBe(true)
+		})
+
+		it('prints info when no grants configured', async () => {
+			const dx = await using('design.yaml')
+			dx.config.schemaGrants = []
+			await dx.grants('supabase', false)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => c === 'No grants configured in design.yaml')).toBe(true)
+		})
+
+		it('dry-run with grants prints GRANT statements', async () => {
+			const dx = await using('design.yaml')
+			dx.config.schemaGrants = [{ name: 'config', grants: { anon: ['usage', 'select'] } }]
+			await dx.grants('supabase', true)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] grants script:'))).toBe(true)
+			expect(infoCalls.some((c) => typeof c === 'string' && c.includes('GRANT USAGE ON SCHEMA config TO anon;'))).toBe(true)
+		})
+
+		it('dry-run returns this (chainable)', async () => {
+			const dx = await using('design.yaml')
+			const result = await dx.grants('supabase', true)
+			expect(result).toBe(dx)
+		})
+	})
+
 	// --- getAdapter ---
 
 	it('getAdapter() returns the adapter instance', async () => {

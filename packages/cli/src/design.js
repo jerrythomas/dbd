@@ -18,7 +18,9 @@ import {
 	filterEntitiesForDBML,
 	sortByDependencies,
 	graphFromEntities,
-	buildImportPlan
+	buildImportPlan,
+	buildResetScript,
+	buildGrantsScript
 } from '@jerrythomas/dbd-db'
 import { generateDBML } from '@jerrythomas/dbd-dbml'
 import { read, clean } from './config.js'
@@ -260,6 +262,44 @@ class Design {
 			await adapter.batchExport(entities)
 		}
 
+		return this
+	}
+
+	async reset(target = 'supabase', dryRun = false) {
+		const script = buildResetScript(this.#config.schemas, this.#config.roles, target)
+		if (!script) {
+			console.info('No schemas to reset.')
+			return this
+		}
+		if (dryRun) {
+			console.info('[dry-run] reset script:')
+			console.info(script)
+			return this
+		}
+		const adapter = await this.getAdapter()
+		await adapter.executeScript(script)
+		console.info('Reset complete.')
+		return this
+	}
+
+	async grants(target = 'supabase', dryRun = false) {
+		const script = buildGrantsScript(this.#config.schemaGrants ?? [], target)
+		if (!script) {
+			console.info(
+				target === 'postgres'
+					? 'Grants are not applicable for --target postgres'
+					: 'No grants configured in design.yaml'
+			)
+			return this
+		}
+		if (dryRun) {
+			console.info('[dry-run] grants script:')
+			console.info(script)
+			return this
+		}
+		const adapter = await this.getAdapter()
+		await adapter.executeScript(script)
+		console.info('Grants applied.')
 		return this
 	}
 
