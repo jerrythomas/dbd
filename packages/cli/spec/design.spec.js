@@ -293,11 +293,11 @@ describe('Design class (packages/cli)', () => {
 	it('importTables are ordered by target table dependency', async () => {
 		const dx = await using('design.yaml')
 		const names = dx.importTables.map((t) => t.name)
-		const lookupValuesIdx = names.indexOf('staging.lookup_values')
 		const lookupsIdx = names.indexOf('staging.lookups')
-		if (lookupsIdx !== -1 && lookupValuesIdx !== -1) {
-			expect(lookupValuesIdx).toBeLessThan(lookupsIdx)
-		}
+		const lookupValuesIdx = names.indexOf('staging.lookup_values')
+		expect(lookupsIdx).toBeGreaterThanOrEqual(0)
+		expect(lookupValuesIdx).toBeGreaterThanOrEqual(0)
+		expect(lookupValuesIdx).toBeLessThan(lookupsIdx)
 	})
 
 	// --- validate on importTables ---
