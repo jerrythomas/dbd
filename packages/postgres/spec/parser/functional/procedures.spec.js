@@ -183,13 +183,13 @@ describe('Procedure Extractor - Functional API', () => {
         END;
       `
 
-			const tables = extractTableReferencesFromBody(body)
+			const { reads, writes } = extractTableReferencesFromBody(body)
 
-			expect(tables).toContain('users')
-			expect(tables).toContain('orders')
-			expect(tables).toContain('products')
-			expect(tables).toContain('categories')
-			expect(tables.length).toBe(4)
+			expect(writes).toContain('users')
+			expect(writes).toContain('orders')
+			expect(reads).toContain('products')
+			expect(reads).toContain('categories')
+			expect(reads.length + writes.length).toBe(4)
 		})
 	})
 
@@ -218,7 +218,7 @@ describe('Procedure Extractor - Functional API', () => {
 			expect(procedures[0].parameters[0].name).toBe('order_id')
 			expect(procedures[0].parameters[0].dataType).toContain('int')
 			expect(procedures[0].parameters[1].mode).toBe('out')
-			expect(procedures[0].tableReferences).toContain('orders')
+			expect(procedures[0].writes).toContain('orders')
 		})
 
 		it('should extract INOUT parameter in regex path', () => {
@@ -309,16 +309,19 @@ describe('Procedure Extractor - Functional API', () => {
           PERFORM STRICT 1;
         END;
       `
-			const tables = extractTableReferencesFromBody(body)
-			expect(tables).toContain('audit_log')
-			expect(tables).not.toContain('FOUND')
-			expect(tables).not.toContain('NEW')
-			expect(tables).not.toContain('STRICT')
+			const { reads, writes } = extractTableReferencesFromBody(body)
+			expect(writes).toContain('audit_log')
+			expect(reads).not.toContain('FOUND')
+			expect(writes).not.toContain('FOUND')
+			expect(reads).not.toContain('NEW')
+			expect(writes).not.toContain('NEW')
+			expect(reads).not.toContain('STRICT')
+			expect(writes).not.toContain('STRICT')
 		})
 
-		it('should return empty array for null/undefined body', () => {
-			expect(extractTableReferencesFromBody(null)).toEqual([])
-			expect(extractTableReferencesFromBody(undefined)).toEqual([])
+		it('should return empty reads and writes for null/undefined body', () => {
+			expect(extractTableReferencesFromBody(null)).toEqual({ reads: [], writes: [] })
+			expect(extractTableReferencesFromBody(undefined)).toEqual({ reads: [], writes: [] })
 		})
 
 		it('should return empty params when none provided', () => {
@@ -350,8 +353,11 @@ describe('Procedure Extractor - Functional API', () => {
 		})
 
 		it('extractBodyReferencesFromAst returns empty for no options', () => {
-			expect(extractBodyReferencesFromAst({})).toEqual([])
-			expect(extractBodyReferencesFromAst({ options: 'not array' })).toEqual([])
+			expect(extractBodyReferencesFromAst({})).toEqual({ reads: [], writes: [] })
+			expect(extractBodyReferencesFromAst({ options: 'not array' })).toEqual({
+				reads: [],
+				writes: []
+			})
 		})
 
 		it('extractBodyReferencesFromAst returns empty when no as option', () => {
@@ -359,7 +365,7 @@ describe('Procedure Extractor - Functional API', () => {
 				extractBodyReferencesFromAst({
 					options: [{ type: 'language', value: 'plpgsql' }]
 				})
-			).toEqual([])
+			).toEqual({ reads: [], writes: [] })
 		})
 
 		it('extractBodyReferencesFromAst returns empty when as has no expr array', () => {
@@ -367,11 +373,11 @@ describe('Procedure Extractor - Functional API', () => {
 				extractBodyReferencesFromAst({
 					options: [{ type: 'as', expr: 'not array' }]
 				})
-			).toEqual([])
+			).toEqual({ reads: [], writes: [] })
 		})
 
 		it('extractBodyReferencesFromAst extracts table refs from AST body', () => {
-			const refs = extractBodyReferencesFromAst({
+			const { reads } = extractBodyReferencesFromAst({
 				options: [
 					{
 						type: 'as',
@@ -384,12 +390,12 @@ describe('Procedure Extractor - Functional API', () => {
 					}
 				]
 			})
-			expect(refs).toContain('config.lookups')
-			expect(refs).toContain('staging.data')
+			expect(reads).toContain('config.lookups')
+			expect(reads).toContain('staging.data')
 		})
 
 		it('extractBodyReferencesFromAst handles table without db prefix', () => {
-			const refs = extractBodyReferencesFromAst({
+			const { reads } = extractBodyReferencesFromAst({
 				options: [
 					{
 						type: 'as',
@@ -402,8 +408,8 @@ describe('Procedure Extractor - Functional API', () => {
 					}
 				]
 			})
-			expect(refs).toContain('users')
-			expect(refs).toContain('orders')
+			expect(reads).toContain('users')
+			expect(reads).toContain('orders')
 		})
 
 		it('extractProcedureFromOriginal returns null for non-matching SQL', () => {
@@ -437,7 +443,7 @@ describe('Procedure Extractor - Functional API', () => {
 		})
 
 		it('extractBodyReferencesFromAst handles null/non-object nodes in expr array', () => {
-			const refs = extractBodyReferencesFromAst({
+			const { reads } = extractBodyReferencesFromAst({
 				options: [
 					{
 						type: 'as',
@@ -445,7 +451,7 @@ describe('Procedure Extractor - Functional API', () => {
 					}
 				]
 			})
-			expect(refs).toContain('real_table')
+			expect(reads).toContain('real_table')
 		})
 
 		it('extractParameterDataType handles nested dataType.dataType object', () => {
@@ -468,7 +474,7 @@ describe('Procedure Extractor - Functional API', () => {
 
 		it('extractBodyReferencesFromAst handles table with db prefix in table array (line 224-225)', () => {
 			// Lines 222-224: schema-qualified table reference in node.table array
-			const refs = extractBodyReferencesFromAst({
+			const { reads } = extractBodyReferencesFromAst({
 				options: [
 					{
 						type: 'as',
@@ -480,12 +486,12 @@ describe('Procedure Extractor - Functional API', () => {
 					}
 				]
 			})
-			expect(refs).toContain('app.users')
+			expect(reads).toContain('app.users')
 		})
 
 		it('extractBodyReferencesFromAst handles FROM clause with db prefix (line 233)', () => {
 			// Line 233: schema-qualified table in FROM clause
-			const refs = extractBodyReferencesFromAst({
+			const { reads } = extractBodyReferencesFromAst({
 				options: [
 					{
 						type: 'as',
@@ -497,12 +503,12 @@ describe('Procedure Extractor - Functional API', () => {
 					}
 				]
 			})
-			expect(refs).toContain('reporting.metrics')
+			expect(reads).toContain('reporting.metrics')
 		})
 
 		it('extractBodyReferencesFromAst skips table entries without table name (line 224: false)', () => {
 			// t.table is falsy — skipped
-			const refs = extractBodyReferencesFromAst({
+			const { reads, writes } = extractBodyReferencesFromAst({
 				options: [
 					{
 						type: 'as',
@@ -514,12 +520,13 @@ describe('Procedure Extractor - Functional API', () => {
 					}
 				]
 			})
-			expect(refs).toHaveLength(0)
+			expect(reads).toHaveLength(0)
+			expect(writes).toHaveLength(0)
 		})
 
 		it('extractBodyReferencesFromAst skips FROM entries without table name (line 233: false)', () => {
 			// f.table is falsy — skipped
-			const refs = extractBodyReferencesFromAst({
+			const { reads, writes } = extractBodyReferencesFromAst({
 				options: [
 					{
 						type: 'as',
@@ -531,7 +538,8 @@ describe('Procedure Extractor - Functional API', () => {
 					}
 				]
 			})
-			expect(refs).toHaveLength(0)
+			expect(reads).toHaveLength(0)
+			expect(writes).toHaveLength(0)
 		})
 	})
 })

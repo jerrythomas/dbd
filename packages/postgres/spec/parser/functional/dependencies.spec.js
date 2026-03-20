@@ -479,11 +479,12 @@ describe('Dependency Extraction', () => {
 			const refs = collectReferences({
 				tables: [],
 				views: [],
-				procedures: [{ tableReferences: ['config.lookups', 'staging.data'] }],
+				procedures: [{ reads: ['config.lookups'], writes: ['staging.data'] }],
 				triggers: []
 			})
 			expect(refs).toHaveLength(2)
-			expect(refs.map((r) => r.name)).toEqual(['config.lookups', 'staging.data'])
+			expect(refs.map((r) => r.name)).toContain('config.lookups')
+			expect(refs.map((r) => r.name)).toContain('staging.data')
 		})
 
 		it('deduplicates across different source types', () => {

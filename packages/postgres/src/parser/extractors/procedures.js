@@ -55,7 +55,7 @@ export const procDefFromStatement = curry((defaultSchema, stmt) => {
 
 	// For functions with AST-parsed bodies, extract references from AST
 	// For procedures with raw body text, use regex-based extraction
-	const tableReferences = body
+	const { reads, writes } = body
 		? extractTableReferencesFromBody(body)
 		: extractBodyReferencesFromAst(stmt)
 
@@ -67,7 +67,8 @@ export const procDefFromStatement = curry((defaultSchema, stmt) => {
 		parameters: extractProcedureParameters(stmt),
 		returnType: extractProcedureReturnType(stmt),
 		body: body,
-		tableReferences
+		reads,
+		writes
 	}
 })
 
@@ -210,11 +211,11 @@ export const extractProcedureBody = (stmt) => {
  * @returns {Array} Array of table name strings (e.g. ['schema.table'])
  */
 export const extractBodyReferencesFromAst = (stmt) => {
-	if (!stmt.options || !Array.isArray(stmt.options)) return []
+	if (!stmt.options || !Array.isArray(stmt.options)) return { reads: [], writes: [] }
 
 	const tables = new Set()
 	const asOpt = stmt.options.find((o) => o.type === 'as')
-	if (!asOpt || !asOpt.expr || !Array.isArray(asOpt.expr)) return []
+	if (!asOpt || !asOpt.expr || !Array.isArray(asOpt.expr)) return { reads: [], writes: [] }
 
 	const collectTables = (node) => {
 		if (!node || typeof node !== 'object') return
@@ -242,7 +243,7 @@ export const extractBodyReferencesFromAst = (stmt) => {
 		collectTables(expr)
 	}
 
-	return Array.from(tables)
+	return { reads: Array.from(tables), writes: [] }
 }
 
 /**
@@ -251,7 +252,7 @@ export const extractBodyReferencesFromAst = (stmt) => {
  * @returns {Array} Array of table names
  */
 export const extractTableReferencesFromBody = (body) => {
-	if (!body || typeof body !== 'string') return []
+	if (!body || typeof body !== 'string') return { reads: [], writes: [] }
 
 	// Strip comments and string literals before extracting references
 	const cleanBody = body
@@ -259,7 +260,8 @@ export const extractTableReferencesFromBody = (body) => {
 		.replace(/\/\*[\s\S]*?\*\//g, ' ') // block comments
 		.replace(/'[^']*'/g, "''") // string literals
 
-	const tables = new Set()
+	const reads = new Set()
+	const writes = new Set()
 
 	// SQL keywords that precede table names (not variable assignments)
 	// Note: bare 'INTO' is excluded — in PL/pgSQL, 'SELECT ... INTO var' assigns to variables.
@@ -281,16 +283,23 @@ export const extractTableReferencesFromBody = (body) => {
 	const nonTableWords =
 		/^(SELECT|WHERE|GROUP|ORDER|HAVING|UNION|AND|OR|AS|SET|STRICT|NEW|OLD|IF|THEN|ELSE|ELSIF|END|LOOP|RETURN|RAISE|PERFORM|EXECUTE|DECLARE|BEGIN|EXCEPTION|FOUND|NULL|TRUE|FALSE|NOT|IS|IN|EXISTS|CASE|WHEN|USING|WITH)$/i
 
+	const writeKeywords = /^(INSERT INTO|UPDATE|DELETE FROM|ALTER TABLE|CREATE TABLE)$/i
+
 	let match
 	while ((match = pattern.exec(cleanBody)) !== null) {
+		const keyword = match[1]
 		const potentialTable = match[2].replace(/"/g, '') // Remove quotes
 
 		if (potentialTable && !nonTableWords.test(potentialTable.split('.').pop())) {
-			tables.add(potentialTable)
+			if (writeKeywords.test(keyword)) {
+				writes.add(potentialTable)
+			} else {
+				reads.add(potentialTable)
+			}
 		}
 	}
 
-	return Array.from(tables)
+	return { reads: Array.from(reads), writes: Array.from(writes) }
 }
 
 /**
@@ -363,7 +372,7 @@ export const extractRoutinesFromSql = (sql, defaultSchema) => {
 			parameters,
 			returnType,
 			body,
-			tableReferences: extractTableReferencesFromBody(body)
+			...extractTableReferencesFromBody(body)
 		})
 	}
 

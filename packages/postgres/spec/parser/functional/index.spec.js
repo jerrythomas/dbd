@@ -142,7 +142,7 @@ describe('SQL Parser - Functional API - Complete Workflow', () => {
 			expect(procedures[0].parameters[0].dataType).toContain('uuid')
 
 			// Check table references in procedure
-			expect(procedures[0].tableReferences).toContain('products')
+			expect(procedures[0].writes).toContain('products')
 		})
 
 		it('should extract indexes with extractIndexDefinitions', () => {

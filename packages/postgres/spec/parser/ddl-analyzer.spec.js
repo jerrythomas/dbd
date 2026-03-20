@@ -186,10 +186,10 @@ describe.skip('DDL Analyzer - Real World Examples', () => {
 
 			expect(importLookupsProc).toBeDefined()
 
-			// Check table references
-			expect(importLookupsProc.tableReferences).toBeDefined()
-			expect(importLookupsProc.tableReferences).toContain('config.lookups')
-			expect(importLookupsProc.tableReferences).toContain('staging.lookups')
+			// Check table references (import_lookups reads staging.lookups and writes config.lookups)
+			expect(importLookupsProc.reads).toBeDefined()
+			expect(importLookupsProc.reads).toContain('staging.lookups')
+			expect(importLookupsProc.writes).toContain('config.lookups')
 		})
 	})
 
