@@ -478,8 +478,12 @@ describe('Design class (packages/cli)', () => {
 			await dx.reset('supabase', true)
 
 			const infoCalls = console.info.mock.calls.map((c) => c[0])
-			expect(infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] reset script:'))).toBe(true)
-			expect(infoCalls.some((c) => typeof c === 'string' && c.includes('DROP SCHEMA IF EXISTS'))).toBe(true)
+			expect(
+				infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] reset script:'))
+			).toBe(true)
+			expect(
+				infoCalls.some((c) => typeof c === 'string' && c.includes('DROP SCHEMA IF EXISTS'))
+			).toBe(true)
 		})
 
 		it('dry-run supabase: protected schemas absent from output', async () => {
@@ -528,7 +532,9 @@ describe('Design class (packages/cli)', () => {
 			await dx.grants('postgres', false)
 
 			const infoCalls = console.info.mock.calls.map((c) => c[0])
-			expect(infoCalls.some((c) => c === 'Grants are not applicable for --target postgres')).toBe(true)
+			expect(infoCalls.some((c) => c === 'Grants are not applicable for --target postgres')).toBe(
+				true
+			)
 		})
 
 		it('prints info when no grants configured', async () => {
@@ -546,8 +552,14 @@ describe('Design class (packages/cli)', () => {
 			await dx.grants('supabase', true)
 
 			const infoCalls = console.info.mock.calls.map((c) => c[0])
-			expect(infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] grants script:'))).toBe(true)
-			expect(infoCalls.some((c) => typeof c === 'string' && c.includes('GRANT USAGE ON SCHEMA config TO anon;'))).toBe(true)
+			expect(
+				infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] grants script:'))
+			).toBe(true)
+			expect(
+				infoCalls.some(
+					(c) => typeof c === 'string' && c.includes('GRANT USAGE ON SCHEMA config TO anon;')
+				)
+			).toBe(true)
 		})
 
 		it('dry-run returns this (chainable)', async () => {
