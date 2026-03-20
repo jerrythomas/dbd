@@ -18,60 +18,121 @@ The PostgreSQL parser already extracts table references from procedure bodies. W
 Enhance the procedure extractor to classify each table reference as a **read** (SELECT source) or **write** (INSERT/UPDATE/DELETE target), producing `reads: string[]` and `writes: string[]` on the parsed entity. Use these fields to:
 
 1. Match procedures to staging tables by what they actually read (replacing naming convention)
-2. Derive `targets` for each import plan entry (what the procedure writes to)
+2. Derive `targets` for each import plan entry (what the procedure writes to, filtered to non-staging schemas)
 
 ## Parser Changes
 
 ### `packages/postgres/src/parser/extractors/procedures.js`
 
-Replace the flat `tableReferences: string[]` with:
+Replace the flat `tableReferences: string[]` with two classified arrays on the parsed entity:
 
 ```js
 {
-  reads: string[],   // FROM, JOIN
-  writes: string[]   // INSERT INTO, UPDATE, DELETE FROM
+  reads: string[],   // tables referenced in FROM, JOIN
+  writes: string[]   // tables referenced in INSERT INTO, UPDATE, DELETE FROM
 }
 ```
 
-Classification rules:
+Both `extractBodyReferencesFromAst` and `extractTableReferencesFromBody` change their return type from `string[]` to `{ reads: string[], writes: string[] }`. The call site (which merges into `tableReferences` today) changes to spread `reads` and `writes` onto the entity directly.
 
-| SQL pattern | Classification |
-|-------------|----------------|
-| `INSERT INTO <table>` | write |
-| `UPDATE <table> SET` | write |
-| `DELETE FROM <table>` | write |
-| `FROM <table>` | read |
-| `JOIN <table>` | read |
-| INSERT with SELECT subquery | INSERT target = write, SELECT sources = reads |
+#### `extractBodyReferencesFromAst` — AST path
 
-Both `extractBodyReferencesFromAst` (AST path) and `extractTableReferencesFromBody` (regex fallback) are updated. The AST path classifies by node type (`InsertStmt`, `UpdateStmt`, `DeleteStmt` → writes; `SelectStmt` sources → reads). The regex path classifies by the matched keyword prefix.
+The current traversal walks `asOpt.expr` entries with a flat `collectTables(node)` helper. Change to statement-type-aware traversal:
 
-### `packages/postgres/src/parser/index-functional.js`
+Each entry in `asOpt.expr` is a top-level AST node whose key is the statement type (e.g. `{ InsertStmt: {...} }`, `{ SelectStmt: {...} }`). Classify by statement type:
 
-Wherever `tableReferences` was used to build `refers`, replace with `[...(entity.reads ?? []), ...(entity.writes ?? [])]`. The dependency graph and `sortByDependencies` are unchanged — a procedure depends on all referenced tables regardless of direction.
+- `InsertStmt` — the `relation` field is a **write**; any `selectStmt` within it has **reads** (via FROM)
+- `UpdateStmt` — the `relation` field is a **write**; any `fromClause` entries are **reads**
+- `DeleteStmt` — the `relation` field is a **write**; any `usingClause` entries are **reads**
+- `SelectStmt` — all `fromClause` entries are **reads**
+
+Return `{ reads: string[], writes: string[] }` (deduplicated).
+
+#### `extractTableReferencesFromBody` — regex fallback
+
+The current function builds a single `Set` and returns `string[]`. Change to build two sets and return `{ reads: string[], writes: string[] }`.
+
+Classification by matched keyword prefix (already captured as `match[1]`):
+
+| Keyword | Direction |
+|---------|-----------|
+| `INSERT INTO` | write |
+| `UPDATE` | write |
+| `DELETE FROM` | write |
+| `ALTER TABLE` | write |
+| `CREATE TABLE` | write |
+| `FROM` | read |
+| `JOIN` | read |
+
+The existing `nonTableWords` filter and quote-stripping are unchanged.
+
+#### Name qualification
+
+Both extractors should produce **fully qualified names** wherever the schema is known (e.g. `staging.lookups`). When the body references an unqualified name and no schema can be inferred from the AST, the name is stored as-is (unqualified). The import plan matching in `findImportProcedure` matches against `importTable.name` (always fully qualified), so unqualified reads will not match — this is acceptable since well-written procedure bodies qualify their table references. A warning is issued for staging tables with no matched procedure (existing behaviour).
+
+### `packages/postgres/src/parser/index-functional.js` — `collectProcRefs`
+
+`collectProcRefs` currently iterates `proc.tableReferences`. Change to use the union of reads and writes:
+
+```js
+// Before
+for (const tableRef of proc.tableReferences || []) {
+  refs.push({ name: tableRef, type: 'table/view' })
+}
+
+// After
+for (const tableRef of [...(proc.reads ?? []), ...(proc.writes ?? [])]) {
+  refs.push({ name: tableRef, type: 'table/view' })
+}
+```
+
+The dependency graph and `sortByDependencies` are unchanged — a procedure still depends on all referenced tables regardless of direction.
 
 ## Import Plan Changes
 
-### `findImportProcedure(importTable, entities)`
+### `findImportProcedure(importTable, entities)` — signature unchanged
+
+Replace naming-convention matching with reads-based matching:
 
 ```js
 // Before: naming convention
 const procedureName = `${schema}.import_${baseName}`
 return entities.find(e => e.type === 'procedure' && e.name === procedureName)
 
-// After: reads-based matching
+// After: reads-based
 return entities.find(
   e => e.type === 'procedure' && (e.reads ?? []).includes(importTable.name)
-)
+) ?? null
 ```
 
-### `findTargetTable(procedure, importTables)`
+### `findTargetTable(importTable, entities)` — unchanged
+
+`findTargetTable` continues to find the matching production table by base name (e.g. `staging.lookups` → `config.lookups`). It is used for ordering when no procedure is matched. No changes.
+
+### `buildImportPlan(importTables, entities)` — signature unchanged
+
+The entry shape gains a `targets` field:
 
 ```js
-// Before: naming convention (extract table name from procedure name)
-// After: reads-based matching
-return importTables.find(t => (procedure.reads ?? []).includes(t.name))
+// Before
+{ table, targetTable, procedure, warnings }
+
+// After
+{ table, targetTable, procedure, targets, warnings }
 ```
+
+`targets` — the non-staging tables the procedure writes to:
+
+```js
+// Derive staging schemas from the import tables themselves (no config needed)
+const stagingSchemas = [...new Set(importTables.map(t => t.name.split('.')[0]))]
+
+const targets = procedure
+  ? (procedure.writes ?? []).filter(name => !stagingSchemas.includes(name.split('.')[0]))
+  : []
+```
+
+Ordering continues to use `targetTable` (from `findTargetTable`) as before.
 
 ### Edge cases
 
@@ -79,38 +140,33 @@ return importTables.find(t => (procedure.reads ?? []).includes(t.name))
 |----------|-----------|
 | No procedure reads from this staging table | `null` — warning issued (same as today) |
 | Multiple procedures read from same staging table | First match wins; warning issued for ambiguity |
-| Procedure reads staging table and non-staging tables | Normal — non-staging reads are cross-procedure dependencies handled by `sortByDependencies` |
+| Procedure reads staging table and non-staging tables (cross-procedure FK) | Ordering handled by dependency graph — `sortByDependencies` places prerequisite procedures first |
+| Unqualified table name in procedure body | Does not match fully-qualified staging table name; no procedure matched; warning issued |
 
-Ordering between procedures is handled by the existing dependency graph: if procedure B reads from a table that procedure A writes to, `sortByDependencies` already places A before B. No special ordering logic needed in the import plan.
+### `Design.importTables` getter — `packages/cli/src/design.js`
 
-### Plan entry enrichment
-
-Each `buildImportPlan` entry gains a `targets` field:
-
-```js
-{
-  table,       // staging table being imported
-  procedure,   // matched procedure (or null)
-  targets,     // procedure.writes filtered to non-staging schemas ([] if no procedure)
-  warnings
-}
-```
-
-`targets` derivation:
+Add `targets` to the destructured plan entry:
 
 ```js
-const targets = procedure
-  ? (procedure.writes ?? []).filter(t => !stagingSchemas.includes(t.split('.')[0]))
-  : []
+// Before
+return this.#importTables.map(({ table, procedure, warnings: planWarnings }) => ({
+  ...table,
+  procedure,
+  warnings: [...(table.warnings || []), ...planWarnings]
+}))
+
+// After
+return this.#importTables.map(({ table, procedure, targets, warnings: planWarnings }) => ({
+  ...table,
+  procedure,
+  targets,
+  warnings: [...(table.warnings || []), ...planWarnings]
+}))
 ```
-
-`stagingSchemas` comes from `config.project.staging`.
-
-The `Design.importTables` getter passes through `targets` alongside the existing spread.
 
 ## What This Enables
 
-- **Cross-schema disambiguation** — two procedures writing to `config.users` vs `audit.users` are unambiguously distinct
+- **Cross-schema disambiguation** — two procedures writing to `config.users` vs `audit.users` are unambiguously distinct; only reads-based matching reveals the correct staging→target flow
 - **Naming convention independence** — any procedure that reads from a staging table is discovered automatically
 - **`dbd inspect` warnings** — can flag if a procedure writes to a table not in the design
 - **Richer dry-run output** — future: show full data flow `staging.lookups → [import_lookups] → config.lookups`
@@ -126,13 +182,13 @@ The `Design.importTables` getter passes through `targets` alongside the existing
 
 | File | Change |
 |------|--------|
-| `packages/postgres/src/parser/extractors/procedures.js` | Split `tableReferences` → `reads` + `writes` in both AST and regex extractors |
-| `packages/postgres/src/parser/index-functional.js` | Use `[...reads, ...writes]` in place of `tableReferences` when building `refers` |
-| `packages/postgres/spec/` | Update procedure extractor tests for new `reads`/`writes` shape |
-| `packages/db/src/entity-processor.js` | Update `findImportProcedure` and `findTargetTable`; enrich `buildImportPlan` entries with `targets` |
+| `packages/postgres/src/parser/extractors/procedures.js` | `extractBodyReferencesFromAst` and `extractTableReferencesFromBody` return `{ reads, writes }` instead of `string[]`; entity gains `reads`/`writes`, `tableReferences` removed |
+| `packages/postgres/src/parser/index-functional.js` | `collectProcRefs` iterates `[...reads, ...writes]` instead of `tableReferences` |
+| `packages/postgres/spec/` | Update procedure extractor tests for `reads`/`writes` shape |
+| `packages/db/src/entity-processor.js` | `findImportProcedure` uses reads; `buildImportPlan` adds `targets` to plan entries |
 | `packages/db/spec/entity-processor.spec.js` | Update tests for new matching logic and `targets` field |
-| `packages/cli/src/design.js` | Update `importTables` getter to pass through `targets` |
-| `packages/cli/spec/design.spec.js` | Update tests if they check import plan shape |
+| `packages/cli/src/design.js` | `importTables` getter destructures and passes through `targets` |
+| `packages/cli/spec/design.spec.js` | Update if tests check import plan entry shape |
 
 ## Testing
 
@@ -145,10 +201,9 @@ The `Design.importTables` getter passes through `targets` alongside the existing
 - `tableReferences` field is absent from parsed output
 
 **`entity-processor.spec.js`:**
-- `findImportProcedure`: matches by `reads`, not by name
+- `findImportProcedure`: matches staging table via `reads` field, not procedure name
 - `findImportProcedure`: returns `null` when no procedure reads from the table
-- `findImportProcedure`: warns on multiple matches
-- `findTargetTable`: matches by `reads`
-- `buildImportPlan`: `targets` field populated from procedure `writes`
+- `findImportProcedure`: returns first match and issues warning when multiple procedures read from same table
+- `buildImportPlan`: `targets` populated from procedure `writes` filtered to non-staging schemas
 - `buildImportPlan`: `targets` is `[]` when no procedure matched
-- `buildImportPlan`: `targets` excludes staging-schema tables
+- `buildImportPlan`: staging-schema writes excluded from `targets`
