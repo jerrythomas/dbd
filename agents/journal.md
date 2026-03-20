@@ -5,6 +5,31 @@ Design details live in `docs/design/` — modular docs per module.
 
 ---
 
+## 2026-03-20
+
+### Auto-sequenced Import Plan — COMPLETE (v2.2.0)
+
+Replaced broken `organizeImports()` with `buildImportPlan()`. Import procedures now called automatically after CSV loads, ordered by dependency graph. `loader.sql` no longer needed.
+
+**Design spec:** `docs/superpowers/specs/2026-03-20-import-plan-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-03-20-import-plan.md`
+
+**Changes:**
+
+- `packages/db/src/entity-processor.js` — Added 3 pure functions: `findTargetTable`, `findImportProcedure`, `buildImportPlan`
+- `packages/db/src/index.js` — Exported the three new functions
+- `packages/cli/src/design.js` — Replaced `organizeImports` with `buildImportPlan`; `importData()` auto-calls `staging.import_X()` procedure after each CSV load; dry-run prints both `\copy` and `call` lines; warnings surface for missing procedures
+- `example/design.yaml` — Removed `after`/`after.dev`/`after.prod` keys (loader.sql no longer needed)
+- Deleted `example/import/loader.sql`, `dev_loader.sql`, `prod_loader.sql`
+- Deleted stale files: `agents/context.md.backup`, `test-entity-from-file.js`, `docs/issues.md`
+- Updated `docs/to-do.md` — items now covered by design spec
+
+**Commits:** e6e1fe3 (design+cleanup), 01f224b (plan), f76b378 (pure functions), d313a66 (design.js), ae8d05d (fix example/design.yaml), 3244017 (strengthen ordering test)
+
+**Released as v2.2.0** — 809 tests passing, 0 lint errors.
+
+---
+
 ## 2026-03-15
 
 ### Complexity Reduction — Functions > 10
