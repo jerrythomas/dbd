@@ -266,6 +266,9 @@ export const extractTableReferencesFromBody = (body) => {
 	// SQL keywords that precede table names (not variable assignments)
 	// Note: bare 'INTO' is excluded — in PL/pgSQL, 'SELECT ... INTO var' assigns to variables.
 	// Only 'INSERT INTO table' references a real table.
+	// IMPORTANT: multi-word keywords (e.g. 'DELETE FROM') must appear before
+	// their component keywords ('FROM') in this array so that regex alternation
+	// matches the longer form first.
 	const sqlKeywords = [
 		'INSERT INTO',
 		'DELETE FROM',
@@ -281,7 +284,7 @@ export const extractTableReferencesFromBody = (body) => {
 
 	// SQL keywords and PL/pgSQL keywords that should not be treated as table names
 	const nonTableWords =
-		/^(SELECT|WHERE|GROUP|ORDER|HAVING|UNION|AND|OR|AS|SET|STRICT|NEW|OLD|IF|THEN|ELSE|ELSIF|END|LOOP|RETURN|RAISE|PERFORM|EXECUTE|DECLARE|BEGIN|EXCEPTION|FOUND|NULL|TRUE|FALSE|NOT|IS|IN|EXISTS|CASE|WHEN|USING|WITH)$/i
+		/^(SELECT|WHERE|GROUP|ORDER|HAVING|UNION|AND|OR|AS|SET|STRICT|NEW|OLD|IF|THEN|ELSE|ELSIF|END|LOOP|RETURN|RAISE|PERFORM|EXECUTE|DECLARE|BEGIN|EXCEPTION|FOUND|NULL|TRUE|FALSE|NOT|IS|IN|EXISTS|CASE|WHEN|USING|WITH|FROM|JOIN|INTO|UPDATE)$/i
 
 	const writeKeywords = /^(INSERT INTO|UPDATE|DELETE FROM|ALTER TABLE|CREATE TABLE)$/i
 

@@ -299,4 +299,15 @@ describe('extractTableReferencesFromBody', () => {
 		expect(result.writes).toContain('config.lookups')
 		expect(result.reads).toContain('staging.lookups')
 	})
+
+	it('UPDATE ... FROM: source in reads, target in writes', () => {
+		const body = `
+    BEGIN
+      UPDATE config.target SET col = src.col FROM staging.source src WHERE config.target.id = src.id;
+    END;
+  `
+		const result = extractTableReferencesFromBody(body)
+		expect(result.writes).toContain('config.target')
+		expect(result.reads).toContain('staging.source')
+	})
 })
