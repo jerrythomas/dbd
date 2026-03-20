@@ -6,6 +6,21 @@
 import { translateFromItem, translateWhereExpr } from './where-expr.js'
 
 /**
+ * Recursively collect all FROM clause items from a (possibly UNION/INTERSECT/EXCEPT) SelectStmt.
+ * Set-operation queries use larg/rarg instead of fromClause.
+ */
+const collectSetOpFromClauses = (selectStmt) => {
+	if (!selectStmt) return []
+	if (selectStmt.larg && selectStmt.rarg) {
+		return [
+			...collectSetOpFromClauses(selectStmt.larg?.SelectStmt ?? selectStmt.larg),
+			...collectSetOpFromClauses(selectStmt.rarg?.SelectStmt ?? selectStmt.rarg)
+		]
+	}
+	return selectStmt.fromClause || []
+}
+
+/**
  * Translate a ColumnRef AST node to a column reference object.
  */
 const translateColumnRef = (fields) => {
@@ -41,14 +56,18 @@ export const translateViewStmt = (viewStmt, originalSql) => {
 	const rel = viewStmt.view
 	const query = viewStmt.query?.SelectStmt
 
-	const selectColumns = query.targetList
+	// For set operations (UNION/INTERSECT/EXCEPT), targetList is on larg, not query directly
+	const targetList = query?.targetList ?? query?.larg?.SelectStmt?.targetList ?? []
+	const selectColumns = targetList
 		.map((target) => {
 			const rt = target.ResTarget
 			return { expr: translateTargetExpr(rt.val), as: rt.name || null }
 		})
 		.filter(Boolean)
 
-	const fromClause = (query?.fromClause || []).flatMap((item) => {
+	// Collect FROM clauses from all branches of set operations
+	const allFromItems = collectSetOpFromClauses(query)
+	const fromClause = allFromItems.flatMap((item) => {
 		const result = translateFromItem(item)
 		return Array.isArray(result) ? result : result ? [result] : []
 	})
