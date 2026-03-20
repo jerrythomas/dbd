@@ -100,8 +100,8 @@ describe('buildGrantsScript', () => {
 		expect(buildGrantsScript([], 'supabase')).toBe('')
 	})
 
-	it('schema without grants: skipped', () => {
-		const script = buildGrantsScript([], 'supabase')
+	it('schema with empty grants object: produces no output', () => {
+		const script = buildGrantsScript([{ name: 'config', grants: {} }], 'supabase')
 		expect(script).toBe('')
 	})
 
