@@ -63,7 +63,13 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		try {
 			writeFileSync(TMP_SCRIPT, script)
 			this.log(`Executing script (${script.length} bytes)`)
-			execSync(`psql ${this.connectionString} < ${TMP_SCRIPT}`, { stdio: 'pipe' })
+			// ON_ERROR_STOP=1 ensures psql exits non-zero on SQL errors (including failed \copy)
+			execSync(`psql ${this.connectionString} -v ON_ERROR_STOP=1 < ${TMP_SCRIPT}`, {
+				stdio: 'pipe',
+				encoding: 'utf8'
+			})
+		} catch (err) {
+			throw new Error(err.stderr?.trim() || err.message, { cause: err })
 		} finally {
 			if (existsSync(TMP_SCRIPT)) unlinkSync(TMP_SCRIPT)
 		}
@@ -76,7 +82,15 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		}
 
 		this.log(`Executing file: ${file}`)
-		execSync(`psql ${this.connectionString} < ${file}`, { stdio: 'pipe' })
+		try {
+			// ON_ERROR_STOP=1 ensures psql exits non-zero on SQL errors
+			execSync(`psql ${this.connectionString} -v ON_ERROR_STOP=1 < ${file}`, {
+				stdio: 'pipe',
+				encoding: 'utf8'
+			})
+		} catch (err) {
+			throw new Error(err.stderr?.trim() || err.message, { cause: err })
+		}
 	}
 
 	async applyEntity(entity, options = {}) {
