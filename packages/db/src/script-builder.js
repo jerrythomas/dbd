@@ -1,14 +1,14 @@
 const SUPABASE_PROTECTED = [
-  'auth',
-  'storage',
-  'realtime',
-  'supabase_functions',
-  '_realtime',
-  'supabase_migrations',
-  'pgbouncer',
-  'vault',
-  'graphql',
-  'graphql_public'
+	'auth',
+	'storage',
+	'realtime',
+	'supabase_functions',
+	'_realtime',
+	'supabase_migrations',
+	'pgbouncer',
+	'vault',
+	'graphql',
+	'graphql_public'
 ]
 
 /**
@@ -20,16 +20,16 @@ const SUPABASE_PROTECTED = [
  * @returns {string} SQL script (empty string if nothing to drop)
  */
 export function buildResetScript(schemas, roles, target = 'supabase') {
-  if (target === 'supabase') {
-    return schemas
-      .filter((s) => !SUPABASE_PROTECTED.includes(s))
-      .map((s) => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
-      .join('\n')
-  }
+	if (target === 'supabase') {
+		return schemas
+			.filter((s) => !SUPABASE_PROTECTED.includes(s))
+			.map((s) => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
+			.join('\n')
+	}
 
-  const dropSchemas = schemas.map((s) => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
-  const dropRoles = [...roles].reverse().map((r) => `DROP ROLE IF EXISTS ${r.name};`)
-  return [...dropSchemas, ...dropRoles].join('\n')
+	const dropSchemas = schemas.map((s) => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
+	const dropRoles = [...roles].reverse().map((r) => `DROP ROLE IF EXISTS ${r.name};`)
+	return [...dropSchemas, ...dropRoles].join('\n')
 }
 
 /**
@@ -41,22 +41,22 @@ export function buildResetScript(schemas, roles, target = 'supabase') {
  * @returns {string} SQL script (empty string if nothing to grant)
  */
 export function buildGrantsScript(schemaGrants, target = 'supabase') {
-  if (target !== 'supabase') return ''
+	if (target !== 'supabase') return ''
 
-  return schemaGrants
-    .flatMap(({ name, grants }) =>
-      Object.entries(grants).flatMap(([role, perms]) => {
-        const lines = []
-        if (perms.includes('usage')) lines.push(`GRANT USAGE ON SCHEMA ${name} TO ${role};`)
-        const tablePerms = perms.filter((p) => p !== 'usage').map((p) => p.toUpperCase())
-        if (tablePerms.length) {
-          lines.push(`GRANT ${tablePerms.join(', ')} ON ALL TABLES IN SCHEMA ${name} TO ${role};`)
-          lines.push(
-            `ALTER DEFAULT PRIVILEGES IN SCHEMA ${name} GRANT ${tablePerms.join(', ')} ON TABLES TO ${role};`
-          )
-        }
-        return lines
-      })
-    )
-    .join('\n')
+	return schemaGrants
+		.flatMap(({ name, grants }) =>
+			Object.entries(grants).flatMap(([role, perms]) => {
+				const lines = []
+				if (perms.includes('usage')) lines.push(`GRANT USAGE ON SCHEMA ${name} TO ${role};`)
+				const tablePerms = perms.filter((p) => p !== 'usage').map((p) => p.toUpperCase())
+				if (tablePerms.length) {
+					lines.push(`GRANT ${tablePerms.join(', ')} ON ALL TABLES IN SCHEMA ${name} TO ${role};`)
+					lines.push(
+						`ALTER DEFAULT PRIVILEGES IN SCHEMA ${name} GRANT ${tablePerms.join(', ')} ON TABLES TO ${role};`
+					)
+				}
+				return lines
+			})
+		)
+		.join('\n')
 }
