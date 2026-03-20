@@ -208,6 +208,7 @@ function cleanImportTables(data) {
 		.map((file) => ({
 			...options,
 			...entityFromFile(normalizeImportPath(file)),
+			file,
 			env: envFromPath(file)
 		}))
 		.map((table) => ({ ...table, ...schemaOptions[table.schema] }))

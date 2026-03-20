@@ -215,6 +215,8 @@ class Design {
 				console.info(`Importing ${table.name}`)
 				table.warnings.forEach((w) => console.warn(w))
 				console.info(importScriptForEntity(table))
+			}
+			for (const table of plan) {
 				if (table.procedure) console.info(`call ${table.procedure.name}();`)
 			}
 			return this
@@ -225,6 +227,8 @@ class Design {
 			console.info(`Importing ${table.name}`)
 			table.warnings.forEach((w) => console.warn(w))
 			await adapter.importData(table)
+		}
+		for (const table of plan) {
 			if (table.procedure) {
 				console.info(`Calling ${table.procedure.name}`)
 				await adapter.executeScript(`call ${table.procedure.name}();`)
