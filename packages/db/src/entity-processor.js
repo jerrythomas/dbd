@@ -296,9 +296,8 @@ export function findTargetTable(importTable, entities) {
  */
 export function findImportProcedure(importTable, entities) {
 	return (
-		entities.find(
-			(e) => e.type === 'procedure' && (e.reads ?? []).includes(importTable.name)
-		) ?? null
+		entities.find((e) => e.type === 'procedure' && (e.reads ?? []).includes(importTable.name)) ??
+		null
 	)
 }
 
@@ -321,9 +320,7 @@ export function buildImportPlan(importTables, entities) {
 			const procedure = findImportProcedure(table, entities)
 			const warnings = procedure ? [] : [`no import procedure for ${table.name}`]
 			const targets = procedure
-				? (procedure.writes ?? []).filter(
-						(name) => !stagingSchemas.includes(name.split('.')[0])
-					)
+				? (procedure.writes ?? []).filter((name) => !stagingSchemas.includes(name.split('.')[0]))
 				: []
 			const order = targetTable ? tables.findIndex((t) => t.name === targetTable.name) : Infinity
 			return { table, targetTable, procedure, targets, warnings, order }

@@ -17,6 +17,7 @@
 ### Task 1: Failing tests for `findTargetTable` and `findImportProcedure`
 
 **Files:**
+
 - Modify: `packages/db/spec/entity-processor.spec.js` (add new describe block at end of file)
 
 These tests use inline fixtures — no file system needed.
@@ -78,7 +79,9 @@ describe('findImportProcedure', () => {
   it('does not match non-procedure entities', () => {
     const importTable = { name: 'staging.lookups', schema: 'staging' }
     // only tables available, no procedures
-    const result = findImportProcedure(importTable, [{ type: 'table', name: 'staging.import_lookups', schema: 'staging' }])
+    const result = findImportProcedure(importTable, [
+      { type: 'table', name: 'staging.import_lookups', schema: 'staging' }
+    ])
     expect(result).toBeNull()
   })
 })
@@ -110,6 +113,7 @@ Expected: FAIL — `findTargetTable is not a function` (or similar import error)
 ### Task 2: Implement `findTargetTable` and `findImportProcedure`
 
 **Files:**
+
 - Modify: `packages/db/src/entity-processor.js` (add after `organizeEntities`)
 
 - [ ] **Step 1: Add implementations**
@@ -131,7 +135,8 @@ export function findTargetTable(importTable, entities) {
   const baseName = importTable.name.split('.')[1]
   return (
     entities.find(
-      (e) => e.type === 'table' && e.name.split('.')[1] === baseName && e.schema !== importTable.schema
+      (e) =>
+        e.type === 'table' && e.name.split('.')[1] === baseName && e.schema !== importTable.schema
     ) ?? null
   )
 }
@@ -164,6 +169,7 @@ Expected: both describe blocks PASS
 ### Task 3: Failing tests for `buildImportPlan`
 
 **Files:**
+
 - Modify: `packages/db/spec/entity-processor.spec.js` (add describe block after findImportProcedure tests)
 
 - [ ] **Step 1: Add failing tests**
@@ -212,7 +218,9 @@ describe('buildImportPlan', () => {
   })
 
   it('attaches null procedure and a warning when no procedure exists', () => {
-    const noProc = [{ name: 'staging.dev_fixtures', schema: 'staging', file: 'import/staging/dev_fixtures.csv' }]
+    const noProc = [
+      { name: 'staging.dev_fixtures', schema: 'staging', file: 'import/staging/dev_fixtures.csv' }
+    ]
     const plan = buildImportPlan(noProc, entities)
     expect(plan[0].procedure).toBeNull()
     expect(plan[0].warnings).toContain('no import procedure for staging.dev_fixtures')
@@ -247,6 +255,7 @@ Expected: FAIL — `buildImportPlan is not a function`
 ### Task 4: Implement `buildImportPlan`
 
 **Files:**
+
 - Modify: `packages/db/src/entity-processor.js` (add after `findImportProcedure`)
 
 - [ ] **Step 1: Add implementation**
@@ -314,6 +323,7 @@ git commit -m "feat(db): add findTargetTable, findImportProcedure, buildImportPl
 ### Task 5: Update `design.js` — replace `organizeImports` with `buildImportPlan`
 
 **Files:**
+
 - Modify: `packages/cli/src/design.js`
 
 The internal `#importTables` field now stores plan entries `[{ table, targetTable, procedure, warnings }]`.
@@ -342,10 +352,13 @@ import {
 - [ ] **Step 2: Replace `organizeImports` with `buildImportPlan` in constructor**
 
 In the `Design` constructor, change:
+
 ```js
 this.#importTables = this.organizeImports(config.importTables)
 ```
+
 to:
+
 ```js
 this.#importTables = buildImportPlan(config.importTables, config.entities)
 ```
@@ -381,6 +394,7 @@ Note which tests fail — expected failures are the `order` test, the dry-run ta
 ### Task 6: Update `validate()` in `design.js`
 
 **Files:**
+
 - Modify: `packages/cli/src/design.js`
 
 `validate()` currently maps over `this.importTables` (flat objects). After Step 5 above it maps over plan entries stored in `#importTables`. We need to validate `entry.table` and write back validated entries.
@@ -423,6 +437,7 @@ this.#importTables = this.#importTables
 ### Task 7: Update `importData()` in `design.js`
 
 **Files:**
+
 - Modify: `packages/cli/src/design.js`
 
 `importData()` now iterates plan entries. For each: load CSV, call procedure if present, warn if missing.
@@ -483,6 +498,7 @@ bun run test:cli 2>&1 | grep -E "FAIL|✗|pass|fail" | head -20
 ### Task 8: Update broken tests in `design.spec.js`
 
 **Files:**
+
 - Modify: `packages/cli/spec/design.spec.js`
 
 Three groups of tests need updating:
@@ -549,7 +565,9 @@ it('importData dry-run logs call statement when procedure exists', async () => {
   dx.importData('staging.lookups', true)
 
   const infoCalls = console.info.mock.calls.map((c) => c[0])
-  const callStatement = infoCalls.find((c) => typeof c === 'string' && c.startsWith('call staging.import_lookups'))
+  const callStatement = infoCalls.find(
+    (c) => typeof c === 'string' && c.startsWith('call staging.import_lookups')
+  )
   expect(callStatement).toBeDefined()
 })
 ```

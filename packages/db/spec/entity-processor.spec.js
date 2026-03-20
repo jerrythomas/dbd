@@ -517,7 +517,11 @@ describe('entity-processor', () => {
 		]
 
 		const importTables = [
-			{ name: 'staging.lookup_values', schema: 'staging', file: 'import/staging/lookup_values.csv' },
+			{
+				name: 'staging.lookup_values',
+				schema: 'staging',
+				file: 'import/staging/lookup_values.csv'
+			},
 			{ name: 'staging.lookups', schema: 'staging', file: 'import/staging/lookups.csv' }
 		]
 
@@ -590,7 +594,11 @@ describe('entity-processor', () => {
 
 		it('tables with no matching target go last', () => {
 			const mixed = [
-				{ name: 'staging.dev_fixtures', schema: 'staging', file: 'import/staging/dev_fixtures.csv' },
+				{
+					name: 'staging.dev_fixtures',
+					schema: 'staging',
+					file: 'import/staging/dev_fixtures.csv'
+				},
 				{ name: 'staging.lookups', schema: 'staging', file: 'import/staging/lookups.csv' }
 			]
 			const plan = buildImportPlan(mixed, entities)

@@ -17,9 +17,9 @@ Replace `organizeImports()` with `buildImportPlan()` — a pure function that re
 
 ## Naming Convention
 
-| Staging table     | Target table      | Import procedure           |
-| ----------------- | ----------------- | -------------------------- |
-| `staging.lookups` | `config.lookups`  | `staging.import_lookups`   |
+| Staging table           | Target table           | Import procedure               |
+| ----------------------- | ---------------------- | ------------------------------ |
+| `staging.lookups`       | `config.lookups`       | `staging.import_lookups`       |
 | `staging.lookup_values` | `config.lookup_values` | `staging.import_lookup_values` |
 
 - Target table: same base name as staging table, any non-staging schema
@@ -45,9 +45,12 @@ Finds the target table by matching base name across non-staging schemas.
 ```js
 // staging.lookups → config.lookups
 const baseName = importTable.name.split('.')[1]
-return entities.find(
-  e => e.type === 'table' && e.name.split('.')[1] === baseName && e.schema !== importTable.schema
-) ?? null
+return (
+  entities.find(
+    (e) =>
+      e.type === 'table' && e.name.split('.')[1] === baseName && e.schema !== importTable.schema
+  ) ?? null
+)
 ```
 
 ### `findImportProcedure(importTable, entities)`
@@ -58,7 +61,7 @@ Finds the import procedure by naming convention.
 // staging.lookups → staging.import_lookups
 const [schema, baseName] = importTable.name.split('.')
 const procedureName = `${schema}.import_${baseName}`
-return entities.find(e => e.type === 'procedure' && e.name === procedureName) ?? null
+return entities.find((e) => e.type === 'procedure' && e.name === procedureName) ?? null
 ```
 
 ### `buildImportPlan(importTables, entities)`
@@ -67,14 +70,14 @@ Builds the ordered plan. Sorting: by target table's position in the dependency-s
 
 ```js
 export function buildImportPlan(importTables, entities) {
-  const tables = entities.filter(e => e.type === 'table')
+  const tables = entities.filter((e) => e.type === 'table')
 
   return importTables
-    .map(table => {
+    .map((table) => {
       const targetTable = findTargetTable(table, entities)
       const procedure = findImportProcedure(table, entities)
       const warnings = procedure ? [] : [`no import procedure for ${table.name}`]
-      const order = targetTable ? tables.findIndex(t => t.name === targetTable.name) : Infinity
+      const order = targetTable ? tables.findIndex((t) => t.name === targetTable.name) : Infinity
       return { table, targetTable, procedure, warnings, order }
     })
     .sort((a, b) => a.order - b.order)
@@ -96,10 +99,16 @@ Filter and validate `entry.table` per plan entry. Merge plan warnings into entry
 ```js
 this.#importPlan = buildImportPlan(config.importTables, config.entities)
   .filter(({ table }) => table.env === null || table.env === this.#env)
-  .map(entry => ({ ...entry, table: validateEntity(entry.table, false) }))
-  .map(entry => {
+  .map((entry) => ({ ...entry, table: validateEntity(entry.table, false) }))
+  .map((entry) => {
     if (!allowedSchemas.includes(entry.table.schema))
-      return { ...entry, table: { ...entry.table, errors: [...(entry.table.errors || []), 'Import is only allowed for staging schemas'] } }
+      return {
+        ...entry,
+        table: {
+          ...entry.table,
+          errors: [...(entry.table.errors || []), 'Import is only allowed for staging schemas']
+        }
+      }
     return entry
   })
 ```
@@ -178,15 +187,15 @@ import/staging/dev_fixture_table.csv =>
 
 ## Files Changed
 
-| File | Change |
-| ---- | ------ |
-| `packages/db/src/entity-processor.js` | Add `findTargetTable`, `findImportProcedure`, `buildImportPlan` |
-| `packages/db/src/index.js` | Export the three new functions |
-| `packages/cli/src/design.js` | Replace `organizeImports`, update `validate`, `report`, `importData` |
-| `example/design.yaml` | Remove `after`, `after.dev`, `after.prod` |
-| `example/import/loader.sql` | Delete |
-| `example/import/dev_loader.sql` | Delete |
-| `example/import/prod_loader.sql` | Delete |
+| File                                  | Change                                                               |
+| ------------------------------------- | -------------------------------------------------------------------- |
+| `packages/db/src/entity-processor.js` | Add `findTargetTable`, `findImportProcedure`, `buildImportPlan`      |
+| `packages/db/src/index.js`            | Export the three new functions                                       |
+| `packages/cli/src/design.js`          | Replace `organizeImports`, update `validate`, `report`, `importData` |
+| `example/design.yaml`                 | Remove `after`, `after.dev`, `after.prod`                            |
+| `example/import/loader.sql`           | Delete                                                               |
+| `example/import/dev_loader.sql`       | Delete                                                               |
+| `example/import/prod_loader.sql`      | Delete                                                               |
 
 ## Testing
 

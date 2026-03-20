@@ -37,18 +37,25 @@ The flag is on each command, not global, because other commands (`apply`, `impor
 
 ## `dbd reset` Behavior
 
-| Target | Schemas | Roles |
-|--------|---------|-------|
-| `supabase` | `DROP SCHEMA IF EXISTS x CASCADE` for schemas not in `SUPABASE_PROTECTED` list | Skipped (Supabase manages roles) |
-| `postgres` | `DROP SCHEMA IF EXISTS x CASCADE` for all design.yaml schemas | `DROP ROLE IF EXISTS x` in reverse dependency order |
+| Target     | Schemas                                                                        | Roles                                               |
+| ---------- | ------------------------------------------------------------------------------ | --------------------------------------------------- |
+| `supabase` | `DROP SCHEMA IF EXISTS x CASCADE` for schemas not in `SUPABASE_PROTECTED` list | Skipped (Supabase manages roles)                    |
+| `postgres` | `DROP SCHEMA IF EXISTS x CASCADE` for all design.yaml schemas                  | `DROP ROLE IF EXISTS x` in reverse dependency order |
 
 Supabase-protected schemas (never touched):
 
 ```js
 const SUPABASE_PROTECTED = [
-  'auth', 'storage', 'realtime', 'supabase_functions',
-  '_realtime', 'supabase_migrations', 'pgbouncer',
-  'vault', 'graphql', 'graphql_public'
+  'auth',
+  'storage',
+  'realtime',
+  'supabase_functions',
+  '_realtime',
+  'supabase_migrations',
+  'pgbouncer',
+  'vault',
+  'graphql',
+  'graphql_public'
 ]
 ```
 
@@ -56,10 +63,10 @@ After reset, the database is in a bare state. Users run `dbd apply` to rebuild.
 
 ## `dbd grants` Behavior
 
-| Target | Action |
-|--------|--------|
+| Target     | Action                                            |
+| ---------- | ------------------------------------------------- |
 | `supabase` | Apply grants declared per schema in `design.yaml` |
-| `postgres` | No-op — prints info message, exits cleanly |
+| `postgres` | No-op — prints info message, exits cleanly        |
 
 For each schema with grants declared, the generated SQL:
 
@@ -87,14 +94,14 @@ schemas:
 
 Grant values:
 
-| Value | PostgreSQL privilege |
-|-------|---------------------|
-| `usage` | `GRANT USAGE ON SCHEMA` |
+| Value    | PostgreSQL privilege                                        |
+| -------- | ----------------------------------------------------------- |
+| `usage`  | `GRANT USAGE ON SCHEMA`                                     |
 | `select` | `GRANT SELECT ON ALL TABLES IN SCHEMA` + default privileges |
 | `insert` | `GRANT INSERT ON ALL TABLES IN SCHEMA` + default privileges |
 | `update` | `GRANT UPDATE ON ALL TABLES IN SCHEMA` + default privileges |
 | `delete` | `GRANT DELETE ON ALL TABLES IN SCHEMA` + default privileges |
-| `all` | `GRANT ALL ON ALL TABLES IN SCHEMA` + default privileges |
+| `all`    | `GRANT ALL ON ALL TABLES IN SCHEMA` + default privileges    |
 
 Schemas without `grants` declared are skipped by `dbd grants` (no warning).
 
@@ -108,12 +115,12 @@ Schemas without `grants` declared are skipped by `dbd grants` (no warning).
 export function buildResetScript(schemas, roles, target = 'supabase') {
   if (target === 'supabase') {
     return schemas
-      .filter(s => !SUPABASE_PROTECTED.includes(s))
-      .map(s => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
+      .filter((s) => !SUPABASE_PROTECTED.includes(s))
+      .map((s) => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
       .join('\n')
   }
-  const dropSchemas = schemas.map(s => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
-  const dropRoles = [...roles].reverse().map(r => `DROP ROLE IF EXISTS ${r.name};`)
+  const dropSchemas = schemas.map((s) => `DROP SCHEMA IF EXISTS ${s} CASCADE;`)
+  const dropRoles = [...roles].reverse().map((r) => `DROP ROLE IF EXISTS ${r.name};`)
   return [...dropSchemas, ...dropRoles].join('\n')
 }
 ```
@@ -129,12 +136,13 @@ export function buildGrantsScript(schemaGrants, target = 'supabase') {
     .flatMap(({ name, grants }) =>
       Object.entries(grants).flatMap(([role, perms]) => {
         const lines = []
-        if (perms.includes('usage'))
-          lines.push(`GRANT USAGE ON SCHEMA ${name} TO ${role};`)
-        const tablePerms = perms.filter(p => p !== 'usage').map(p => p.toUpperCase())
+        if (perms.includes('usage')) lines.push(`GRANT USAGE ON SCHEMA ${name} TO ${role};`)
+        const tablePerms = perms.filter((p) => p !== 'usage').map((p) => p.toUpperCase())
         if (tablePerms.length) {
           lines.push(`GRANT ${tablePerms.join(', ')} ON ALL TABLES IN SCHEMA ${name} TO ${role};`)
-          lines.push(`ALTER DEFAULT PRIVILEGES IN SCHEMA ${name} GRANT ${tablePerms.join(', ')} ON TABLES TO ${role};`)
+          lines.push(
+            `ALTER DEFAULT PRIVILEGES IN SCHEMA ${name} GRANT ${tablePerms.join(', ')} ON TABLES TO ${role};`
+          )
         }
         return lines
       })
@@ -156,8 +164,9 @@ export function normalizeSchema(entry) {
   const grants = config?.grants ?? null
   if (grants) {
     for (const [role, perms] of Object.entries(grants)) {
-      const invalid = perms.filter(p => !VALID_GRANT_PERMS.includes(p))
-      if (invalid.length) throw new Error(`Unknown grant permissions for ${name}.${role}: ${invalid.join(', ')}`)
+      const invalid = perms.filter((p) => !VALID_GRANT_PERMS.includes(p))
+      if (invalid.length)
+        throw new Error(`Unknown grant permissions for ${name}.${role}: ${invalid.join(', ')}`)
     }
   }
   return { name, grants }
@@ -171,8 +180,8 @@ export function normalizeSchema(entry) {
 const normalized = (data.schemas || []).map(normalizeSchema)
 return {
   ...data,
-  schemas: normalized.map(s => s.name),              // string[] — unchanged shape
-  schemaGrants: normalized.filter(s => s.grants)     // [{ name, grants }]
+  schemas: normalized.map((s) => s.name), // string[] — unchanged shape
+  schemaGrants: normalized.filter((s) => s.grants) // [{ name, grants }]
 }
 ```
 
@@ -263,32 +272,33 @@ All success/info/no-op messages are handled inside `reset()` and `grants()`, not
 
 The following docs require updates in the same plan (all features since v2.1.0):
 
-| Doc | Updates needed |
-|-----|---------------|
-| `README.md` | Add `dbd reset`, `dbd grants`; remove `loader.sql` from quickstart; add env-aware import (`-e`); update import section to show auto-procedure behavior |
-| `docs/llms/04-commands.md` | Add `reset` and `grants` command entries; fix `import` dry-run description; fix `--environment` default (`prod` not `development`) |
+| Doc                             | Updates needed                                                                                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `README.md`                     | Add `dbd reset`, `dbd grants`; remove `loader.sql` from quickstart; add env-aware import (`-e`); update import section to show auto-procedure behavior  |
+| `docs/llms/04-commands.md`      | Add `reset` and `grants` command entries; fix `import` dry-run description; fix `--environment` default (`prod` not `development`)                      |
 | `docs/llms/05-import-export.md` | Remove `loader.sql` references; document `env:` in design.yaml import tables; document auto-procedure calls; document dev/prod/shared import separation |
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `packages/db/src/script-builder.js` | New — `buildResetScript`, `buildGrantsScript`, `SUPABASE_PROTECTED` |
-| `packages/db/src/index.js` | Export `buildResetScript`, `buildGrantsScript` |
-| `packages/cli/src/config.js` | Add `normalizeSchema()`, `VALID_GRANT_PERMS`; call in `read()` to populate `schemaGrants`; `schemas` stays `string[]` |
-| `packages/cli/src/design.js` | Add `reset()` and `grants()` methods; no changes to existing schema consumers |
-| `packages/cli/src/index.js` | Add `reset` and `grants` commands |
-| `packages/db/spec/script-builder.spec.js` | Unit tests for `buildResetScript` and `buildGrantsScript` |
-| `packages/cli/spec/design.spec.js` | Tests for `reset()` and `grants()` |
-| `packages/cli/spec/config.spec.js` | Tests for `normalizeSchema()` |
-| `example/design.yaml` | Add grants example for `config` schema |
-| `README.md` | Full doc update |
-| `docs/llms/04-commands.md` | Command reference update |
-| `docs/llms/05-import-export.md` | Import/export doc update |
+| File                                      | Change                                                                                                                |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `packages/db/src/script-builder.js`       | New — `buildResetScript`, `buildGrantsScript`, `SUPABASE_PROTECTED`                                                   |
+| `packages/db/src/index.js`                | Export `buildResetScript`, `buildGrantsScript`                                                                        |
+| `packages/cli/src/config.js`              | Add `normalizeSchema()`, `VALID_GRANT_PERMS`; call in `read()` to populate `schemaGrants`; `schemas` stays `string[]` |
+| `packages/cli/src/design.js`              | Add `reset()` and `grants()` methods; no changes to existing schema consumers                                         |
+| `packages/cli/src/index.js`               | Add `reset` and `grants` commands                                                                                     |
+| `packages/db/spec/script-builder.spec.js` | Unit tests for `buildResetScript` and `buildGrantsScript`                                                             |
+| `packages/cli/spec/design.spec.js`        | Tests for `reset()` and `grants()`                                                                                    |
+| `packages/cli/spec/config.spec.js`        | Tests for `normalizeSchema()`                                                                                         |
+| `example/design.yaml`                     | Add grants example for `config` schema                                                                                |
+| `README.md`                               | Full doc update                                                                                                       |
+| `docs/llms/04-commands.md`                | Command reference update                                                                                              |
+| `docs/llms/05-import-export.md`           | Import/export doc update                                                                                              |
 
 ## Testing
 
 **`script-builder.spec.js` — `buildResetScript`:**
+
 - Supabase target: protected schemas skipped, user schemas dropped
 - Supabase target: only protected schemas → returns `''`
 - Supabase target: mix of protected + user schemas → only user schemas in output
@@ -297,6 +307,7 @@ The following docs require updates in the same plan (all features since v2.1.0):
 - Roles are reversed (pre-sorted input, verify order in output)
 
 **`script-builder.spec.js` — `buildGrantsScript`:**
+
 - Supabase target with grants: generates `GRANT USAGE`, `GRANT ... ON ALL TABLES`, `ALTER DEFAULT PRIVILEGES`
 - Postgres target: returns `''` regardless of grants
 - Schema without grants: skipped
@@ -304,6 +315,7 @@ The following docs require updates in the same plan (all features since v2.1.0):
 - Empty `schemaGrants` array: returns `''`
 
 **`config.spec.js` — `normalizeSchema`:**
+
 - String entry: `{ name: 'config', grants: null }`
 - Object entry with grants: `{ name: 'config', grants: { anon: ['usage', 'select'] } }`
 - Object entry without grants key: `{ name: 'config', grants: null }`
@@ -311,6 +323,7 @@ The following docs require updates in the same plan (all features since v2.1.0):
 - `config.schemas` after `read()` is still `string[]` — existing `toContain('config')` assertions pass unchanged
 
 **`design.spec.js`:**
+
 - `reset()` dry-run: prints script containing expected DROP statements
 - `reset()` supabase: protected schemas absent from dry-run output
 - `reset()` empty schemas: prints 'No schemas to reset.' without calling adapter

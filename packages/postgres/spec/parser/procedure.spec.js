@@ -175,7 +175,6 @@ describe('SQL Parser - Procedure Definitions', () => {
 			expect(proc.body).toContain('BEGIN')
 			expect(proc.body).toContain('INSERT INTO log')
 		})
-
 	})
 
 	describe('Schema Extraction with Procedures', () => {

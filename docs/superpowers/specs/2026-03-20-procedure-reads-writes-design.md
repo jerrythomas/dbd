@@ -61,15 +61,15 @@ The current function builds a single `Set` and returns `string[]`. Change to bui
 
 Classification by matched keyword prefix (already captured as `match[1]`):
 
-| Keyword | Direction |
-|---------|-----------|
-| `INSERT INTO` | write |
-| `UPDATE` | write |
-| `DELETE FROM` | write |
-| `ALTER TABLE` | write |
-| `CREATE TABLE` | write |
-| `FROM` | read |
-| `JOIN` | read |
+| Keyword        | Direction |
+| -------------- | --------- |
+| `INSERT INTO`  | write     |
+| `UPDATE`       | write     |
+| `DELETE FROM`  | write     |
+| `ALTER TABLE`  | write     |
+| `CREATE TABLE` | write     |
+| `FROM`         | read      |
+| `JOIN`         | read      |
 
 The existing `nonTableWords` filter and quote-stripping are unchanged.
 
@@ -104,12 +104,12 @@ Replace naming-convention matching with reads-based matching:
 ```js
 // Before: naming convention
 const procedureName = `${schema}.import_${baseName}`
-return entities.find(e => e.type === 'procedure' && e.name === procedureName)
+return entities.find((e) => e.type === 'procedure' && e.name === procedureName)
 
 // After: reads-based
-return entities.find(
-  e => e.type === 'procedure' && (e.reads ?? []).includes(importTable.name)
-) ?? null
+return (
+  entities.find((e) => e.type === 'procedure' && (e.reads ?? []).includes(importTable.name)) ?? null
+)
 ```
 
 ### `findTargetTable(importTable, entities)` — unchanged
@@ -122,20 +122,24 @@ The entry shape gains a `targets` field:
 
 ```js
 // Before
-{ table, targetTable, procedure, warnings }
+{
+  ;(table, targetTable, procedure, warnings)
+}
 
 // After
-{ table, targetTable, procedure, targets, warnings }
+{
+  ;(table, targetTable, procedure, targets, warnings)
+}
 ```
 
 `targets` — the non-staging tables the procedure writes to:
 
 ```js
 // Derive staging schemas from the import tables themselves (no config needed)
-const stagingSchemas = [...new Set(importTables.map(t => t.name.split('.')[0]))]
+const stagingSchemas = [...new Set(importTables.map((t) => t.name.split('.')[0]))]
 
 const targets = procedure
-  ? (procedure.writes ?? []).filter(name => !stagingSchemas.includes(name.split('.')[0]))
+  ? (procedure.writes ?? []).filter((name) => !stagingSchemas.includes(name.split('.')[0]))
   : []
 ```
 
@@ -143,12 +147,12 @@ Ordering continues to use `targetTable` (from `findTargetTable`) as before.
 
 ### Edge cases
 
-| Scenario | Behaviour |
-|----------|-----------|
-| No procedure reads from this staging table | `null` — warning issued (same as today) |
-| Multiple procedures read from same staging table | First match wins; warning issued for ambiguity |
+| Scenario                                                                  | Behaviour                                                                                        |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| No procedure reads from this staging table                                | `null` — warning issued (same as today)                                                          |
+| Multiple procedures read from same staging table                          | First match wins; warning issued for ambiguity                                                   |
 | Procedure reads staging table and non-staging tables (cross-procedure FK) | Ordering handled by dependency graph — `sortByDependencies` places prerequisite procedures first |
-| Unqualified table name in procedure body | Does not match fully-qualified staging table name; no procedure matched; warning issued |
+| Unqualified table name in procedure body                                  | Does not match fully-qualified staging table name; no procedure matched; warning issued          |
 
 ### `Design.importTables` getter — `packages/cli/src/design.js`
 
@@ -189,19 +193,20 @@ Note: `targetTable` (singular) is present on each `buildImportPlan` entry for de
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
+| File                                                    | Change                                                                                                                                                                                                                                   |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/postgres/src/parser/extractors/procedures.js` | `extractBodyReferencesFromAst` and `extractTableReferencesFromBody` return `{ reads, writes }` instead of `string[]`; `procDefFromStatement` and `extractRoutinesFromSql` spread `reads`/`writes` onto entity; `tableReferences` removed |
-| `packages/postgres/src/parser/index-functional.js` | `collectProcRefs` iterates `[...reads, ...writes]` instead of `tableReferences` |
-| `packages/postgres/spec/` | Update procedure extractor tests for `reads`/`writes` shape |
-| `packages/db/src/entity-processor.js` | `findImportProcedure` uses reads; `buildImportPlan` adds `targets` to plan entries |
-| `packages/db/spec/entity-processor.spec.js` | Update tests for new matching logic and `targets` field |
-| `packages/cli/src/design.js` | `importTables` getter destructures and passes through `targets` |
-| `packages/cli/spec/design.spec.js` | Update if tests check import plan entry shape |
+| `packages/postgres/src/parser/index-functional.js`      | `collectProcRefs` iterates `[...reads, ...writes]` instead of `tableReferences`                                                                                                                                                          |
+| `packages/postgres/spec/`                               | Update procedure extractor tests for `reads`/`writes` shape                                                                                                                                                                              |
+| `packages/db/src/entity-processor.js`                   | `findImportProcedure` uses reads; `buildImportPlan` adds `targets` to plan entries                                                                                                                                                       |
+| `packages/db/spec/entity-processor.spec.js`             | Update tests for new matching logic and `targets` field                                                                                                                                                                                  |
+| `packages/cli/src/design.js`                            | `importTables` getter destructures and passes through `targets`                                                                                                                                                                          |
+| `packages/cli/spec/design.spec.js`                      | Update if tests check import plan entry shape                                                                                                                                                                                            |
 
 ## Testing
 
 **`procedures.spec.js`:**
+
 - Procedure with only reads: `reads` contains tables, `writes` is empty
 - Procedure with only writes: `writes` contains tables, `reads` is empty
 - Procedure with both: correct classification for each table
@@ -210,6 +215,7 @@ Note: `targetTable` (singular) is present on each `buildImportPlan` entry for de
 - `tableReferences` field is absent from parsed output
 
 **`entity-processor.spec.js`:**
+
 - `findImportProcedure`: matches staging table via `reads` field, not procedure name
 - `findImportProcedure`: returns `null` when no procedure reads from the table
 - `findImportProcedure`: returns first match and issues warning when multiple procedures read from same table

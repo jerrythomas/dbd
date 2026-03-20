@@ -19,22 +19,25 @@
 ### Task 1: `normalizeSchema` and `schemaGrants` in config.js
 
 **Files:**
+
 - Modify: `packages/cli/src/config.js`
 - Test: `packages/cli/spec/config.spec.js`
 
 **Context:**
 
 `config.js` exports `read(file)` which returns a data object. It currently sets `data.schemas = data.schemas || []` as a plain `string[]`. We need to:
+
 1. Add `normalizeSchema(entry)` that handles both string entries (`'config'`) and object entries (`{ config: { grants: { anon: ['usage', 'select'] } } }`)
 2. Call it in `read()` to populate `data.schemaGrants` (array of `{ name, grants }` for schemas that have grants) while keeping `data.schemas` as `string[]`
 
 `config.schemas` in `design.yaml` can be:
+
 ```yaml
 schemas:
-  - config:              # object form
+  - config: # object form
       grants:
         anon: [usage, select]
-  - extensions           # string form
+  - extensions # string form
 ```
 
 YAML parses `- config:` with nested keys as `{ config: { grants: {...} } }`. YAML parses `- extensions` as just the string `'extensions'`.
@@ -52,7 +55,7 @@ import {
   clean,
   cleanDDLEntities,
   normalizeEnv,
-  normalizeSchema   // add this import
+  normalizeSchema // add this import
 } from '../src/config.js'
 ```
 
@@ -88,7 +91,7 @@ describe('read() schemaGrants', () => {
     process.chdir(exampleDir)
     const data = read('design.yaml')
     expect(Array.isArray(data.schemas)).toBe(true)
-    data.schemas.forEach(s => expect(typeof s).toBe('string'))
+    data.schemas.forEach((s) => expect(typeof s).toBe('string'))
   })
 
   it('config.schemaGrants is an array', () => {
@@ -193,6 +196,7 @@ git commit -m "feat(cli): add normalizeSchema and schemaGrants support in config
 ### Task 2: `buildResetScript` and `buildGrantsScript` pure functions
 
 **Files:**
+
 - Create: `packages/db/src/script-builder.js`
 - Test: `packages/db/spec/script-builder.spec.js`
 
@@ -201,15 +205,18 @@ git commit -m "feat(cli): add normalizeSchema and schemaGrants support in config
 These are pure functions — no DB connections, no file I/O. They take config data and return SQL strings.
 
 `buildResetScript(schemas, roles, target)`:
+
 - `schemas`: `string[]` — schema names from `config.schemas`
 - `roles`: array of role objects with `.name` — from `config.roles` (pre-sorted by dependency; we reverse for drop order)
 - `target`: `'supabase'` (default) or `'postgres'`
 
 `buildGrantsScript(schemaGrants, target)`:
+
 - `schemaGrants`: `[{ name, grants }]` — from `config.schemaGrants` (only schemas with grants declared)
 - `target`: `'supabase'` (default) or `'postgres'`
 
 For `buildGrantsScript`, each schema grant entry like `{ anon: ['usage', 'select'] }` produces:
+
 1. `GRANT USAGE ON SCHEMA config TO anon;` (for `usage`)
 2. `GRANT SELECT ON ALL TABLES IN SCHEMA config TO anon;` (for `select`)
 3. `ALTER DEFAULT PRIVILEGES IN SCHEMA config GRANT SELECT ON TABLES TO anon;` (for `select`)
@@ -225,7 +232,7 @@ import { buildResetScript, buildGrantsScript } from '../src/script-builder.js'
 describe('buildResetScript', () => {
   const roles = [
     { name: 'basic' },
-    { name: 'advanced' }  // advanced depends on basic, so sorted: [basic, advanced]
+    { name: 'advanced' } // advanced depends on basic, so sorted: [basic, advanced]
   ]
 
   it('supabase target: drops user schemas, skips protected schemas', () => {
@@ -443,6 +450,7 @@ git commit -m "feat(db): add buildResetScript and buildGrantsScript pure functio
 ### Task 3: Export new functions from `packages/db/src/index.js`
 
 **Files:**
+
 - Modify: `packages/db/src/index.js`
 
 **Context:**
@@ -479,6 +487,7 @@ git commit -m "feat(db): export buildResetScript and buildGrantsScript"
 ### Task 4: `reset()` and `grants()` methods in `design.js`
 
 **Files:**
+
 - Modify: `packages/cli/src/design.js`
 - Test: `packages/cli/spec/design.spec.js`
 
@@ -487,6 +496,7 @@ git commit -m "feat(db): export buildResetScript and buildGrantsScript"
 `design.js` exports `using(configFile, databaseURL, env)` which returns a `Design` instance. The `Design` class is defined privately and the instance is returned by `using()`.
 
 Key things to know:
+
 - `this.#config.schemas` is `string[]` (schema names)
 - `this.#config.schemaGrants` is `[{ name, grants }]` — set in `read()`, passed through `clean()` via spread
 - `this.#config.roles` is `Object[]` with `.name`, pre-sorted by dependency
@@ -511,8 +521,12 @@ describe('reset()', () => {
     await dx.reset('supabase', true)
 
     const infoCalls = console.info.mock.calls.map((c) => c[0])
-    expect(infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] reset script:'))).toBe(true)
-    expect(infoCalls.some((c) => typeof c === 'string' && c.includes('DROP SCHEMA IF EXISTS'))).toBe(true)
+    expect(
+      infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] reset script:'))
+    ).toBe(true)
+    expect(
+      infoCalls.some((c) => typeof c === 'string' && c.includes('DROP SCHEMA IF EXISTS'))
+    ).toBe(true)
   })
 
   it('dry-run supabase: protected schemas absent from output', async () => {
@@ -549,12 +563,14 @@ describe('grants()', () => {
     await dx.grants('postgres', false)
 
     const infoCalls = console.info.mock.calls.map((c) => c[0])
-    expect(infoCalls.some((c) => c === 'Grants are not applicable for --target postgres')).toBe(true)
+    expect(infoCalls.some((c) => c === 'Grants are not applicable for --target postgres')).toBe(
+      true
+    )
   })
 
   it('prints info when no grants configured', async () => {
     const dx = await using('design.yaml')
-    dx.config.schemaGrants = []  // force no-grants path regardless of design.yaml state
+    dx.config.schemaGrants = [] // force no-grants path regardless of design.yaml state
     await dx.grants('supabase', false)
 
     const infoCalls = console.info.mock.calls.map((c) => c[0])
@@ -568,8 +584,14 @@ describe('grants()', () => {
     await dx.grants('supabase', true)
 
     const infoCalls = console.info.mock.calls.map((c) => c[0])
-    expect(infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] grants script:'))).toBe(true)
-    expect(infoCalls.some((c) => typeof c === 'string' && c.includes('GRANT USAGE ON SCHEMA config TO anon;'))).toBe(true)
+    expect(
+      infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] grants script:'))
+    ).toBe(true)
+    expect(
+      infoCalls.some(
+        (c) => typeof c === 'string' && c.includes('GRANT USAGE ON SCHEMA config TO anon;')
+      )
+    ).toBe(true)
   })
 
   it('dry-run returns this (chainable)', async () => {
@@ -682,6 +704,7 @@ git commit -m "feat(cli): add reset() and grants() methods to Design class"
 ### Task 5: `reset` and `grants` CLI commands in `index.js`
 
 **Files:**
+
 - Modify: `packages/cli/src/index.js`
 
 **Context:**
@@ -762,6 +785,7 @@ git commit -m "feat(cli): add reset and grants CLI commands"
 ### Task 6: Update `example/design.yaml` with grants example
 
 **Files:**
+
 - Modify: `example/design.yaml`
 
 **Context:**
@@ -769,6 +793,7 @@ git commit -m "feat(cli): add reset and grants CLI commands"
 The example project is what `dbd init` scaffolds. It should demonstrate the grants feature. Add grants to the `config` schema — the most natural schema to expose via PostgREST.
 
 Current `example/design.yaml` schemas section:
+
 ```yaml
 schemas:
   - config
@@ -778,6 +803,7 @@ schemas:
 ```
 
 Replace with:
+
 ```yaml
 schemas:
   - config:
@@ -814,6 +840,7 @@ git commit -m "feat(example): add grants example for config schema"
 ### Task 7: Update documentation
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `docs/llms/02-design-yaml.md`
 - Modify: `docs/llms/04-commands.md`
@@ -822,6 +849,7 @@ git commit -m "feat(example): add grants example for config schema"
 **Context:**
 
 Several features shipped in v2.1.0 and v2.2.0 are not yet documented:
+
 - Dev/prod/shared import separation (`-e` flag, `env:` in design.yaml import tables, `import/dev/` and `import/prod/` folder convention)
 - Auto-calling import procedures (no more `loader.sql`)
 - Updated `dbd inspect` warnings (missing import procedures)
@@ -854,19 +882,21 @@ Add a `dbd reset` entry to the commands table (find the table with `| dbd import
 
 Update the import section (step 6) to mention that import procedures are called automatically:
 
-```
+````
 ## 6. Load staging data
 
 ```sh
 dbd import
-```
+````
 
 Reads files from `import/<schema>/` and loads them. After each CSV load, calls the matching `staging.import_<name>()` procedure if it exists. Run with `-e dev` or `-e prod` to load environment-specific tables.
+
 ```
 
 Add a section for `dbd reset`:
 
 ```
+
 ## 10. Reset database (development)
 
 ```sh
@@ -886,7 +916,8 @@ dbd grants --dry-run  # Preview grants SQL
 
 Required when using Supabase to expose schemas through the PostgREST API layer.
 Configure per-schema in `design.yaml` under each schema entry.
-```
+
+````
 
 - [ ] **Step 2: Update `docs/llms/02-design-yaml.md`**
 
@@ -902,7 +933,7 @@ schemas:                    # Schemas to CREATE; can include Supabase grants
   - extensions              # String form: no grants (unchanged)
   - staging
   - migrate
-```
+````
 
 Add a note: "Grants are applied by `dbd grants --target supabase`. Valid permission values: `usage`, `select`, `insert`, `update`, `delete`, `all`."
 
@@ -914,7 +945,7 @@ Fix the `--environment` global option default from `development` to `prod`.
 
 Add `reset` command entry after `export`:
 
-```markdown
+````markdown
 ## `dbd reset`
 
 Drop all schemas declared in `design.yaml`, returning the database to a bare state. Run `dbd apply` to rebuild.
@@ -924,6 +955,7 @@ dbd reset                            # Supabase-safe (default)
 dbd reset --target postgres          # Full reset: drops schemas and roles
 dbd reset --dry-run                  # Print what would be dropped
 ```
+````
 
 **`--target supabase` (default):** Drops only user-defined schemas. Supabase-managed schemas (`auth`, `storage`, `realtime`, etc.) are never touched. Roles are not dropped.
 
@@ -955,10 +987,12 @@ schemas:
 ```
 
 For each grant entry, generates:
+
 - `GRANT USAGE ON SCHEMA` (for `usage`)
 - `GRANT ... ON ALL TABLES IN SCHEMA` (for table-level perms)
 - `ALTER DEFAULT PRIVILEGES IN SCHEMA GRANT ... ON TABLES` (for future tables)
-```
+
+````
 
 Update the `dbd import` command entry:
 - Fix `--environment` default to `prod`
@@ -988,17 +1022,20 @@ For post-import SQL that is not a staging procedure, use `import.after`:
 import:
   after:
     - import/custom-cleanup.sql
-```
+````
+
 ```
 
 Update the file layout example to remove `loader.sql`:
 
 ```
+
 import/
-  staging/
-    lookup_values.csv
-    lookups.tsv
-```
+staging/
+lookup_values.csv
+lookups.tsv
+
+````
 
 Update the environment-aware import section. Add a new section if it doesn't exist:
 
@@ -1007,17 +1044,19 @@ Update the environment-aware import section. Add a new section if it doesn't exi
 
 Place files in environment subfolders for dev/prod-specific data:
 
-```
+````
+
 import/
-  dev/
-    staging/
-      fixtures.csv     # loaded only with -e dev
-  prod/
-    staging/
-      seeds.csv        # loaded only with -e prod
-  staging/
-    lookups.csv        # loaded in all environments (shared)
-```
+dev/
+staging/
+fixtures.csv # loaded only with -e dev
+prod/
+staging/
+seeds.csv # loaded only with -e prod
+staging/
+lookups.csv # loaded in all environments (shared)
+
+````
 
 Control which environment loads with `dbd import -e dev` or `dbd import -e prod`.
 
@@ -1030,8 +1069,9 @@ import:
         env: [dev, prod]   # shared (both envs)
     - staging.fixtures:
         env: dev           # dev only
-```
-```
+````
+
+````
 
 Update the dry-run section to show both `\copy` and `call` lines:
 
@@ -1040,15 +1080,17 @@ Update the dry-run section to show both `\copy` and `call` lines:
 
 ```sh
 dbd import --dry-run    # Shows \copy script AND call proc() for each table
-```
+````
 
 Dry-run output example:
+
 ```
 [dry-run] import: staging.lookup_values
 \copy staging.lookup_values (...) FROM 'import/staging/lookup_values.csv' ...
 [dry-run] call staging.import_lookup_values();
 ```
-```
+
+````
 
 Update the end-to-end example to remove `loader.sql` and `import.after`, showing that procedures are called automatically.
 
@@ -1056,7 +1098,7 @@ Update the end-to-end example to remove `loader.sql` and `import.after`, showing
 
 ```bash
 bun run test 2>&1 | tail -10
-```
+````
 
 Expected: all tests pass.
 

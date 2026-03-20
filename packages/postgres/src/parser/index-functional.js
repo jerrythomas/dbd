@@ -241,7 +241,8 @@ export const extractDependencies = (sql, options = {}) => {
 	return {
 		entity: identifyEntity(ast, sql),
 		searchPaths: extractSearchPaths(ast),
-		references: collectReferences({ tables, views, procedures, triggers })
+		references: collectReferences({ tables, views, procedures, triggers }),
+		procedures
 	}
 }
 

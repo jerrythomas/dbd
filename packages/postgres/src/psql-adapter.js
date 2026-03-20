@@ -249,6 +249,10 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		const excludeEntity = [info.name, fullName]
 		const references = result.references.filter(({ name }) => !excludeEntity.includes(name))
 
+		// For procedure/function entities, attach reads/writes from the parsed procedure body
+		const isRoutine = info.type === 'procedure' || info.type === 'function'
+		const parsedProc = isRoutine ? result.procedures.find((p) => p.name === info.name) : null
+
 		return {
 			...entity,
 			type: info.type,
@@ -256,7 +260,8 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 			schema,
 			searchPaths,
 			references,
-			errors
+			errors,
+			...(parsedProc ? { reads: parsedProc.reads, writes: parsedProc.writes } : {})
 		}
 	}
 }
