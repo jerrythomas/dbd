@@ -31,7 +31,11 @@ export {
 	getValidEntities,
 	getInvalidEntities,
 	// Organization
-	organizeEntities
+	organizeEntities,
+	// Import plan
+	findTargetTable,
+	findImportProcedure,
+	buildImportPlan
 } from './entity-processor.js'
 
 export {

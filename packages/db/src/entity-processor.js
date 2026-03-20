@@ -265,3 +265,63 @@ export function organizeEntities(entities) {
 	}
 	return groups
 }
+
+// --- Import plan ---
+
+/**
+ * Find the target table for a staging import table by matching base name across schemas.
+ * e.g. staging.lookups → config.lookups
+ *
+ * @param {{ name: string, schema: string }} importTable
+ * @param {Array} entities
+ * @returns {Object|null}
+ */
+export function findTargetTable(importTable, entities) {
+	const baseName = importTable.name.split('.')[1]
+	return (
+		entities.find(
+			(e) =>
+				e.type === 'table' &&
+				e.name.split('.')[1] === baseName &&
+				e.schema !== importTable.schema
+		) ?? null
+	)
+}
+
+/**
+ * Find the import procedure for a staging import table by naming convention.
+ * e.g. staging.lookups → staging.import_lookups
+ *
+ * @param {{ name: string }} importTable
+ * @param {Array} entities
+ * @returns {Object|null}
+ */
+export function findImportProcedure(importTable, entities) {
+	const [schema, baseName] = importTable.name.split('.')
+	const procedureName = `${schema}.import_${baseName}`
+	return entities.find((e) => e.type === 'procedure' && e.name === procedureName) ?? null
+}
+
+/**
+ * Build an ordered import plan connecting each staging table to its target table
+ * and import procedure. Sorted by target table position in the dependency graph
+ * (tables without a matched target go last).
+ *
+ * @param {Array} importTables - staging import table entities
+ * @param {Array} entities - all project entities (tables, procedures, etc.)
+ * @returns {Array<{ table, targetTable, procedure, warnings }>}
+ */
+export function buildImportPlan(importTables, entities) {
+	const tables = entities.filter((e) => e.type === 'table')
+
+	return importTables
+		.map((table) => {
+			const targetTable = findTargetTable(table, entities)
+			const procedure = findImportProcedure(table, entities)
+			const warnings = procedure ? [] : [`no import procedure for ${table.name}`]
+			const order = targetTable ? tables.findIndex((t) => t.name === targetTable.name) : Infinity
+			return { table, targetTable, procedure, warnings, order }
+		})
+		.sort((a, b) => a.order - b.order)
+		.map(({ order: _order, ...entry }) => entry)
+}
