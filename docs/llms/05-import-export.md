@@ -19,7 +19,6 @@ import/
     lookup_values.csv
     lookups.tsv
     events.jsonl
-  loader.sql            # Post-import SQL (optional)
 ```
 
 File path `import/staging/lookup_values.csv` maps to entity `staging.lookup_values`.
@@ -76,23 +75,54 @@ Set `truncate: false` for append-only imports.
 - Import is only allowed for schemas listed in `project.staging`
 - If a table's schema is not in `staging`, validation reports an error and the table is skipped
 
+### Environment-aware imports
+
+Place files in environment subfolders for dev- or prod-specific data:
+
+```
+import/
+  dev/
+    staging/
+      fixtures.csv      # loaded only with -e dev
+  prod/
+    staging/
+      seeds.csv         # loaded only with -e prod
+  staging/
+    lookups.csv         # loaded in all environments (shared)
+```
+
+Control which environment loads with `dbd import -e dev` or `dbd import -e prod`.
+
+Declare specific tables with env restrictions in `design.yaml`:
+
+```yaml
+import:
+  tables:
+    - staging.lookup_values:
+        env: [dev, prod] # shared (both envs)
+    - staging.fixtures:
+        env: dev # dev only
+```
+
+### Import procedures (automatic)
+
+After each table is imported, dbd automatically calls `staging.import_<tablename>()` if that procedure exists. No configuration needed — it follows the naming convention.
+
+For `staging.lookup_values` → calls `staging.import_lookup_values()` (if it exists).
+
+A warning appears in `dbd inspect` if a staging table has no matching import procedure.
+
 ### Post-import SQL (`import.after`)
 
-SQL files listed under `after:` are executed in order after all table imports complete. Use for:
+SQL files listed under `after:` are executed in order after all table imports complete. Use `import.after` for SQL that runs after all imports and does not follow the `staging.import_<name>()` naming convention. Use for:
 
-- Calling stored procedures that move data from staging to production tables
-- Running aggregations or cleanup
+- Running aggregations or cleanup that spans multiple tables
+- Custom post-processing not covered by per-table procedures
 
 ```yaml
 import:
   after:
-    - import/loader.sql
-```
-
-```sql
--- import/loader.sql
-call staging.import_lookups();
-call staging.import_lookup_values();
+    - import/custom-cleanup.sql
 ```
 
 ### Running import
@@ -181,7 +211,7 @@ ddl/table/staging/lookup_values.ddl
 ddl/table/config/lookups.ddl
 ddl/table/config/lookup_values.ddl
 
-# 4. Create loader procedure (DDL)
+# 4. Create import procedure (DDL)
 ddl/procedure/staging/import_lookups.ddl
 
 # 5. Configure design.yaml
@@ -191,8 +221,8 @@ import:
   tables:
     - staging.lookups
     - staging.lookup_values
-  after:
-    - import/loader.sql
+
+# After each CSV loads, `staging.import_lookups()` and `staging.import_lookup_values()` are called automatically.
 
 # 6. Apply schema
 dbd apply

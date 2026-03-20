@@ -8,7 +8,7 @@ All commands accept these options:
 | --------------- | ----- | --------------- | ----------------------- |
 | `--config`      | `-c`  | `design.yaml`   | Path to config file     |
 | `--database`    | `-d`  | `$DATABASE_URL` | Database connection URL |
-| `--environment` | `-e`  | `development`   | Environment name        |
+| `--environment` | `-e`  | `prod`          | Environment name        |
 | `--preview`     | `-p`  | `false`         | Preview mode            |
 | `--version`     | `-v`  |                 | Print version           |
 | `--help`        | `-h`  |                 | Print help              |
@@ -115,12 +115,15 @@ dbd import                           # Import all configured tables
 dbd import -n staging.lookup_values  # Import one table by name
 dbd import -n import/staging/lookups.csv  # Import by file path
 dbd import --dry-run                 # Print what would be imported
+dbd import -e dev                    # Load dev-only tables (import/dev/ folder)
+dbd import -e prod                   # Load prod-only tables (import/prod/ folder)
 ```
 
 **Execution order:**
 
-1. Import tables in entity dependency order
-2. Run SQL files listed in `import.after` (e.g. `import/loader.sql`)
+1. Import all tables in entity dependency order
+2. For each table with a matching `staging.import_<name>()` procedure, call it automatically
+3. Run SQL files listed in `import.after`
 
 **Supported formats:** `csv`, `tsv`, `json`, `jsonl`
 
@@ -143,6 +146,53 @@ dbd export -n config.lookups         # Export one table by name
 **Supported formats:** `csv`, `tsv`, `json`, `jsonl`
 
 Tables to export are configured under `export:` in `design.yaml`.
+
+---
+
+## `dbd reset`
+
+Drop all schemas declared in `design.yaml`, returning the database to a bare state. Run `dbd apply` to rebuild.
+
+```sh
+dbd reset                            # Supabase-safe (default)
+dbd reset --target postgres          # Full reset: drops schemas and roles
+dbd reset --dry-run                  # Print what would be dropped
+```
+
+**`--target supabase` (default):** Drops only user-defined schemas. Supabase-managed schemas (`auth`, `storage`, `realtime`, etc.) are never touched. Roles are not dropped.
+
+**`--target postgres`:** Drops all design.yaml schemas and roles (roles in reverse dependency order).
+
+After reset, the database has no schemas. Run `dbd apply` to rebuild.
+
+---
+
+## `dbd grants`
+
+Apply schema-level grants declared in `design.yaml` to Supabase PostgREST roles.
+
+```sh
+dbd grants                           # Apply all configured grants
+dbd grants --dry-run                 # Print what would be granted
+```
+
+No-op when `--target postgres` (prints info message, exits cleanly).
+
+Grants must be declared per-schema in `design.yaml`:
+
+```yaml
+schemas:
+  - config:
+      grants:
+        anon: [usage, select]
+        service_role: [usage, all]
+```
+
+For each grant entry, generates:
+
+- `GRANT USAGE ON SCHEMA` (for `usage`)
+- `GRANT ... ON ALL TABLES IN SCHEMA` (for table-level perms)
+- `ALTER DEFAULT PRIVILEGES IN SCHEMA GRANT ... ON TABLES` (for future tables)
 
 ---
 

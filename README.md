@@ -65,6 +65,8 @@ Individual DDL scripts are expected to be placed under folders with names of the
 | dbd apply   | Apply the creation scripts      |
 | dbd import  | Load seed/staging files         |
 | dbd export  | Export tables/views             |
+| dbd reset   | Drop schemas to bare state      |
+| dbd grants  | Apply PostgREST schema grants   |
 | dbd dbml    | Generate DBML files             |
 | dbd graph   | Output dependency graph as JSON |
 
