@@ -118,7 +118,7 @@ describe('config', () => {
 			process.chdir(exampleDir)
 			const data = read('design.yaml')
 			expect(Array.isArray(data.schemas)).toBe(true)
-			data.schemas.forEach(s => expect(typeof s).toBe('string'))
+			data.schemas.forEach((s) => expect(typeof s).toBe('string'))
 		})
 
 		it('config.schemaGrants is an array', () => {
@@ -127,12 +127,20 @@ describe('config', () => {
 			expect(Array.isArray(data.schemaGrants)).toBe(true)
 		})
 
-		it('schemas without grants are excluded from schemaGrants', () => {
+		it('schemas with grants in example file are extracted correctly', () => {
 			process.chdir(exampleDir)
 			const data = read('design.yaml')
-			// example/design.yaml has no grants on any schema → schemaGrants is empty
-			expect(data.schemaGrants).toHaveLength(0)
-			// but schemas are still present in config.schemas
+			// example/design.yaml now has grants on the config schema
+			expect(data.schemaGrants).toHaveLength(1)
+			expect(data.schemaGrants[0]).toEqual({
+				name: 'config',
+				grants: {
+					anon: ['usage', 'select'],
+					authenticated: ['usage', 'select'],
+					service_role: ['usage', 'all']
+				}
+			})
+			// schemas are still present in config.schemas (normalized to string)
 			expect(data.schemas).toContain('config')
 		})
 
@@ -167,7 +175,7 @@ export: []
 					grants: { anon: ['usage', 'select'] }
 				})
 				// staging has no grants, should not be in schemaGrants
-				expect(data.schemaGrants.some(g => g.name === 'staging')).toBe(false)
+				expect(data.schemaGrants.some((g) => g.name === 'staging')).toBe(false)
 			} finally {
 				unlinkSync(tmpFile)
 			}

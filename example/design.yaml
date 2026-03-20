@@ -16,7 +16,11 @@ project:
         schemas:
           - config
 schemas:
-  - config
+  - config:
+      grants:
+        anon: [usage, select]
+        authenticated: [usage, select]
+        service_role: [usage, all]
   - extensions
   - staging
   - migrate
