@@ -242,7 +242,7 @@ describe('Dependency Extraction', () => {
 			expect(refs).toEqual([])
 		})
 
-		it('handles procedure with no tableReferences property', () => {
+		it('handles procedure with no reads or writes properties', () => {
 			const refs = collectReferences({
 				tables: [],
 				views: [],
