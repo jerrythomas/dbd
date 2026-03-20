@@ -7,6 +7,27 @@ Design details live in `docs/design/` — modular docs per module.
 
 ## 2026-03-20
 
+### Procedure Read/Write Classification — COMPLETE
+
+Replaced `tableReferences: string[]` on parsed procedure entities with `reads: string[]` and `writes: string[]`. Import procedure matching now uses `reads`-based lookup instead of naming convention. Import plan entries gain a `targets` field (non-staging writes of the matched procedure).
+
+**Design spec:** `docs/superpowers/specs/2026-03-20-procedure-reads-writes-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-03-20-procedure-reads-writes.md`
+
+**Changes:**
+
+- `packages/postgres/src/parser/extractors/procedures.js` — `extractTableReferencesFromBody` returns `{ reads, writes }` classifying by keyword; `extractBodyReferencesFromAst` returns `{ reads, writes: [] }`; `procDefFromStatement` and `extractRoutinesFromSql` spread `reads`/`writes` onto entity
+- `packages/postgres/src/parser/index-functional.js` — `collectProcRefs` unions `reads`/`writes`; `extractDependencies` returns `procedures` array
+- `packages/postgres/src/psql-adapter.js` — `#parseEntityAST` threads `reads`/`writes` from parsed procedure into returned entity
+- `packages/db/src/entity-processor.js` — `findImportProcedure` matches by `reads` field; `buildImportPlan` adds `targets` field (procedure writes filtered to non-staging schemas)
+- `packages/cli/src/design.js` — `importTables` getter forwards `targets`
+
+**Commits:** `0d235ac`, `ceeda08`, `affaa5d`, `1095b14`, `4abc967`, `3480364`
+
+**Result:** 854 tests passing, 0 lint errors.
+
+---
+
 ### Auto-sequenced Import Plan — COMPLETE (v2.2.0)
 
 Replaced broken `organizeImports()` with `buildImportPlan()`. Import procedures now called automatically after CSV loads, ordered by dependency graph. `loader.sql` no longer needed.

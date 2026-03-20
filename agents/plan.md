@@ -1,3 +1,11 @@
+# Plan: Procedure Read/Write Classification — COMPLETE
+
+Commits: `0d235ac`, `ceeda08`, `affaa5d`, `1095b14`, `4abc967`, `3480364`
+
+Result: 854 tests passing. `reads`/`writes` classification on procedure entities. Reads-based import procedure matching. `targets` field on import plan entries.
+
+---
+
 # Plan: Auto-sequenced Import Plan — COMPLETE
 
 All tasks executed and released as v2.2.0.
