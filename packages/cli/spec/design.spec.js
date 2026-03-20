@@ -628,13 +628,14 @@ describe('Design env filtering', () => {
 
 describe('importData env-scoped after scripts', () => {
 	let originalDir
+	const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'after-scripts')
 
 	beforeAll(() => {
 		originalDir = process.cwd()
 	})
 
 	beforeEach(() => {
-		process.chdir(join(__dirname, '../../../example'))
+		process.chdir(fixtureDir)
 		vi.spyOn(console, 'log').mockImplementation(() => {})
 		vi.spyOn(console, 'info').mockImplementation(() => {})
 		vi.spyOn(console, 'warn').mockImplementation(() => {})
