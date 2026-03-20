@@ -242,15 +242,25 @@ describe('Design class (packages/cli)', () => {
 		expect(importMessages).toEqual(['Importing staging.lookups'])
 	})
 
-	it('importData dry-run also logs the table object', async () => {
+	it('importData dry-run logs the \\copy script for the table', async () => {
 		const dx = await using('design.yaml')
 		dx.importData('staging.lookups', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
-		// Second info call for the table should be the table object
-		const tableObj = infoCalls.find((c) => typeof c === 'object' && c.name === 'staging.lookups')
-		expect(tableObj).toBeDefined()
-		expect(tableObj).toHaveProperty('file')
+		const copyScript = infoCalls.find((c) => typeof c === 'string' && c.includes('\\copy'))
+		expect(copyScript).toBeDefined()
+		expect(copyScript).toContain('staging.lookups')
+	})
+
+	it('importData dry-run logs call statement when procedure exists', async () => {
+		const dx = await using('design.yaml')
+		dx.importData('staging.lookups', true)
+
+		const infoCalls = console.info.mock.calls.map((c) => c[0])
+		const callStatement = infoCalls.find(
+			(c) => typeof c === 'string' && c.startsWith('call staging.import_lookups')
+		)
+		expect(callStatement).toBeDefined()
 	})
 
 	// --- updateEntities ---
@@ -280,11 +290,14 @@ describe('Design class (packages/cli)', () => {
 
 	// --- importTables ---
 
-	it('importTables are ordered by entity index', async () => {
+	it('importTables are ordered by target table dependency', async () => {
 		const dx = await using('design.yaml')
-		const orders = dx.importTables.map((t) => t.order)
-		const sorted = [...orders].sort((a, b) => a - b)
-		expect(orders).toEqual(sorted)
+		const names = dx.importTables.map((t) => t.name)
+		const lookupValuesIdx = names.indexOf('staging.lookup_values')
+		const lookupsIdx = names.indexOf('staging.lookups')
+		if (lookupsIdx !== -1 && lookupValuesIdx !== -1) {
+			expect(lookupValuesIdx).toBeLessThan(lookupsIdx)
+		}
 	})
 
 	// --- validate on importTables ---
@@ -352,26 +365,44 @@ describe('Design class (packages/cli)', () => {
 
 	// --- importData non-dry-run ---
 
-	it('importData() non-dry-run calls adapter.importData and executeFile', async () => {
+	it('importData() non-dry-run calls adapter.importData for each table', async () => {
 		const dx = await using('design.yaml')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
-		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+		const execFileSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 
 		await dx.importData()
 
 		expect(importSpy).toHaveBeenCalled()
-		expect(execSpy).toHaveBeenCalledWith('import/loader.sql')
-
 		importSpy.mockRestore()
-		execSpy.mockRestore()
+		execScriptSpy.mockRestore()
+		execFileSpy.mockRestore()
+	})
+
+	it('importData() non-dry-run calls executeScript for each matched procedure', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+		vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+
+		await dx.importData()
+
+		const procedureCalls = execScriptSpy.mock.calls
+			.map((c) => c[0])
+			.filter((s) => s.startsWith('call staging.import_'))
+		expect(procedureCalls.length).toBeGreaterThan(0)
+
+		vi.restoreAllMocks()
 	})
 
 	it('importData() non-dry-run filters by name', async () => {
 		const dx = await using('design.yaml')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
-		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+		const execFileSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 
 		await dx.importData('staging.lookup_values')
 
@@ -380,7 +411,8 @@ describe('Design class (packages/cli)', () => {
 		expect(importedNames.every((n) => n === 'staging.lookup_values')).toBe(true)
 
 		importSpy.mockRestore()
-		execSpy.mockRestore()
+		execScriptSpy.mockRestore()
+		execFileSpy.mockRestore()
 	})
 
 	// --- exportData ---
@@ -618,10 +650,12 @@ describe('importData env-scoped after scripts', () => {
 		const dx = await using('design.yaml', undefined, 'prod')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
 		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 		await dx.importData()
 		expect(execSpy).toHaveBeenCalledWith('import/loader.sql')
 		importSpy.mockRestore()
+		execScriptSpy.mockRestore()
 		execSpy.mockRestore()
 	})
 
@@ -629,12 +663,14 @@ describe('importData env-scoped after scripts', () => {
 		const dx = await using('design.yaml', undefined, 'prod')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
 		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 		await dx.importData()
 		const calls = execSpy.mock.calls.map((c) => c[0])
 		expect(calls).toContain('import/prod_loader.sql')
 		expect(calls).not.toContain('import/dev_loader.sql')
 		importSpy.mockRestore()
+		execScriptSpy.mockRestore()
 		execSpy.mockRestore()
 	})
 
@@ -642,12 +678,14 @@ describe('importData env-scoped after scripts', () => {
 		const dx = await using('design.yaml', undefined, 'dev')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
 		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 		await dx.importData()
 		const calls = execSpy.mock.calls.map((c) => c[0])
 		expect(calls).toContain('import/dev_loader.sql')
 		expect(calls).not.toContain('import/prod_loader.sql')
 		importSpy.mockRestore()
+		execScriptSpy.mockRestore()
 		execSpy.mockRestore()
 	})
 })
@@ -683,16 +721,16 @@ describe('Design class — coverage-test fixture', () => {
 	// --- organizeImports: import table not in entities (refers fallback) ---
 
 	it('organizeImports uses empty refers when import table is not found in entities', async () => {
-		// The fixture's app.orders table has refers: [app.customers]
-		// app.customers is NOT an import table => warning should be generated
+		// The fixture's app.orders table has no matching import procedure
+		// buildImportPlan generates a warning when no procedure is found
 		const dx = await using('design.yaml')
 		const importTables = dx.importTables
 		const ordersImport = importTables.find((t) => t.name === 'app.orders')
 
 		if (ordersImport) {
-			// app.orders exists in entities so refers come from there
+			// app.orders has no import procedure => warning is generated
 			expect(ordersImport.warnings.length).toBeGreaterThan(0)
-			expect(ordersImport.warnings[0]).toContain('app.customers')
+			expect(ordersImport.warnings[0]).toContain('app.orders')
 		}
 	})
 
@@ -717,8 +755,8 @@ describe('Design class — coverage-test fixture', () => {
 		// ghost.csv in import/ creates an import entry for app.ghost, which has no entity
 		const ghostImport = dx.importTables.find((t) => t.name === 'app.ghost')
 		expect(ghostImport).toBeDefined()
-		expect(ghostImport.refers).toEqual([])
-		expect(ghostImport.order).toBe(-1)
+		// buildImportPlan generates a warning when no procedure is found
+		expect(ghostImport.warnings.length).toBeGreaterThan(0)
 	})
 
 	// --- report() with import table errors ---

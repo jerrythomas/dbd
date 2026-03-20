@@ -17,7 +17,8 @@ import {
 	exportScriptForEntity,
 	filterEntitiesForDBML,
 	sortByDependencies,
-	graphFromEntities
+	graphFromEntities,
+	buildImportPlan
 } from '@jerrythomas/dbd-db'
 import { generateDBML } from '@jerrythomas/dbd-dbml'
 import { read, clean } from './config.js'
@@ -57,7 +58,7 @@ class Design {
 			...this.#config.entities
 		]
 
-		this.#importTables = this.organizeImports(config.importTables)
+		this.#importTables = buildImportPlan(config.importTables, config.entities)
 		this.#env = env
 	}
 
@@ -77,7 +78,11 @@ class Design {
 		return this.#databaseURL
 	}
 	get importTables() {
-		return this.#importTables
+		return this.#importTables.map(({ table, procedure, warnings: planWarnings }) => ({
+			...table,
+			procedure,
+			warnings: [...(table.warnings || []), ...planWarnings]
+		}))
 	}
 
 	/**
@@ -96,37 +101,25 @@ class Design {
 		]
 	}
 
-	organizeImports(importTables) {
-		const tables = this.#config.entities.filter((entity) => entity.type === 'table')
-
-		return importTables
-			.map((x) => {
-				const index = tables.findIndex((table) => table.name === x.name)
-				const refers = index >= 0 ? tables[index].refers : []
-				const warnings = refers
-					.map((ref) => {
-						if (!importTables.find((table) => table.name === ref)) {
-							return `Warning: referenced table ${ref} is missing from imports`
-						}
-					})
-					.filter((x) => x)
-				return { ...x, order: index, refers, warnings }
-			})
-			.sort((a, b) => a.order - b.order)
-	}
-
 	validate() {
 		const allowedSchemas = this.#config.project.staging
 
 		this.#roles = this.config.roles.map((role) => validateEntity(role))
 		this.#entities = this.entities.map((entity) => validateEntity(entity, true, this.config.ignore))
-		this.#importTables = this.importTables
-			.filter((entity) => entity.env === null || entity.env === this.#env)
-			.map((entity) => validateEntity(entity, false))
-			.map((entity) => {
-				if (!allowedSchemas.includes(entity.schema))
-					entity.errors = [...(entity.errors || []), 'Import is only allowed for staging schemas']
-				return entity
+		this.#importTables = this.#importTables
+			.filter(({ table }) => table.env === null || table.env === this.#env)
+			.map((entry) => ({ ...entry, table: validateEntity(entry.table, false) }))
+			.map((entry) => {
+				if (!allowedSchemas.includes(entry.table.schema)) {
+					return {
+						...entry,
+						table: {
+							...entry.table,
+							errors: [...(entry.table.errors || []), 'Import is only allowed for staging schemas']
+						}
+					}
+				}
+				return entry
 			})
 
 		this.#isValidated = true
@@ -213,34 +206,36 @@ class Design {
 	async importData(name, dryRun = false) {
 		if (!this.isValidated) this.validate()
 
+		const plan = this.importTables
+			.filter((table) => !table.errors || table.errors.length === 0)
+			.filter((table) => !name || table.name === name || table.file === name)
+
 		if (dryRun) {
-			this.importTables
-				.filter((entity) => !entity.errors)
-				.filter((entity) => !name || entity.name === name || entity.file === name)
-				.map((table) => {
-					console.info(`Importing ${table.name}`)
-					table.warnings.map((message) => console.warn(message))
-					console.info(table)
-				})
-		} else {
-			const adapter = await this.getAdapter()
-			const tables = this.importTables
-				.filter((entity) => !entity.errors)
-				.filter((entity) => !name || entity.name === name || entity.file === name)
-
-			for (const table of tables) {
+			for (const table of plan) {
 				console.info(`Importing ${table.name}`)
-				table.warnings.map((message) => console.warn(message))
-				await adapter.importData(table)
+				table.warnings.forEach((w) => console.warn(w))
+				console.info(importScriptForEntity(table))
+				if (table.procedure) console.info(`call ${table.procedure.name}();`)
 			}
+			return this
+		}
 
-			const sharedAfter = this.config.import.after ?? []
-			const envAfter = this.config.import[`after.${this.#env}`] ?? []
-
-			for (const file of [...sharedAfter, ...envAfter]) {
-				console.info(`Processing ${file}`)
-				await adapter.executeFile(file)
+		const adapter = await this.getAdapter()
+		for (const table of plan) {
+			console.info(`Importing ${table.name}`)
+			table.warnings.forEach((w) => console.warn(w))
+			await adapter.importData(table)
+			if (table.procedure) {
+				console.info(`Calling ${table.procedure.name}`)
+				await adapter.executeScript(`call ${table.procedure.name}();`)
 			}
+		}
+
+		const sharedAfter = this.config.import.after ?? []
+		const envAfter = this.config.import[`after.${this.#env}`] ?? []
+		for (const file of [...sharedAfter, ...envAfter]) {
+			console.info(`Processing ${file}`)
+			await adapter.executeFile(file)
 		}
 
 		return this
