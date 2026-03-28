@@ -609,5 +609,40 @@ describe('entity-processor', () => {
 		it('returns empty array for empty importTables', () => {
 			expect(buildImportPlan([], entities)).toEqual([])
 		})
+
+		it('orders by call graph when procedure reads a config table written by another procedure', () => {
+			// plans must be imported before plan_features because import_plan_features
+			// reads config.plans at runtime (JOIN), even though alphabetically plan_features < plans
+			const crossDepEntities = [
+				{ type: 'table', name: 'config.plans', schema: 'config', refers: [] },
+				{ type: 'table', name: 'config.plan_features', schema: 'config', refers: [] },
+				{ type: 'table', name: 'staging.plans', schema: 'staging', refers: [] },
+				{ type: 'table', name: 'staging.plan_features', schema: 'staging', refers: [] },
+				{
+					type: 'procedure',
+					name: 'staging.import_plans',
+					schema: 'staging',
+					reads: ['staging.plans'],
+					writes: ['config.plans'],
+					refers: []
+				},
+				{
+					type: 'procedure',
+					name: 'staging.import_plan_features',
+					schema: 'staging',
+					reads: ['staging.plan_features', 'config.plans'],
+					writes: ['config.plan_features'],
+					refers: []
+				}
+			]
+			// alphabetical order puts plan_features before plans
+			const crossDepTables = [
+				{ name: 'staging.plan_features', schema: 'staging', file: 'import/plan_features.csv' },
+				{ name: 'staging.plans', schema: 'staging', file: 'import/plans.jsonl' }
+			]
+			const plan = buildImportPlan(crossDepTables, crossDepEntities)
+			const names = plan.map((e) => e.table.name)
+			expect(names.indexOf('staging.plans')).toBeLessThan(names.indexOf('staging.plan_features'))
+		})
 	})
 })
