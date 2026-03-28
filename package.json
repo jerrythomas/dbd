@@ -14,6 +14,7 @@
     "test:cli": "vitest run --config config/vitest.config.ts --project cli",
     "test:db": "vitest run --config config/vitest.config.ts --project db",
     "test:dbml": "vitest run --config config/vitest.config.ts --project dbml",
+    "test:convex": "vitest run --config config/vitest.config.ts --project convex",
     "test:postgres": "vitest run --config config/vitest.config.ts --project postgres",
     "test:unit": "vitest run --config config/vitest.config.ts",
     "test:nopg": "vitest run --config config/vitest.config.ts",

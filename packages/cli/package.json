@@ -31,6 +31,7 @@
     "@jerrythomas/dbd-db": "workspace:*",
     "@jerrythomas/dbd-dbml": "workspace:*",
     "@jerrythomas/dbd-postgres-adapter": "workspace:*",
+    "@jerrythomas/dbd-convex": "workspace:*",
     "sade": "^1.8.1",
     "js-yaml": "^4.1.0",
     "ramda": "^0.30.1"
