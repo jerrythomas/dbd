@@ -606,16 +606,18 @@ describe('Design class (packages/cli)', () => {
 
 		it('writes convex/schema.ts to disk on non-dry-run', async () => {
 			const dx = (await using('design.yaml')).validate()
-			await dx.apply(null, false, 'convex')
-			expect(existsSync('convex/schema.ts')).toBe(true)
-			const content = readFileSync('convex/schema.ts', 'utf8')
-			expect(content).toContain('export default defineSchema(')
-			// cleanup
-			unlinkSync('convex/schema.ts')
 			try {
-				rmdirSync('convex')
-			} catch {
-				/* ignore if dir not empty */
+				await dx.apply(null, false, 'convex')
+				expect(existsSync('convex/schema.ts')).toBe(true)
+				const content = readFileSync('convex/schema.ts', 'utf8')
+				expect(content).toContain('export default defineSchema(')
+			} finally {
+				if (existsSync('convex/schema.ts')) unlinkSync('convex/schema.ts')
+				try {
+					rmdirSync('convex')
+				} catch {
+					/* ignore if dir not empty */
+				}
 			}
 		})
 	})

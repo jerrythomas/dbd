@@ -153,7 +153,7 @@ class Design {
 
 			if (dryRun) {
 				console.info(content)
-				return
+				return this
 			}
 
 			fs.mkdirSync('convex', { recursive: true })
@@ -168,7 +168,7 @@ class Design {
 			} else {
 				console.info('CONVEX_URL or CONVEX_DEPLOY_KEY not set — skipping deploy')
 			}
-			return
+			return this
 		}
 
 		if (!this.isValidated) this.validate()
