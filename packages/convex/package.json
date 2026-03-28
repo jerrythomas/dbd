@@ -1,6 +1,6 @@
 {
   "name": "@jerrythomas/dbd-convex",
-  "version": "2.2.1",
+  "version": "2.2.0",
   "description": "Convex schema generation and data seeding for DBD.",
   "type": "module",
   "main": "src/index.js",

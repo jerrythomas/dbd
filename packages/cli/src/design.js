@@ -187,7 +187,7 @@ class Design {
 					console.info(detail)
 				}
 			})
-			return
+			return this
 		}
 
 		const adapter = await this.getAdapter()
