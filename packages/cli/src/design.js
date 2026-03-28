@@ -143,7 +143,34 @@ class Design {
 		return { entity, issues, warnings }
 	}
 
-	async apply(name, dryRun = false) {
+	async apply(name, dryRun = false, target = null) {
+		if (target === 'convex') {
+			if (!this.isValidated) this.validate()
+			const { generateSchemaTs } = await import('@jerrythomas/dbd-convex')
+			const convexConfig = this.#config.convex ?? {}
+			const { content, warnings } = generateSchemaTs(this.entities, convexConfig)
+			warnings.forEach((w) => console.warn(w))
+
+			if (dryRun) {
+				console.info(content)
+				return
+			}
+
+			fs.mkdirSync('convex', { recursive: true })
+			fs.writeFileSync('convex/schema.ts', content)
+			console.info('Generated convex/schema.ts')
+
+			const convexUrl = process.env.CONVEX_URL
+			const convexKey = process.env.CONVEX_DEPLOY_KEY
+			if (convexUrl && convexKey) {
+				const { execFileSync } = await import('child_process')
+				execFileSync('npx', ['convex', 'deploy'], { stdio: 'inherit', env: { ...process.env } })
+			} else {
+				console.info('CONVEX_URL or CONVEX_DEPLOY_KEY not set — skipping deploy')
+			}
+			return
+		}
+
 		if (!this.isValidated) this.validate()
 
 		if (dryRun) {
@@ -206,7 +233,34 @@ class Design {
 		return this
 	}
 
-	async importData(name, dryRun = false) {
+	async importData(name, dryRun = false, target = null) {
+		if (target === 'convex') {
+			if (!this.isValidated) this.validate()
+			const { seedTable, convexImportCommand, resolveTableName } =
+				await import('@jerrythomas/dbd-convex')
+			const convexConfig = this.#config.convex ?? {}
+			const isProd = this.#env === 'prod'
+
+			const plan = this.importTables
+				.filter((table) => !table.errors || table.errors.length === 0)
+				.filter((table) => !name || table.name === name || table.file === name)
+
+			if (dryRun) {
+				for (const table of plan) {
+					const tableName = resolveTableName(table, convexConfig)
+					console.info(convexImportCommand(tableName, table.file, table.format ?? 'csv', isProd))
+				}
+				return this
+			}
+
+			for (const table of plan) {
+				console.info(`Seeding ${table.name} into Convex`)
+				table.warnings.forEach((w) => console.warn(w))
+				seedTable(table, convexConfig, isProd)
+			}
+			return this
+		}
+
 		if (!this.isValidated) this.validate()
 
 		const plan = this.importTables

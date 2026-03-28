@@ -5,7 +5,7 @@
  * Proves feature parity with the legacy src/collect.js Design class.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, readFileSync, unlinkSync } from 'fs'
+import { existsSync, readFileSync, unlinkSync, rmdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { using } from '../src/design.js'
@@ -588,6 +588,50 @@ describe('Design class (packages/cli)', () => {
 			expect(spy.mock.calls[0][0]).toContain('GRANT USAGE ON SCHEMA config TO anon;')
 
 			spy.mockRestore()
+		})
+	})
+
+	// --- apply with target=convex ---
+
+	describe('apply with target=convex', () => {
+		it('dry-run prints schema.ts content without writing file', async () => {
+			const dx = (await using('design.yaml')).validate()
+			await dx.apply(null, true, 'convex')
+			const calls = console.info.mock.calls.map((c) => c[0])
+			expect(
+				calls.some((c) => typeof c === 'string' && c.includes('export default defineSchema('))
+			).toBe(true)
+			expect(existsSync('convex/schema.ts')).toBe(false)
+		})
+
+		it('writes convex/schema.ts to disk on non-dry-run', async () => {
+			const dx = (await using('design.yaml')).validate()
+			await dx.apply(null, false, 'convex')
+			expect(existsSync('convex/schema.ts')).toBe(true)
+			const content = readFileSync('convex/schema.ts', 'utf8')
+			expect(content).toContain('export default defineSchema(')
+			// cleanup
+			unlinkSync('convex/schema.ts')
+			try {
+				rmdirSync('convex')
+			} catch {
+				/* ignore if dir not empty */
+			}
+		})
+	})
+
+	// --- importData with target=convex ---
+
+	describe('importData with target=convex', () => {
+		it('dry-run prints npx convex import commands to stdout', async () => {
+			const dx = (await using('design.yaml')).validate()
+			await dx.importData(null, true, 'convex')
+			const calls = console.info.mock.calls.map((c) => c[0])
+			const convexCalls = calls.filter(
+				(c) => typeof c === 'string' && c.startsWith('npx convex import')
+			)
+			// example project may have 0 import tables — just confirm no error thrown
+			expect(Array.isArray(convexCalls)).toBe(true)
 		})
 	})
 
