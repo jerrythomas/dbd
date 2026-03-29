@@ -5,6 +5,31 @@ Design details live in `docs/design/` — modular docs per module.
 
 ---
 
+## 2026-03-28
+
+### Convex Support — COMPLETE
+
+Added `--target=convex` to `dbd apply` and `dbd import`, plus `dbd convex schema` / `dbd convex seed` subcommands. New `@jerrythomas/dbd-convex` package generates `convex/schema.ts` from parsed DDL entities and seeds data via `npx convex import`.
+
+**Design spec:** `docs/superpowers/specs/2026-03-28-convex-support-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-03-28-convex-support.md`
+
+**Changes:**
+
+- `packages/convex/src/sql-type-map.js` — `sqlTypeToConvex`, `columnToValidator`: PostgreSQL type string → Convex validator string
+- `packages/convex/src/schema-generator.js` — `resolveTableName`, `generateSchemaTs`: DDL entities → `convex/schema.ts` content; handles schemaPrefix, PK stripping, collision detection
+- `packages/convex/src/data-seeder.js` — `buildImportArgs`, `convexImportCommand`, `seedTable`: argument array construction and `execFileSync` invocation for `npx convex import`
+- `packages/convex/src/index.js` — public API re-exports
+- `packages/cli/src/design.js` — `apply()` and `importData()` gain `target` param; when `target === 'convex'` delegate to convex package
+- `packages/cli/src/index.js` — `--target` option on `apply`/`import`; `dbd convex schema` and `dbd convex seed` subcommands
+- `config/vitest.config.ts`, `package.json` (root), `packages/cli/package.json` — workspace scaffolding for new package
+
+**Result:** 902 tests passing, 0 lint errors. Dry-run smoke-tested against example project.
+
+**Commits:** `dd6f21b`–`bfee49d`
+
+---
+
 ## 2026-03-20
 
 ### Procedure Read/Write Classification — COMPLETE

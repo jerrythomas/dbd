@@ -1,3 +1,15 @@
+# Plan: Convex Support — COMPLETE
+
+All 9 tasks executed and pushed to origin/develop.
+
+**Commits:** `dd6f21b`–`bfee49d`
+
+**Result:** New `@jerrythomas/dbd-convex` package. `dbd apply --target=convex`, `dbd import --target=convex`, `dbd convex schema`, `dbd convex seed` commands. 902 tests passing.
+
+See `agents/journal.md` (2026-03-28 entry) for full details.
+
+---
+
 # Plan: Procedure Read/Write Classification — COMPLETE
 
 Commits: `0d235ac`, `ceeda08`, `affaa5d`, `1095b14`, `4abc967`, `3480364`
