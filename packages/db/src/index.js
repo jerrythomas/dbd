@@ -48,3 +48,6 @@ export {
 } from './dependency-resolver.js'
 
 export { buildResetScript, buildGrantsScript } from './script-builder.js'
+
+export { diffSnapshots, isEmptyDiff } from './schema-diff.js'
+export { generateMigrationSQL } from './migration-generator.js'

@@ -147,6 +147,55 @@ export class BaseDatabaseAdapter {
 		return null
 	}
 
+	/**
+	 * Parse a table entity's DDL file and return structured snapshot data.
+	 * Used for snapshot creation and schema diffing.
+	 *
+	 * @param {Object} entity - Entity with { file, name, schema }
+	 * @returns {{ name: string, schema: string, columns: Array, indexes: Array, tableConstraints: Array }}
+	 */
+	parseTableSnapshot(entity) {
+		return {
+			name: entity.name,
+			schema: entity.schema,
+			columns: [],
+			indexes: [],
+			tableConstraints: []
+		}
+	}
+
+	// --- Migration tracking ---
+
+	/**
+	 * Ensure the _dbd_migrations tracking table exists in the database.
+	 * @returns {Promise<void>}
+	 */
+	async ensureMigrationsTable() {
+		throw new Error('not implemented')
+	}
+
+	/**
+	 * Get the current applied migration version from the database.
+	 * @returns {Promise<number>} Current version, or 0 if no migrations applied yet
+	 */
+	async getDbVersion() {
+		throw new Error('not implemented')
+	}
+
+	/**
+	 * Apply a migration SQL script and record it in _dbd_migrations.
+	 * Must execute in a transaction: rolls back on failure.
+	 *
+	 * @param {number} version - Migration version number
+	 * @param {string} sql - Migration SQL to execute
+	 * @param {string} description - Human-readable description
+	 * @param {string} checksum - SHA-256 hex of the migration SQL
+	 * @returns {Promise<void>}
+	 */
+	async applyMigration(version, sql, description, checksum) {
+		throw new Error('not implemented')
+	}
+
 	// --- Utility ---
 
 	log(message, level = 'info') {

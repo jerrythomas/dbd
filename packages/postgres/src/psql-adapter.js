@@ -1,7 +1,12 @@
 import { execSync } from 'child_process'
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs'
 import { BaseDatabaseAdapter } from '@jerrythomas/dbd-db'
-import { extractDependencies } from './parser/index-functional.js'
+import {
+	extractDependencies,
+	extractTables,
+	extractIndexes,
+	parse
+} from './parser/index-functional.js'
 import { initParser } from './parser/parsers/sql.js'
 import { isInternal, matchesKnownExtension, resetCache } from './reference-classifier.js'
 
@@ -205,6 +210,68 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		this.log(`Exporting ${entity.name}`)
 		const script = exportScriptForEntity(entity)
 		await this.executeScript(script, options)
+	}
+
+	parseTableSnapshot(entity) {
+		const content = readFileSync(entity.file, 'utf-8')
+		try {
+			const ast = parse(content)
+			const tables = extractTables(ast)
+			const indexes = extractIndexes(ast)
+			const table = tables[0] ?? { columns: [], constraints: [] }
+			const tableIndexes = indexes.map(({ name, unique, columns }) => ({ name, unique, columns }))
+			return {
+				name: entity.name,
+				schema: entity.schema,
+				columns: table.columns ?? [],
+				indexes: tableIndexes,
+				tableConstraints: table.constraints ?? []
+			}
+		} catch {
+			return {
+				name: entity.name,
+				schema: entity.schema,
+				columns: [],
+				indexes: [],
+				tableConstraints: []
+			}
+		}
+	}
+
+	async ensureMigrationsTable() {
+		const sql = [
+			'CREATE TABLE IF NOT EXISTS _dbd_migrations (',
+			'  version     integer PRIMARY KEY,',
+			'  applied_at  timestamptz NOT NULL DEFAULT now(),',
+			'  description text,',
+			'  checksum    text NOT NULL',
+			');'
+		].join('\n')
+		await this.executeScript(sql)
+	}
+
+	async getDbVersion() {
+		try {
+			const output = execSync(
+				`psql ${this.connectionString} -t -A -c "SELECT COALESCE(MAX(version), 0) FROM _dbd_migrations"`,
+				{ stdio: 'pipe', encoding: 'utf8' }
+			).trim()
+			return parseInt(output, 10) || 0
+		} catch {
+			return 0
+		}
+	}
+
+	async applyMigration(version, sql, description, checksum) {
+		const escapedDesc = (description || '').replace(/'/g, "''")
+		const escapedChecksum = checksum.replace(/'/g, "''")
+		const script = [
+			'BEGIN;',
+			sql,
+			`INSERT INTO _dbd_migrations (version, description, checksum) VALUES (${version}, '${escapedDesc}', '${escapedChecksum}');`,
+			'COMMIT;'
+		].join('\n')
+		await this.executeScript(script)
 	}
 
 	// --- Parsing operations ---
