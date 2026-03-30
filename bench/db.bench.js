@@ -1,5 +1,5 @@
 /**
- * Database operation benchmarks — measures psql-based apply, import, and export.
+ * Database operation benchmarks — measures apply, import, and export via PgAdapter.
  *
  * Requires a running PostgreSQL instance.
  * Set DATABASE_URL before running (e.g. postgres://user@localhost/mydb).
@@ -8,6 +8,9 @@
  *   - apply:  CREATE OR REPLACE / CREATE IF NOT EXISTS — safe to re-run
  *   - import: truncates staging table before each load
  *   - export: reads from DB, writes to export/ folder
+ *
+ * Adapter: PgAdapter (postgres.js library, no subprocess)
+ * Compare to psql baseline: bench-results-db.json from before the pg adapter switch.
  *
  * Run:
  *   DATABASE_URL=postgres://... bun run bench:db
