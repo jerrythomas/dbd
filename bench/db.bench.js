@@ -1,5 +1,5 @@
 /**
- * Database operation benchmarks — measures apply, import, and export via PgAdapter.
+ * Database operation benchmarks — compares PsqlAdapter vs PgAdapter.
  *
  * Requires a running PostgreSQL instance.
  * Set DATABASE_URL before running (e.g. postgres://user@localhost/mydb).
@@ -9,9 +9,6 @@
  *   - import: truncates staging table before each load
  *   - export: reads from DB, writes to export/ folder
  *
- * Adapter: PgAdapter (postgres.js library, no subprocess)
- * Compare to psql baseline: bench-results-db.json from before the pg adapter switch.
- *
  * Run:
  *   DATABASE_URL=postgres://... bun run bench:db
  */
@@ -20,6 +17,8 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { bench, describe, beforeAll, afterAll } from 'vitest'
 import { using } from '../packages/cli/src/design.js'
+import { PsqlAdapter } from '../packages/postgres/src/psql-adapter.js'
+import { PgAdapter } from '../packages/postgres/src/pg-adapter.js'
 import { rimraf } from 'rimraf'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -43,72 +42,136 @@ const describeIfDb = DATABASE_URL ? describe : describe.skip
 // can still collect meaningful samples without running for many minutes.
 const DB_BENCH_OPTS = { iterations: 5, warmupIterations: 1 }
 
-describeIfDb('dbd apply (full schema, idempotent)', () => {
+const PROJECT = 'example'
+
+// Share adapter instances across all bench iterations — each new PgAdapter opens a
+// connection pool, so creating one per iteration would exhaust connection slots fast.
+const psqlAdapter = DATABASE_URL ? new PsqlAdapter(DATABASE_URL, { project: PROJECT }) : null
+const pgAdapter = DATABASE_URL ? new PgAdapter(DATABASE_URL, { project: PROJECT }) : null
+
+const usingPsql = (file) => using(file, DATABASE_URL, 'prod', { adapter: psqlAdapter })
+const usingPg = (file) => using(file, DATABASE_URL, 'prod', { adapter: pgAdapter })
+
+// --- Apply ---
+
+describeIfDb('apply — full schema (PsqlAdapter vs PgAdapter)', () => {
 	beforeAll(async () => {
-		// Warm up: ensure schema exists before measuring
-		const d = await using('design.yaml', DATABASE_URL)
+		const d = await usingPg('design.yaml')
 		await d.apply()
 	})
 
 	bench(
-		'apply — full schema (CREATE IF NOT EXISTS)',
+		'psql: apply full schema',
 		async () => {
-			const d = await using('design.yaml', DATABASE_URL)
+			const d = await usingPsql('design.yaml')
 			await d.apply()
 		},
 		DB_BENCH_OPTS
 	)
 
 	bench(
-		'apply — single entity (staging.lookup_values)',
+		'pg:   apply full schema',
 		async () => {
-			const d = await using('design.yaml', DATABASE_URL)
+			const d = await usingPg('design.yaml')
+			await d.apply()
+		},
+		DB_BENCH_OPTS
+	)
+})
+
+describeIfDb('apply — single entity (PsqlAdapter vs PgAdapter)', () => {
+	bench(
+		'psql: apply staging.lookup_values',
+		async () => {
+			const d = await usingPsql('design.yaml')
+			await d.apply('staging.lookup_values')
+		},
+		DB_BENCH_OPTS
+	)
+
+	bench(
+		'pg:   apply staging.lookup_values',
+		async () => {
+			const d = await usingPg('design.yaml')
 			await d.apply('staging.lookup_values')
 		},
 		DB_BENCH_OPTS
 	)
 })
 
-describeIfDb('dbd import (truncate + reload)', () => {
+// --- Import ---
+
+describeIfDb('import — truncate + reload (PsqlAdapter vs PgAdapter)', () => {
 	beforeAll(async () => {
-		const d = await using('design.yaml', DATABASE_URL)
+		const d = await usingPg('design.yaml')
 		await d.apply()
 	})
 
 	bench(
-		'import — staging.lookup_values',
+		'psql: import staging.lookup_values',
 		async () => {
-			const d = await using('design.yaml', DATABASE_URL)
+			const d = await usingPsql('design.yaml')
 			await d.importData('staging.lookup_values')
 		},
 		DB_BENCH_OPTS
 	)
 
 	bench(
-		'import — staging.lookups (CSV + procedure)',
+		'pg:   import staging.lookup_values',
 		async () => {
-			const d = await using('design.yaml', DATABASE_URL)
+			const d = await usingPg('design.yaml')
+			await d.importData('staging.lookup_values')
+		},
+		DB_BENCH_OPTS
+	)
+
+	bench(
+		'psql: import staging.lookups',
+		async () => {
+			const d = await usingPsql('design.yaml')
+			await d.importData('staging.lookups')
+		},
+		DB_BENCH_OPTS
+	)
+
+	bench(
+		'pg:   import staging.lookups',
+		async () => {
+			const d = await usingPg('design.yaml')
 			await d.importData('staging.lookups')
 		},
 		DB_BENCH_OPTS
 	)
 })
 
-describeIfDb('dbd export', () => {
+// --- Export ---
+
+describeIfDb('export (PsqlAdapter vs PgAdapter)', () => {
 	beforeAll(async () => {
-		const d = await using('design.yaml', DATABASE_URL)
+		const d = await usingPg('design.yaml')
 		await d.apply()
 		await d.importData()
 	})
 
 	afterAll(async () => {
 		await rimraf(join(exampleDir, 'export'))
+		// Close the pg pool so the process can exit cleanly
+		if (pgAdapter) await pgAdapter.disconnect()
 	})
 
 	bench(
-		'export — all configured tables',
+		'psql: export all tables',
 		async () => {
-			const d = await using('design.yaml', DATABASE_URL)
+			const d = await usingPsql('design.yaml')
+			await d.exportData()
+		},
+		DB_BENCH_OPTS
+	)
+
+	bench(
+		'pg:   export all tables',
+		async () => {
+			const d = await usingPg('design.yaml')
 			await d.exportData()
 		},
 		DB_BENCH_OPTS

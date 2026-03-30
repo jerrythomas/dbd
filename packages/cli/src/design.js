@@ -474,16 +474,22 @@ class Design {
  *
  * @param {string} file - path to configuration file
  * @param {string} databaseURL - database connection URL
+ * @param {string} [env] - environment name
+ * @param {Object} [opts] - options
+ * @param {BaseDatabaseAdapter} [opts.adapter] - pre-created adapter (skips factory lookup)
  * @returns {Promise<Design>}
  */
-export async function using(file, databaseURL, env = 'prod') {
+export async function using(file, databaseURL, env = 'prod', opts = {}) {
 	const rawConfig = read(file)
 	const dbType = rawConfig.project?.database || 'PostgreSQL'
 	const project = rawConfig.project?.name || path.basename(path.resolve('.'))
-	const { createAdapter, registerAdapter } = await import('@jerrythomas/dbd-db')
-	registerAdapter('postgres', () => import('@jerrythomas/dbd-postgres-adapter'))
-	registerAdapter('postgresql', () => import('@jerrythomas/dbd-postgres-adapter'))
-	const adapter = await createAdapter(dbType.toLowerCase(), databaseURL, { project })
+	let adapter = opts.adapter
+	if (!adapter) {
+		const { createAdapter, registerAdapter } = await import('@jerrythomas/dbd-db')
+		registerAdapter('postgres', () => import('@jerrythomas/dbd-postgres-adapter'))
+		registerAdapter('postgresql', () => import('@jerrythomas/dbd-postgres-adapter'))
+		adapter = await createAdapter(dbType.toLowerCase(), databaseURL, { project })
+	}
 	await adapter.initParser()
 	return new Design(rawConfig, adapter, databaseURL, env)
 }

@@ -86,7 +86,9 @@ export class PgAdapter extends BaseDatabaseAdapter {
 			return
 		}
 		this.log(`Executing script (${script.length} bytes)`)
-		await this.#db.unsafe(script)
+		// Reset search_path after execution — DDL scripts may SET search_path to a
+		// project schema, which would otherwise affect subsequent queries on this connection.
+		await this.#db.unsafe(script + '\nRESET search_path;')
 	}
 
 	async executeFile(file, options = {}) {
@@ -96,7 +98,7 @@ export class PgAdapter extends BaseDatabaseAdapter {
 		}
 		this.log(`Executing file: ${file}`)
 		const script = readFileSync(file, 'utf-8')
-		await this.#db.unsafe(script)
+		await this.#db.unsafe(script + '\nRESET search_path;')
 	}
 
 	async applyEntity(entity, options = {}) {
@@ -232,8 +234,10 @@ export class PgAdapter extends BaseDatabaseAdapter {
 	}
 
 	async ensureMigrationsTable() {
+		// Use public schema explicitly — DDL files may SET search_path to a project schema,
+		// which would cause unqualified _dbd_migrations to resolve to the wrong schema.
 		await this.#db.unsafe(`
-      CREATE TABLE IF NOT EXISTS _dbd_migrations (
+      CREATE TABLE IF NOT EXISTS public._dbd_migrations (
         project     text NOT NULL DEFAULT '',
         version     integer NOT NULL,
         applied_at  timestamptz NOT NULL DEFAULT now(),
@@ -245,7 +249,7 @@ export class PgAdapter extends BaseDatabaseAdapter {
 
 	async clearProjectMigrations() {
 		try {
-			await this.#db`DELETE FROM _dbd_migrations WHERE project = ${this.project}`
+			await this.#db`DELETE FROM public._dbd_migrations WHERE project = ${this.project}`
 		} catch {
 			// Table doesn't exist yet — nothing to clear
 		}
@@ -255,7 +259,7 @@ export class PgAdapter extends BaseDatabaseAdapter {
 		try {
 			const [{ version }] = await this.#db`
         SELECT COALESCE(MAX(version), 0) AS version
-        FROM _dbd_migrations
+        FROM public._dbd_migrations
         WHERE project = ${this.project}`
 			return Number(version) || 0
 		} catch {
@@ -267,7 +271,7 @@ export class PgAdapter extends BaseDatabaseAdapter {
 		await this.#db.begin(async (tx) => {
 			if (migrationSql.trim()) await tx.unsafe(migrationSql)
 			await tx`
-        INSERT INTO _dbd_migrations (project, version, description, checksum)
+        INSERT INTO public._dbd_migrations (project, version, description, checksum)
         VALUES (${this.project}, ${version}, ${description || ''}, ${checksum})`
 		})
 	}
