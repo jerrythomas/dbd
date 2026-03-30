@@ -25,6 +25,8 @@
     "test:clean": "docker stop pg-test && docker rm pg-test",
     "lint": "prettier --config config/.prettierrc --ignore-path config/.prettierignore --check . && eslint --config config/eslint.config.js .",
     "format": "prettier --config config/.prettierrc --ignore-path config/.prettierignore --write .",
+    "bench": "vitest bench --config config/vitest.bench.config.ts",
+    "bench:db": "vitest bench --config config/vitest.bench.db.config.ts",
     "bump": "bumpp --config config/bumpp.config.js",
     "bump:next": "bumpp --config config/bumpp.config.js --preid=next",
     "publish:all": "find ./packages -type d -depth 1 -exec sh -c 'cd \"{}\" && bun publish' \\;",
