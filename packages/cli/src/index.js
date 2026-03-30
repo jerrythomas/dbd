@@ -253,7 +253,7 @@ prog
 		design.validate()
 		const adapter = await design.getAdapter()
 
-		const { version, migrationFile, snapshot } = await createSnapshot(
+		const { version, migrationDir, snapshot } = await createSnapshot(
 			adapter,
 			design.entities,
 			opts.name || '',
@@ -261,8 +261,8 @@ prog
 		)
 
 		console.log(`Snapshot ${padVersion(version)} created (${snapshot.tables.length} tables).`)
-		if (migrationFile) {
-			console.log(`Migration file: ${migrationFile}`)
+		if (migrationDir) {
+			console.log(`Migration folder: ${migrationDir}`)
 		} else if (version === 1) {
 			console.log('First snapshot — no migration generated.')
 		} else {
@@ -276,7 +276,7 @@ prog
 	.option('--status', 'Show local version vs database version', false)
 	.option('--to', 'Apply migrations up to this version number', null)
 	.option('--dry-run', 'Print migration SQL without executing', false)
-	.describe('Manage and apply schema migrations.')
+	.describe('Apply pending schema migrations independently of dbd apply.')
 	.example('dbd migrate --status')
 	.example('dbd migrate --apply')
 	.example('dbd migrate --apply --to 3')
@@ -288,61 +288,90 @@ prog
 		const latest = latestSnapshot('.')
 		const localVersion = latest ? latest.version : 0
 
+		const dbVersion = await adapter.getDbVersion()
+		const maxVersion = opts.to ? parseInt(opts.to, 10) : localVersion
+		const pending = pendingMigrations(dbVersion, '.').filter(
+			({ toVersion }) => toVersion <= maxVersion
+		)
+
 		if (opts.status || (!opts.apply && !opts['dry-run'])) {
-			let dbVersion
-			try {
-				dbVersion = await adapter.getDbVersion()
-			} catch {
-				dbVersion = 0
-			}
-			const pending = pendingMigrations(dbVersion, '.')
-			console.log(`Local version:    ${localVersion} (snapshots/${padVersion(localVersion)}.json)`)
+			console.log(`Local version:    ${localVersion}`)
 			console.log(`Database version: ${dbVersion}`)
 			if (pending.length === 0) {
-				console.log('No pending migrations.')
+				console.log('Up to date — no pending migrations.')
 			} else {
-				console.log(`Pending migrations (${pending.length}):`)
-				pending.forEach(({ fromVersion, toVersion, file }) => {
-					console.log(`  ${padVersion(fromVersion)}-to-${padVersion(toVersion)}.sql  (${file})`)
+				console.log(`\nPending migrations (${pending.length}):`)
+				pending.forEach(({ fromVersion, toVersion, altered, dropped }) => {
+					const summary = []
+					if (altered.length > 0) summary.push(`alter: ${altered.join(', ')}`)
+					if (dropped.length > 0) summary.push(`drop: ${dropped.join(', ')}`)
+					console.log(
+						`  ${padVersion(fromVersion)} → ${padVersion(toVersion)}  ${summary.join(' | ') || '(no table changes)'}`
+					)
 				})
 			}
 			return
 		}
 
-		if (opts.apply || opts['dry-run']) {
-			let dbVersion
-			try {
-				dbVersion = await adapter.getDbVersion()
-			} catch {
-				dbVersion = 0
+		if (pending.length === 0) {
+			console.log('No pending migrations.')
+			return
+		}
+
+		// Collect all SQL for each migration in graph order
+		const migrationSteps = pending.map((migration) => {
+			const steps = []
+			for (const tableName of migration.altered) {
+				const parts = tableName.split('.')
+				const schema = parts.length > 1 ? parts[0] : null
+				const tbl = parts[parts.length - 1]
+				const sqlFile = schema
+					? path.join(migration.migrationDir, schema, `${tbl}.sql`)
+					: path.join(migration.migrationDir, `${tbl}.sql`)
+				if (fs.existsSync(sqlFile)) {
+					steps.push({ tableName, sql: fs.readFileSync(sqlFile, 'utf-8') })
+				}
 			}
-
-			const toVersion = opts.to ? parseInt(opts.to, 10) : localVersion
-			const pending = pendingMigrations(dbVersion, '.').filter(({ toVersion: v }) => v <= toVersion)
-
-			if (pending.length === 0) {
-				console.log('No pending migrations.')
-				return
+			for (const tableName of migration.dropped) {
+				const parts = tableName.split('.')
+				const schema = parts.length > 1 ? parts[0] : null
+				const tbl = parts[parts.length - 1]
+				const sqlFile = schema
+					? path.join(migration.migrationDir, schema, `${tbl}.drop.sql`)
+					: path.join(migration.migrationDir, `${tbl}.drop.sql`)
+				if (fs.existsSync(sqlFile)) {
+					steps.push({ tableName, sql: fs.readFileSync(sqlFile, 'utf-8'), drop: true })
+				}
 			}
+			return { migration, steps }
+		})
 
-			if (opts['dry-run']) {
-				pending.forEach(({ fromVersion, toVersion: tv, sql }) => {
-					console.log(`-- Migration: ${padVersion(fromVersion)} → ${padVersion(tv)}`)
+		if (opts['dry-run']) {
+			for (const { migration, steps } of migrationSteps) {
+				console.log(
+					`\n-- Migration v${migration.fromVersion} → v${migration.toVersion} (${migration.migrationDir})`
+				)
+				for (const { tableName, sql } of steps) {
+					console.log(`\n-- Table: ${tableName}`)
 					console.log(sql)
-					console.log()
-				})
-				return
+				}
 			}
+			return
+		}
 
-			await adapter.ensureMigrationsTable()
+		await adapter.ensureMigrationsTable()
 
-			for (const { fromVersion, toVersion: tv, sql, checksum } of pending) {
-				const snap = latestSnapshot('.')
-				const description = snap && snap.version === tv ? snap.description : ''
-				console.log(`Applying ${padVersion(fromVersion)}-to-${padVersion(tv)}.sql...`)
-				await adapter.applyMigration(tv, sql, description, checksum)
-				console.log(`  Migration ${tv} applied.`)
+		for (const { migration, steps } of migrationSteps) {
+			console.log(`Applying migration v${migration.fromVersion} → v${migration.toVersion}`)
+			for (const { tableName, sql, drop } of steps) {
+				const action = drop ? 'Dropping' : 'Migrating'
+				console.log(`  ${action} ${tableName}`)
+				await adapter.executeScript(sql)
 			}
+			const snap = latestSnapshot('.')
+			const description = snap && snap.version === migration.toVersion ? snap.description : ''
+			await adapter.applyMigration(migration.toVersion, '', description, migration.checksum)
+			console.log(`  Version ${migration.toVersion} recorded.`)
 		}
 	})
 
