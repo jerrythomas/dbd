@@ -27,31 +27,20 @@ describe('generateMigrationSQL', () => {
 		expect(sql).toContain('Migration: version 1 → 2')
 	})
 
-	it('generates CREATE TABLE for added table', () => {
+	it('emits a comment for added tables (handled by dbd apply)', () => {
 		const diff = {
 			fromVersion: 1,
 			toVersion: 2,
 			addedTables: [
-				{
-					name: 'public.users',
-					schema: 'public',
-					columns: [
-						makeCol('id', 'uuid', false, null, [{ type: 'PRIMARY KEY' }]),
-						makeCol('email', 'varchar(255)', false)
-					],
-					indexes: [],
-					tableConstraints: []
-				}
+				{ name: 'public.users', schema: 'public', columns: [], indexes: [], tableConstraints: [] }
 			],
 			droppedTables: [],
 			alteredTables: []
 		}
 		const sql = generateMigrationSQL(diff)
-		expect(sql).toContain('CREATE TABLE IF NOT EXISTS')
-		expect(sql).toContain('"users"')
-		expect(sql).toContain('"id"')
-		expect(sql).toContain('uuid NOT NULL PRIMARY KEY')
-		expect(sql).toContain('"email"')
+		expect(sql).not.toContain('CREATE TABLE')
+		expect(sql).toContain('New tables (applied by dbd apply)')
+		expect(sql).toContain('public.users')
 	})
 
 	it('generates ALTER TABLE ADD COLUMN', () => {

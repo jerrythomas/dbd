@@ -74,34 +74,6 @@ const dropFKSQL = (tableName, fk) =>
 		? `ALTER TABLE ${tableName} DROP CONSTRAINT IF EXISTS ${quote(fk.name)};`
 		: `-- WARNING: Cannot drop unnamed FK constraint on ${tableName}`
 
-// --- Table creation SQL helper (from snapshot table entry) ---
-
-const createTableSQL = (table) => {
-	const name = qualifiedName(table.schema, table.name.split('.').pop())
-	const colDefs = (table.columns || []).map((col) => `  ${quote(col.name)} ${columnTypeSQL(col)}`)
-
-	const tableConstraints = (table.tableConstraints || [])
-		.map((c) => {
-			if (c.type === 'FOREIGN KEY') {
-				const cols = c.columns.map(quote).join(', ')
-				const ref = qualifiedName(c.refSchema, c.refTable)
-				const refCols = (c.refColumns || []).map(quote).join(', ')
-				const constraintName = c.name ? `CONSTRAINT ${quote(c.name)} ` : ''
-				return `  ${constraintName}FOREIGN KEY (${cols}) REFERENCES ${ref}${refCols ? ` (${refCols})` : ''}`
-			}
-			if (c.type === 'UNIQUE') {
-				const cols = c.columns.map(quote).join(', ')
-				const constraintName = c.name ? `CONSTRAINT ${quote(c.name)} ` : ''
-				return `  ${constraintName}UNIQUE (${cols})`
-			}
-			return null
-		})
-		.filter(Boolean)
-
-	const allDefs = [...colDefs, ...tableConstraints].join(',\n')
-	return `CREATE TABLE IF NOT EXISTS ${name} (\n${allDefs}\n);`
-}
-
 /**
  * Generate ordered migration SQL from a schema diff.
  *
@@ -115,13 +87,15 @@ export const generateMigrationSQL = (diff) => {
 		''
 	]
 
-	// 1. CREATE new tables
-	for (const table of diff.addedTables || []) {
-		lines.push(createTableSQL(table))
+	// New tables and their indexes are handled by `dbd apply` (which applies all DDL entities).
+	// Note: if an ALTER below adds a FK referencing a new table, ensure `dbd apply` runs first.
+	if ((diff.addedTables || []).length > 0) {
+		const names = diff.addedTables.map((t) => t.name).join(', ')
+		lines.push(`-- New tables (applied by dbd apply): ${names}`)
 		lines.push('')
 	}
 
-	// 2. ALTER TABLE ADD COLUMN / MODIFY COLUMN (on existing tables)
+	// 1. ALTER TABLE ADD COLUMN / MODIFY COLUMN (on existing tables)
 	for (const table of diff.alteredTables || []) {
 		const tName = qualifiedName(table.schema, table.name.split('.').pop())
 
@@ -140,31 +114,27 @@ export const generateMigrationSQL = (diff) => {
 		}
 	}
 
-	// 3. CREATE / DROP INDEX
+	// 2. DROP / CREATE INDEX on existing tables (definition changed or removed)
 	for (const table of diff.alteredTables || []) {
 		const tName = qualifiedName(table.schema, table.name.split('.').pop())
 		for (const idx of table.droppedIndexes || []) lines.push(dropIndexSQL(idx))
 		for (const idx of table.addedIndexes || []) lines.push(createIndexSQL(tName, idx))
 	}
-	for (const table of diff.addedTables || []) {
-		const tName = qualifiedName(table.schema, table.name.split('.').pop())
-		for (const idx of table.indexes || []) lines.push(createIndexSQL(tName, idx))
-	}
 
-	// 4. ADD / DROP FK constraints
+	// 3. ADD / DROP FK constraints on existing tables
 	for (const table of diff.alteredTables || []) {
 		const tName = qualifiedName(table.schema, table.name.split('.').pop())
 		for (const fk of table.droppedFKs || []) lines.push(dropFKSQL(tName, fk))
 		for (const fk of table.addedFKs || []) lines.push(addFKSQL(tName, fk))
 	}
 
-	// 5. DROP COLUMN (destructive — last for existing tables)
+	// 4. DROP COLUMN (destructive — after FK/index cleanup)
 	for (const table of diff.alteredTables || []) {
 		const tName = qualifiedName(table.schema, table.name.split('.').pop())
 		for (const col of table.droppedColumns || []) lines.push(dropColumnSQL(tName, col.name))
 	}
 
-	// 6. DROP TABLE (destructive — reverse dep order, last)
+	// 5. DROP TABLE (destructive — reverse dep order, last)
 	for (const table of [...(diff.droppedTables || [])].reverse()) {
 		const tName = qualifiedName(table.schema, table.name.split('.').pop())
 		lines.push(`-- WARNING: Drops table and all its data\nDROP TABLE IF EXISTS ${tName};`)
