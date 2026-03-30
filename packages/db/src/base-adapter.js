@@ -191,13 +191,23 @@ export class BaseDatabaseAdapter {
 	 * Must execute in a transaction: rolls back on failure.
 	 *
 	 * @param {number} version - Migration version number
-	 * @param {string} sql - Migration SQL to execute
+	 * @param {string} sql - Migration SQL to execute (empty string to just record the version)
 	 * @param {string} description - Human-readable description
 	 * @param {string} checksum - SHA-256 hex of the migration SQL
 	 * @returns {Promise<void>}
 	 */
 	async applyMigration(version, sql, description, checksum) {
 		throw new Error('not implemented')
+	}
+
+	/**
+	 * Delete all migration records for this project from _dbd_migrations.
+	 * Called by reset() to return the project to a clean slate.
+	 * Silently no-ops if the table does not exist.
+	 * @returns {Promise<void>}
+	 */
+	async clearProjectMigrations() {
+		// Default: no-op
 	}
 
 	// --- Utility ---

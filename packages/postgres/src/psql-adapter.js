@@ -247,11 +247,18 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 			'  description text,',
 			'  checksum    text NOT NULL,',
 			'  PRIMARY KEY (project, version)',
-			');',
-			// Upgrade: add project column to tables created before multi-project support
-			"ALTER TABLE _dbd_migrations ADD COLUMN IF NOT EXISTS project text NOT NULL DEFAULT '';"
+			');'
 		].join('\n')
 		await this.executeScript(sql)
+	}
+
+	async clearProjectMigrations() {
+		const project = this.project.replace(/'/g, "''")
+		try {
+			await this.executeScript(`DELETE FROM _dbd_migrations WHERE project = '${project}';`)
+		} catch {
+			// Table doesn't exist yet — nothing to clear
+		}
 	}
 
 	async getDbVersion() {

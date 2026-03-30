@@ -520,17 +520,20 @@ describe('Design class (packages/cli)', () => {
 			expect(infoCalls.some((c) => c === 'No schemas to reset.')).toBe(true)
 		})
 
-		it('non-dry-run calls adapter.executeScript with reset script', async () => {
+		it('non-dry-run calls adapter.executeScript with reset script and clears migrations', async () => {
 			const dx = await using('design.yaml')
 			const adapter = await dx.getAdapter()
-			const spy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+			const scriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+			const clearSpy = vi.spyOn(adapter, 'clearProjectMigrations').mockResolvedValue()
 
 			await dx.reset('supabase', false)
 
-			expect(spy).toHaveBeenCalledTimes(1)
-			expect(spy.mock.calls[0][0]).toContain('DROP SCHEMA IF EXISTS')
+			expect(scriptSpy).toHaveBeenCalledTimes(1)
+			expect(scriptSpy.mock.calls[0][0]).toContain('DROP SCHEMA IF EXISTS')
+			expect(clearSpy).toHaveBeenCalledTimes(1)
 
-			spy.mockRestore()
+			scriptSpy.mockRestore()
+			clearSpy.mockRestore()
 		})
 	})
 

@@ -201,10 +201,25 @@ class Design {
 			return this
 		}
 
-		// Load pending migrations.
-		// Each migration lives in migrations/<version>/ with graph.json + per-table SQL files.
-		const { pendingMigrations } = await import('./snapshot.js')
+		const { pendingMigrations, latestSnapshot } = await import('./snapshot.js')
 		const dbVersion = await adapter.getDbVersion()
+		const latest = latestSnapshot('.')
+
+		if (dbVersion === 0) {
+			// Fresh DB or post-reset: tables are created fresh from DDL (final state already).
+			// Skip all ALTER migrations — they'd operate on non-existent old state.
+			// Apply entities then record current snapshot version as the baseline.
+			for (const entity of validEntities) {
+				await adapter.applyEntity(entity)
+			}
+			if (latest) {
+				await adapter.ensureMigrationsTable()
+				await adapter.applyMigration(latest.version, '', `fresh apply at v${latest.version}`, '')
+			}
+			return this
+		}
+
+		// Existing DB: run pending migrations interleaved with entity apply.
 		const pending = pendingMigrations(dbVersion)
 
 		if (pending.length > 0) {
@@ -410,6 +425,7 @@ class Design {
 		}
 		const adapter = await this.getAdapter()
 		await adapter.executeScript(script)
+		await adapter.clearProjectMigrations()
 		console.info('Reset complete.')
 		return this
 	}
