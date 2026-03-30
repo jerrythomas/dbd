@@ -10,7 +10,7 @@ export class BaseDatabaseAdapter {
 
 	constructor(connectionString, options = {}) {
 		this.#connectionString = connectionString
-		this.#options = { verbose: false, dryRun: false, ...options }
+		this.#options = { verbose: false, dryRun: false, project: '', ...options }
 	}
 
 	get connectionString() {
@@ -27,6 +27,10 @@ export class BaseDatabaseAdapter {
 
 	get dryRun() {
 		return this.#options.dryRun
+	}
+
+	get project() {
+		return this.#options.project || ''
 	}
 
 	// --- Connection lifecycle ---

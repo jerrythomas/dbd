@@ -241,19 +241,24 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 	async ensureMigrationsTable() {
 		const sql = [
 			'CREATE TABLE IF NOT EXISTS _dbd_migrations (',
-			'  version     integer PRIMARY KEY,',
+			"  project     text NOT NULL DEFAULT '',",
+			'  version     integer NOT NULL,',
 			'  applied_at  timestamptz NOT NULL DEFAULT now(),',
 			'  description text,',
-			'  checksum    text NOT NULL',
-			');'
+			'  checksum    text NOT NULL,',
+			'  PRIMARY KEY (project, version)',
+			');',
+			// Upgrade: add project column to tables created before multi-project support
+			"ALTER TABLE _dbd_migrations ADD COLUMN IF NOT EXISTS project text NOT NULL DEFAULT '';"
 		].join('\n')
 		await this.executeScript(sql)
 	}
 
 	async getDbVersion() {
+		const project = this.project.replace(/'/g, "''")
 		try {
 			const output = execSync(
-				`psql ${this.connectionString} -t -A -c "SELECT COALESCE(MAX(version), 0) FROM _dbd_migrations"`,
+				`psql ${this.connectionString} -t -A -c "SELECT COALESCE(MAX(version), 0) FROM _dbd_migrations WHERE project = '${project}'"`,
 				{ stdio: 'pipe', encoding: 'utf8' }
 			).trim()
 			return parseInt(output, 10) || 0
@@ -263,12 +268,13 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 	}
 
 	async applyMigration(version, sql, description, checksum) {
+		const project = this.project.replace(/'/g, "''")
 		const escapedDesc = (description || '').replace(/'/g, "''")
 		const escapedChecksum = checksum.replace(/'/g, "''")
 		const script = [
 			'BEGIN;',
 			sql,
-			`INSERT INTO _dbd_migrations (version, description, checksum) VALUES (${version}, '${escapedDesc}', '${escapedChecksum}');`,
+			`INSERT INTO _dbd_migrations (project, version, description, checksum) VALUES ('${project}', ${version}, '${escapedDesc}', '${escapedChecksum}');`,
 			'COMMIT;'
 		].join('\n')
 		await this.executeScript(script)

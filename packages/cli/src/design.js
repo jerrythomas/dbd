@@ -455,10 +455,11 @@ class Design {
 export async function using(file, databaseURL, env = 'prod') {
 	const rawConfig = read(file)
 	const dbType = rawConfig.project?.database || 'PostgreSQL'
+	const project = rawConfig.project?.name || path.basename(path.resolve('.'))
 	const { createAdapter, registerAdapter } = await import('@jerrythomas/dbd-db')
 	registerAdapter('postgres', () => import('@jerrythomas/dbd-postgres-adapter'))
 	registerAdapter('postgresql', () => import('@jerrythomas/dbd-postgres-adapter'))
-	const adapter = await createAdapter(dbType.toLowerCase(), databaseURL)
+	const adapter = await createAdapter(dbType.toLowerCase(), databaseURL, { project })
 	await adapter.initParser()
 	return new Design(rawConfig, adapter, databaseURL, env)
 }
