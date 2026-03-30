@@ -16,7 +16,11 @@ project:
         schemas:
           - config
 schemas:
-  - config
+  - config:
+      grants:
+        anon: [usage, select]
+        authenticated: [usage, select]
+        service_role: [usage, all]
   - extensions
   - staging
   - migrate
@@ -39,12 +43,6 @@ import:
         env: [dev, prod]
     - staging.dev_fixture_table:
         env: dev
-  after:
-    - import/loader.sql
-  after.dev:
-    - import/dev_loader.sql
-  after.prod:
-    - import/prod_loader.sql
 
 export:
   - config.lookups

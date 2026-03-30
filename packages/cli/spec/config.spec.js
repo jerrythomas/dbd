@@ -14,7 +14,8 @@ import {
 	merge,
 	clean,
 	cleanDDLEntities,
-	normalizeEnv
+	normalizeEnv,
+	normalizeSchema
 } from '../src/config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -77,6 +78,104 @@ describe('config', () => {
 				process.chdir(exampleDir)
 				const data = read('_test_no_schemas.yaml')
 				expect(data.schemas).toEqual([])
+			} finally {
+				unlinkSync(tmpFile)
+			}
+		})
+	})
+
+	describe('normalizeSchema()', () => {
+		it('handles a plain string entry', () => {
+			expect(normalizeSchema('config')).toEqual({ name: 'config', grants: null })
+		})
+
+		it('handles an object entry with grants', () => {
+			const entry = { config: { grants: { anon: ['usage', 'select'] } } }
+			expect(normalizeSchema(entry)).toEqual({
+				name: 'config',
+				grants: { anon: ['usage', 'select'] }
+			})
+		})
+
+		it('handles an object entry without grants key', () => {
+			const entry = { staging: {} }
+			expect(normalizeSchema(entry)).toEqual({ name: 'staging', grants: null })
+		})
+
+		it('throws on invalid permission value', () => {
+			const entry = { config: { grants: { anon: ['usage', 'seelct'] } } }
+			expect(() => normalizeSchema(entry)).toThrow('Unknown grant permissions')
+		})
+
+		it('throws when permissions is not an array', () => {
+			const entry = { config: { grants: { anon: 'usage' } } }
+			expect(() => normalizeSchema(entry)).toThrow('must be an array')
+		})
+	})
+
+	describe('read() schemaGrants', () => {
+		it('config.schemas stays string[] after read()', () => {
+			process.chdir(exampleDir)
+			const data = read('design.yaml')
+			expect(Array.isArray(data.schemas)).toBe(true)
+			data.schemas.forEach((s) => expect(typeof s).toBe('string'))
+		})
+
+		it('config.schemaGrants is an array', () => {
+			process.chdir(exampleDir)
+			const data = read('design.yaml')
+			expect(Array.isArray(data.schemaGrants)).toBe(true)
+		})
+
+		it('schemas with grants in example file are extracted correctly', () => {
+			process.chdir(exampleDir)
+			const data = read('design.yaml')
+			// example/design.yaml now has grants on the config schema
+			expect(data.schemaGrants).toHaveLength(1)
+			expect(data.schemaGrants[0]).toEqual({
+				name: 'config',
+				grants: {
+					anon: ['usage', 'select'],
+					authenticated: ['usage', 'select'],
+					service_role: ['usage', 'all']
+				}
+			})
+			// schemas are still present in config.schemas (normalized to string)
+			expect(data.schemas).toContain('config')
+		})
+
+		it('schemas with grants appear in schemaGrants with correct shape', () => {
+			// Write a temp YAML with a schema that has grants
+			const tmpYaml = `
+project:
+  name: Test
+  database: PostgreSQL
+  staging:
+    - staging
+schemas:
+  - config:
+      grants:
+        anon: [usage, select]
+  - staging
+extensions: []
+roles: []
+import:
+  tables: []
+export: []
+`
+			const tmpFile = join(__dirname, '_tmp_grants_test.yaml')
+			writeFileSync(tmpFile, tmpYaml)
+			try {
+				const data = read(tmpFile)
+				expect(data.schemas).toContain('config')
+				expect(data.schemas).toContain('staging')
+				expect(data.schemaGrants).toHaveLength(1)
+				expect(data.schemaGrants[0]).toEqual({
+					name: 'config',
+					grants: { anon: ['usage', 'select'] }
+				})
+				// staging has no grants, should not be in schemaGrants
+				expect(data.schemaGrants.some((g) => g.name === 'staging')).toBe(false)
 			} finally {
 				unlinkSync(tmpFile)
 			}

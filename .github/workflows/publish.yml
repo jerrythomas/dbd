@@ -54,6 +54,13 @@ jobs:
               }
               fs.writeFileSync('$pkg', JSON.stringify(p, null, 2) + '\n');
             "
+            pkg_name=$(node -e "const p=JSON.parse(require('fs').readFileSync('$pkg','utf8')); console.log(p.name)")
+            pkg_ver=$(node -e "const p=JSON.parse(require('fs').readFileSync('$pkg','utf8')); console.log(p.version)")
+            if npm view "${pkg_name}@${pkg_ver}" version 2>/dev/null | grep -qF "$pkg_ver"; then
+              echo "Skipping ${pkg_name}@${pkg_ver} — already published"
+              git checkout -- "$pkg"
+              continue
+            fi
             (cd "./packages/${name}" && npm publish --provenance --access public --tag latest)
             git checkout -- "$pkg"
           done

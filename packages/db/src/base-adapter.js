@@ -10,7 +10,7 @@ export class BaseDatabaseAdapter {
 
 	constructor(connectionString, options = {}) {
 		this.#connectionString = connectionString
-		this.#options = { verbose: false, dryRun: false, ...options }
+		this.#options = { verbose: false, dryRun: false, project: '', ...options }
 	}
 
 	get connectionString() {
@@ -27,6 +27,10 @@ export class BaseDatabaseAdapter {
 
 	get dryRun() {
 		return this.#options.dryRun
+	}
+
+	get project() {
+		return this.#options.project || ''
 	}
 
 	// --- Connection lifecycle ---
@@ -145,6 +149,65 @@ export class BaseDatabaseAdapter {
 	 */
 	classifyReference(name, installedExtensions = []) {
 		return null
+	}
+
+	/**
+	 * Parse a table entity's DDL file and return structured snapshot data.
+	 * Used for snapshot creation and schema diffing.
+	 *
+	 * @param {Object} entity - Entity with { file, name, schema }
+	 * @returns {{ name: string, schema: string, columns: Array, indexes: Array, tableConstraints: Array }}
+	 */
+	parseTableSnapshot(entity) {
+		return {
+			name: entity.name,
+			schema: entity.schema,
+			columns: [],
+			indexes: [],
+			tableConstraints: []
+		}
+	}
+
+	// --- Migration tracking ---
+
+	/**
+	 * Ensure the _dbd_migrations tracking table exists in the database.
+	 * @returns {Promise<void>}
+	 */
+	async ensureMigrationsTable() {
+		throw new Error('not implemented')
+	}
+
+	/**
+	 * Get the current applied migration version from the database.
+	 * @returns {Promise<number>} Current version, or 0 if no migrations applied yet
+	 */
+	async getDbVersion() {
+		throw new Error('not implemented')
+	}
+
+	/**
+	 * Apply a migration SQL script and record it in _dbd_migrations.
+	 * Must execute in a transaction: rolls back on failure.
+	 *
+	 * @param {number} version - Migration version number
+	 * @param {string} sql - Migration SQL to execute (empty string to just record the version)
+	 * @param {string} description - Human-readable description
+	 * @param {string} checksum - SHA-256 hex of the migration SQL
+	 * @returns {Promise<void>}
+	 */
+	async applyMigration(version, sql, description, checksum) {
+		throw new Error('not implemented')
+	}
+
+	/**
+	 * Delete all migration records for this project from _dbd_migrations.
+	 * Called by reset() to return the project to a clean slate.
+	 * Silently no-ops if the table does not exist.
+	 * @returns {Promise<void>}
+	 */
+	async clearProjectMigrations() {
+		// Default: no-op
 	}
 
 	// --- Utility ---

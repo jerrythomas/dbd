@@ -18,11 +18,12 @@
     },
     "packages/cli": {
       "name": "@jerrythomas/dbd",
-      "version": "2.0.4",
+      "version": "2.2.0",
       "bin": {
         "dbd": "src/index.js",
       },
       "dependencies": {
+        "@jerrythomas/dbd-convex": "workspace:*",
         "@jerrythomas/dbd-db": "workspace:*",
         "@jerrythomas/dbd-dbml": "workspace:*",
         "@jerrythomas/dbd-postgres-adapter": "workspace:*",
@@ -31,13 +32,17 @@
         "sade": "^1.8.1",
       },
     },
+    "packages/convex": {
+      "name": "@jerrythomas/dbd-convex",
+      "version": "2.2.1",
+    },
     "packages/db": {
       "name": "@jerrythomas/dbd-db",
-      "version": "2.0.4",
+      "version": "2.2.0",
     },
     "packages/dbml": {
       "name": "@jerrythomas/dbd-dbml",
-      "version": "2.0.4",
+      "version": "2.2.0",
       "dependencies": {
         "@dbml/core": "^6.4.0",
         "@jerrythomas/dbd-db": "workspace:*",
@@ -45,7 +50,7 @@
     },
     "packages/postgres": {
       "name": "@jerrythomas/dbd-postgres-adapter",
-      "version": "2.0.4",
+      "version": "2.2.0",
       "dependencies": {
         "@jerrythomas/dbd-db": "workspace:*",
         "csvtojson": "^2.0.10",
@@ -100,6 +105,8 @@
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
 
     "@jerrythomas/dbd": ["@jerrythomas/dbd@workspace:packages/cli"],
+
+    "@jerrythomas/dbd-convex": ["@jerrythomas/dbd-convex@workspace:packages/convex"],
 
     "@jerrythomas/dbd-db": ["@jerrythomas/dbd-db@workspace:packages/db"],
 

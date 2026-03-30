@@ -9,9 +9,10 @@ describe('BaseDatabaseAdapter', () => {
 				dryRun: true
 			})
 			expect(adapter.connectionString).toBe('postgres://localhost/test')
-			expect(adapter.options).toEqual({ verbose: true, dryRun: true })
+			expect(adapter.options).toEqual({ verbose: true, dryRun: true, project: '' })
 			expect(adapter.verbose).toBe(true)
 			expect(adapter.dryRun).toBe(true)
+			expect(adapter.project).toBe('')
 		})
 
 		it('defaults verbose and dryRun to false', () => {

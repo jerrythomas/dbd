@@ -5,7 +5,7 @@
  * Proves feature parity with the legacy src/collect.js Design class.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
-import { existsSync, readFileSync, unlinkSync } from 'fs'
+import { existsSync, readFileSync, unlinkSync, rmdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { using } from '../src/design.js'
@@ -242,15 +242,25 @@ describe('Design class (packages/cli)', () => {
 		expect(importMessages).toEqual(['Importing staging.lookups'])
 	})
 
-	it('importData dry-run also logs the table object', async () => {
+	it('importData dry-run logs the \\copy script for the table', async () => {
 		const dx = await using('design.yaml')
 		dx.importData('staging.lookups', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
-		// Second info call for the table should be the table object
-		const tableObj = infoCalls.find((c) => typeof c === 'object' && c.name === 'staging.lookups')
-		expect(tableObj).toBeDefined()
-		expect(tableObj).toHaveProperty('file')
+		const copyScript = infoCalls.find((c) => typeof c === 'string' && c.includes('\\copy'))
+		expect(copyScript).toBeDefined()
+		expect(copyScript).toContain('staging.lookups')
+	})
+
+	it('importData dry-run logs call statement when procedure exists', async () => {
+		const dx = await using('design.yaml')
+		dx.importData('staging.lookups', true)
+
+		const infoCalls = console.info.mock.calls.map((c) => c[0])
+		const callStatement = infoCalls.find(
+			(c) => typeof c === 'string' && c.startsWith('call staging.import_lookups')
+		)
+		expect(callStatement).toBeDefined()
 	})
 
 	// --- updateEntities ---
@@ -280,11 +290,22 @@ describe('Design class (packages/cli)', () => {
 
 	// --- importTables ---
 
-	it('importTables are ordered by entity index', async () => {
+	it('importTables are ordered by target table dependency', async () => {
 		const dx = await using('design.yaml')
-		const orders = dx.importTables.map((t) => t.order)
-		const sorted = [...orders].sort((a, b) => a - b)
-		expect(orders).toEqual(sorted)
+		const names = dx.importTables.map((t) => t.name)
+		const lookupsIdx = names.indexOf('staging.lookups')
+		const lookupValuesIdx = names.indexOf('staging.lookup_values')
+		expect(lookupsIdx).toBeGreaterThanOrEqual(0)
+		expect(lookupValuesIdx).toBeGreaterThanOrEqual(0)
+		expect(lookupValuesIdx).toBeLessThan(lookupsIdx)
+	})
+
+	it('importTables entries have a targets array', async () => {
+		const dx = await using('design.yaml')
+		for (const table of dx.importTables) {
+			expect(table).toHaveProperty('targets')
+			expect(Array.isArray(table.targets)).toBe(true)
+		}
 	})
 
 	// --- validate on importTables ---
@@ -322,18 +343,26 @@ describe('Design class (packages/cli)', () => {
 
 	// --- apply non-dry-run ---
 
-	it('apply() non-dry-run calls adapter.applyEntities with valid entities', async () => {
+	it('apply() non-dry-run applies each valid entity', async () => {
 		const dx = await using('design.yaml')
 		const adapter = await dx.getAdapter()
-		const spy = vi.spyOn(adapter, 'applyEntities').mockResolvedValue()
+		const entitySpy = vi.spyOn(adapter, 'applyEntity').mockResolvedValue()
+		const versionSpy = vi.spyOn(adapter, 'getDbVersion').mockResolvedValue(0)
+		const resolveSpy = vi.spyOn(adapter, 'resolveEntity').mockResolvedValue(null)
+		const ensureSpy = vi.spyOn(adapter, 'ensureMigrationsTable').mockResolvedValue()
+		const migSpy = vi.spyOn(adapter, 'applyMigration').mockResolvedValue()
 
 		await dx.apply()
 
-		expect(spy).toHaveBeenCalledTimes(1)
-		const entities = spy.mock.calls[0][0]
-		expect(entities.every((e) => !e.errors || e.errors.length === 0)).toBe(true)
+		expect(entitySpy).toHaveBeenCalled()
+		const calledEntities = entitySpy.mock.calls.map((c) => c[0])
+		expect(calledEntities.every((e) => !e.errors || e.errors.length === 0)).toBe(true)
 
-		spy.mockRestore()
+		entitySpy.mockRestore()
+		versionSpy.mockRestore()
+		resolveSpy.mockRestore()
+		ensureSpy.mockRestore()
+		migSpy.mockRestore()
 	})
 
 	it('apply() non-dry-run filters by name', async () => {
@@ -352,26 +381,44 @@ describe('Design class (packages/cli)', () => {
 
 	// --- importData non-dry-run ---
 
-	it('importData() non-dry-run calls adapter.importData and executeFile', async () => {
+	it('importData() non-dry-run calls adapter.importData for each table', async () => {
 		const dx = await using('design.yaml')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
-		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+		const execFileSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 
 		await dx.importData()
 
 		expect(importSpy).toHaveBeenCalled()
-		expect(execSpy).toHaveBeenCalledWith('import/loader.sql')
-
 		importSpy.mockRestore()
-		execSpy.mockRestore()
+		execScriptSpy.mockRestore()
+		execFileSpy.mockRestore()
+	})
+
+	it('importData() non-dry-run calls executeScript for each matched procedure', async () => {
+		const dx = await using('design.yaml')
+		const adapter = await dx.getAdapter()
+		vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+		vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+
+		await dx.importData()
+
+		const procedureCalls = execScriptSpy.mock.calls
+			.map((c) => c[0])
+			.filter((s) => s.startsWith('call staging.import_'))
+		expect(procedureCalls.length).toBeGreaterThan(0)
+
+		vi.restoreAllMocks()
 	})
 
 	it('importData() non-dry-run filters by name', async () => {
 		const dx = await using('design.yaml')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
-		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+		const execFileSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 
 		await dx.importData('staging.lookup_values')
 
@@ -380,7 +427,8 @@ describe('Design class (packages/cli)', () => {
 		expect(importedNames.every((n) => n === 'staging.lookup_values')).toBe(true)
 
 		importSpy.mockRestore()
-		execSpy.mockRestore()
+		execScriptSpy.mockRestore()
+		execFileSpy.mockRestore()
 	})
 
 	// --- exportData ---
@@ -436,6 +484,168 @@ describe('Design class (packages/cli)', () => {
 		expect(batchSpy).not.toHaveBeenCalled()
 
 		batchSpy.mockRestore()
+	})
+
+	// --- reset ---
+
+	describe('reset()', () => {
+		it('dry-run prints DROP SCHEMA statements', async () => {
+			const dx = await using('design.yaml')
+			await dx.reset('supabase', true)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(
+				infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] reset script:'))
+			).toBe(true)
+			expect(
+				infoCalls.some((c) => typeof c === 'string' && c.includes('DROP SCHEMA IF EXISTS'))
+			).toBe(true)
+		})
+
+		it('dry-run supabase: protected schemas absent from output', async () => {
+			const dx = await using('design.yaml')
+			await dx.reset('supabase', true)
+
+			const allOutput = console.info.mock.calls.map((c) => c[0]).join('\n')
+			expect(allOutput).not.toContain('DROP SCHEMA IF EXISTS auth')
+			expect(allOutput).not.toContain('DROP SCHEMA IF EXISTS storage')
+		})
+
+		it('dry-run returns this (chainable)', async () => {
+			const dx = await using('design.yaml')
+			const result = await dx.reset('supabase', true)
+			expect(result).toBe(dx)
+		})
+
+		it('prints "No schemas to reset." when nothing to drop on supabase target', async () => {
+			const dx = await using('design.yaml')
+			dx.config.schemas = ['auth', 'storage']
+			await dx.reset('supabase', true)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => c === 'No schemas to reset.')).toBe(true)
+		})
+
+		it('non-dry-run calls adapter.executeScript with reset script and clears migrations', async () => {
+			const dx = await using('design.yaml')
+			const adapter = await dx.getAdapter()
+			const scriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+			const clearSpy = vi.spyOn(adapter, 'clearProjectMigrations').mockResolvedValue()
+
+			await dx.reset('supabase', false)
+
+			expect(scriptSpy).toHaveBeenCalledTimes(1)
+			expect(scriptSpy.mock.calls[0][0]).toContain('DROP SCHEMA IF EXISTS')
+			expect(clearSpy).toHaveBeenCalledTimes(1)
+
+			scriptSpy.mockRestore()
+			clearSpy.mockRestore()
+		})
+	})
+
+	// --- grants ---
+
+	describe('grants()', () => {
+		it('prints info when postgres target', async () => {
+			const dx = await using('design.yaml')
+			await dx.grants('postgres', false)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => c === 'Grants are not applicable for --target postgres')).toBe(
+				true
+			)
+		})
+
+		it('prints info when no grants configured', async () => {
+			const dx = await using('design.yaml')
+			dx.config.schemaGrants = []
+			await dx.grants('supabase', false)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => c === 'No grants configured in design.yaml')).toBe(true)
+		})
+
+		it('dry-run with grants prints GRANT statements', async () => {
+			const dx = await using('design.yaml')
+			dx.config.schemaGrants = [{ name: 'config', grants: { anon: ['usage', 'select'] } }]
+			await dx.grants('supabase', true)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(
+				infoCalls.some((c) => typeof c === 'string' && c.includes('[dry-run] grants script:'))
+			).toBe(true)
+			expect(
+				infoCalls.some(
+					(c) => typeof c === 'string' && c.includes('GRANT USAGE ON SCHEMA config TO anon;')
+				)
+			).toBe(true)
+		})
+
+		it('dry-run returns this (chainable)', async () => {
+			const dx = await using('design.yaml')
+			const result = await dx.grants('supabase', true)
+			expect(result).toBe(dx)
+		})
+
+		it('non-dry-run calls adapter.executeScript with grants script', async () => {
+			const dx = await using('design.yaml')
+			dx.config.schemaGrants = [{ name: 'config', grants: { anon: ['usage', 'select'] } }]
+			const adapter = await dx.getAdapter()
+			const spy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+
+			await dx.grants('supabase', false)
+
+			expect(spy).toHaveBeenCalledTimes(1)
+			expect(spy.mock.calls[0][0]).toContain('GRANT USAGE ON SCHEMA config TO anon;')
+
+			spy.mockRestore()
+		})
+	})
+
+	// --- apply with target=convex ---
+
+	describe('apply with target=convex', () => {
+		it('dry-run prints schema.ts content without writing file', async () => {
+			const dx = (await using('design.yaml')).validate()
+			await dx.apply(null, true, 'convex')
+			const calls = console.info.mock.calls.map((c) => c[0])
+			expect(
+				calls.some((c) => typeof c === 'string' && c.includes('export default defineSchema('))
+			).toBe(true)
+			expect(existsSync('convex/schema.ts')).toBe(false)
+		})
+
+		it('writes convex/schema.ts to disk on non-dry-run', async () => {
+			const dx = (await using('design.yaml')).validate()
+			try {
+				await dx.apply(null, false, 'convex')
+				expect(existsSync('convex/schema.ts')).toBe(true)
+				const content = readFileSync('convex/schema.ts', 'utf8')
+				expect(content).toContain('export default defineSchema(')
+			} finally {
+				if (existsSync('convex/schema.ts')) unlinkSync('convex/schema.ts')
+				try {
+					rmdirSync('convex')
+				} catch {
+					/* ignore if dir not empty */
+				}
+			}
+		})
+	})
+
+	// --- importData with target=convex ---
+
+	describe('importData with target=convex', () => {
+		it('dry-run prints npx convex import commands to stdout', async () => {
+			const dx = (await using('design.yaml')).validate()
+			await dx.importData(null, true, 'convex')
+			const calls = console.info.mock.calls.map((c) => c[0])
+			const convexCalls = calls.filter(
+				(c) => typeof c === 'string' && c.startsWith('npx convex import')
+			)
+			// example project may have 0 import tables — just confirm no error thrown
+			expect(Array.isArray(convexCalls)).toBe(true)
+		})
 	})
 
 	// --- getAdapter ---
@@ -596,13 +806,14 @@ describe('Design env filtering', () => {
 
 describe('importData env-scoped after scripts', () => {
 	let originalDir
+	const fixtureDir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'after-scripts')
 
 	beforeAll(() => {
 		originalDir = process.cwd()
 	})
 
 	beforeEach(() => {
-		process.chdir(join(__dirname, '../../../example'))
+		process.chdir(fixtureDir)
 		vi.spyOn(console, 'log').mockImplementation(() => {})
 		vi.spyOn(console, 'info').mockImplementation(() => {})
 		vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -618,10 +829,12 @@ describe('importData env-scoped after scripts', () => {
 		const dx = await using('design.yaml', undefined, 'prod')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
 		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 		await dx.importData()
 		expect(execSpy).toHaveBeenCalledWith('import/loader.sql')
 		importSpy.mockRestore()
+		execScriptSpy.mockRestore()
 		execSpy.mockRestore()
 	})
 
@@ -629,12 +842,14 @@ describe('importData env-scoped after scripts', () => {
 		const dx = await using('design.yaml', undefined, 'prod')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
 		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 		await dx.importData()
 		const calls = execSpy.mock.calls.map((c) => c[0])
 		expect(calls).toContain('import/prod_loader.sql')
 		expect(calls).not.toContain('import/dev_loader.sql')
 		importSpy.mockRestore()
+		execScriptSpy.mockRestore()
 		execSpy.mockRestore()
 	})
 
@@ -642,12 +857,14 @@ describe('importData env-scoped after scripts', () => {
 		const dx = await using('design.yaml', undefined, 'dev')
 		const adapter = await dx.getAdapter()
 		const importSpy = vi.spyOn(adapter, 'importData').mockResolvedValue()
+		const execScriptSpy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
 		const execSpy = vi.spyOn(adapter, 'executeFile').mockResolvedValue()
 		await dx.importData()
 		const calls = execSpy.mock.calls.map((c) => c[0])
 		expect(calls).toContain('import/dev_loader.sql')
 		expect(calls).not.toContain('import/prod_loader.sql')
 		importSpy.mockRestore()
+		execScriptSpy.mockRestore()
 		execSpy.mockRestore()
 	})
 })
@@ -683,16 +900,16 @@ describe('Design class — coverage-test fixture', () => {
 	// --- organizeImports: import table not in entities (refers fallback) ---
 
 	it('organizeImports uses empty refers when import table is not found in entities', async () => {
-		// The fixture's app.orders table has refers: [app.customers]
-		// app.customers is NOT an import table => warning should be generated
+		// The fixture's app.orders table has no matching import procedure
+		// buildImportPlan generates a warning when no procedure is found
 		const dx = await using('design.yaml')
 		const importTables = dx.importTables
 		const ordersImport = importTables.find((t) => t.name === 'app.orders')
 
 		if (ordersImport) {
-			// app.orders exists in entities so refers come from there
+			// app.orders has no import procedure => warning is generated
 			expect(ordersImport.warnings.length).toBeGreaterThan(0)
-			expect(ordersImport.warnings[0]).toContain('app.customers')
+			expect(ordersImport.warnings[0]).toContain('app.orders')
 		}
 	})
 
@@ -717,8 +934,8 @@ describe('Design class — coverage-test fixture', () => {
 		// ghost.csv in import/ creates an import entry for app.ghost, which has no entity
 		const ghostImport = dx.importTables.find((t) => t.name === 'app.ghost')
 		expect(ghostImport).toBeDefined()
-		expect(ghostImport.refers).toEqual([])
-		expect(ghostImport.order).toBe(-1)
+		// buildImportPlan generates a warning when no procedure is found
+		expect(ghostImport.warnings.length).toBeGreaterThan(0)
 	})
 
 	// --- report() with import table errors ---

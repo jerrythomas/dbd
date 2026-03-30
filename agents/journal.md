@@ -5,6 +5,111 @@ Design details live in `docs/design/` — modular docs per module.
 
 ---
 
+## 2026-03-30
+
+### Snapshots & Migrations — COMPLETE
+
+Added `dbd snapshot` and `dbd migrate` commands for incremental schema management.
+
+**Design:** `docs/design/07-snapshots-migrations.md` (pre-existing, confirmed)
+
+**Key decisions:**
+
+- `dbd apply` unchanged (clean slate). Migrations are a separate incremental workflow for staging/prod.
+- Migration SQL covers only tables, indexes, FK refs — views/functions/procedures use `CREATE OR REPLACE` via `dbd apply`
+- Migration SQL ordering: CREATE new tables → ALTER ADD/MODIFY COLUMN → CREATE/DROP INDEX → ADD/DROP FK → DROP COLUMN → DROP TABLE
+- Manual snapshots only (not auto after apply)
+- `_dbd_migrations` table tracks applied version + checksum in target DB
+
+**Changes:**
+
+- `packages/postgres/src/parser/extractors/tables.js` — implemented `extractTableConstraints` (table-level FOREIGN KEY, UNIQUE, PRIMARY KEY from `Constraint` nodes)
+- `packages/postgres/src/psql-adapter.js` — `parseTableSnapshot()` (reads DDL → columns/indexes/tableConstraints), `ensureMigrationsTable()`, `getDbVersion()`, `applyMigration()` (transaction-wrapped)
+- `packages/db/src/base-adapter.js` — interface stubs for above 4 methods + `parseTableSnapshot()` default
+- `packages/db/src/schema-diff.js` — `diffSnapshots(from, to)`: added/dropped/altered tables, added/dropped/altered columns, added/dropped indexes, added/dropped FK constraints
+- `packages/db/src/migration-generator.js` — `generateMigrationSQL(diff)`: ordered ALTER/CREATE/DROP SQL with WARNING comments on destructive operations
+- `packages/db/src/index.js` — exports `diffSnapshots`, `isEmptyDiff`, `generateMigrationSQL`
+- `packages/cli/src/snapshot.js` — `createSnapshot`, `listSnapshots`, `readSnapshot`, `latestSnapshot`, `pendingMigrations`, `checksumOf`, `nextVersion`, `padVersion`
+- `packages/cli/src/index.js` — `dbd snapshot [--name] [--list]`, `dbd migrate [--apply|--status|--to|--dry-run]`
+- New test files: `packages/db/spec/schema-diff.spec.js`, `packages/db/spec/migration-generator.spec.js`, `packages/cli/spec/snapshot.spec.js`
+
+**Result:** 941 tests passing, 0 lint errors.
+
+**Commit:** `0c1ace6`
+
+---
+
+## 2026-03-28
+
+### Convex Support — COMPLETE
+
+Added `--target=convex` to `dbd apply` and `dbd import`, plus `dbd convex schema` / `dbd convex seed` subcommands. New `@jerrythomas/dbd-convex` package generates `convex/schema.ts` from parsed DDL entities and seeds data via `npx convex import`.
+
+**Design spec:** `docs/superpowers/specs/2026-03-28-convex-support-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-03-28-convex-support.md`
+
+**Changes:**
+
+- `packages/convex/src/sql-type-map.js` — `sqlTypeToConvex`, `columnToValidator`: PostgreSQL type string → Convex validator string
+- `packages/convex/src/schema-generator.js` — `resolveTableName`, `generateSchemaTs`: DDL entities → `convex/schema.ts` content; handles schemaPrefix, PK stripping, collision detection
+- `packages/convex/src/data-seeder.js` — `buildImportArgs`, `convexImportCommand`, `seedTable`: argument array construction and `execFileSync` invocation for `npx convex import`
+- `packages/convex/src/index.js` — public API re-exports
+- `packages/cli/src/design.js` — `apply()` and `importData()` gain `target` param; when `target === 'convex'` delegate to convex package
+- `packages/cli/src/index.js` — `--target` option on `apply`/`import`; `dbd convex schema` and `dbd convex seed` subcommands
+- `config/vitest.config.ts`, `package.json` (root), `packages/cli/package.json` — workspace scaffolding for new package
+
+**Result:** 902 tests passing, 0 lint errors. Dry-run smoke-tested against example project.
+
+**Commits:** `dd6f21b`–`bfee49d`
+
+---
+
+## 2026-03-20
+
+### Procedure Read/Write Classification — COMPLETE
+
+Replaced `tableReferences: string[]` on parsed procedure entities with `reads: string[]` and `writes: string[]`. Import procedure matching now uses `reads`-based lookup instead of naming convention. Import plan entries gain a `targets` field (non-staging writes of the matched procedure).
+
+**Design spec:** `docs/superpowers/specs/2026-03-20-procedure-reads-writes-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-03-20-procedure-reads-writes.md`
+
+**Changes:**
+
+- `packages/postgres/src/parser/extractors/procedures.js` — `extractTableReferencesFromBody` returns `{ reads, writes }` classifying by keyword; `extractBodyReferencesFromAst` returns `{ reads, writes: [] }`; `procDefFromStatement` and `extractRoutinesFromSql` spread `reads`/`writes` onto entity
+- `packages/postgres/src/parser/index-functional.js` — `collectProcRefs` unions `reads`/`writes`; `extractDependencies` returns `procedures` array
+- `packages/postgres/src/psql-adapter.js` — `#parseEntityAST` threads `reads`/`writes` from parsed procedure into returned entity
+- `packages/db/src/entity-processor.js` — `findImportProcedure` matches by `reads` field; `buildImportPlan` adds `targets` field (procedure writes filtered to non-staging schemas)
+- `packages/cli/src/design.js` — `importTables` getter forwards `targets`
+
+**Commits:** `0d235ac`, `ceeda08`, `affaa5d`, `1095b14`, `4abc967`, `3480364`
+
+**Result:** 854 tests passing, 0 lint errors.
+
+---
+
+### Auto-sequenced Import Plan — COMPLETE (v2.2.0)
+
+Replaced broken `organizeImports()` with `buildImportPlan()`. Import procedures now called automatically after CSV loads, ordered by dependency graph. `loader.sql` no longer needed.
+
+**Design spec:** `docs/superpowers/specs/2026-03-20-import-plan-design.md`
+**Implementation plan:** `docs/superpowers/plans/2026-03-20-import-plan.md`
+
+**Changes:**
+
+- `packages/db/src/entity-processor.js` — Added 3 pure functions: `findTargetTable`, `findImportProcedure`, `buildImportPlan`
+- `packages/db/src/index.js` — Exported the three new functions
+- `packages/cli/src/design.js` — Replaced `organizeImports` with `buildImportPlan`; `importData()` auto-calls `staging.import_X()` procedure after each CSV load; dry-run prints both `\copy` and `call` lines; warnings surface for missing procedures
+- `example/design.yaml` — Removed `after`/`after.dev`/`after.prod` keys (loader.sql no longer needed)
+- Deleted `example/import/loader.sql`, `dev_loader.sql`, `prod_loader.sql`
+- Deleted stale files: `agents/context.md.backup`, `test-entity-from-file.js`, `docs/issues.md`
+- Updated `docs/to-do.md` — items now covered by design spec
+
+**Commits:** e6e1fe3 (design+cleanup), 01f224b (plan), f76b378 (pure functions), d313a66 (design.js), ae8d05d (fix example/design.yaml), 3244017 (strengthen ordering test)
+
+**Released as v2.2.0** — 809 tests passing, 0 lint errors.
+
+---
+
 ## 2026-03-15
 
 ### Complexity Reduction — Functions > 10

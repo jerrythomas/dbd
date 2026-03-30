@@ -11,6 +11,8 @@ create table if not exists lookup_values (
 , description              text
 , modified_on              timestamp with time zone not null default now()
 , modified_by              varchar
+, category_id              uuid references categories(id)
+, notes                    text
 );
 
 create unique index if not exists lookup_values_ukey on lookup_values(lookup_id, value);

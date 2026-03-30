@@ -17,7 +17,10 @@ import {
 	exportScriptForEntity,
 	filterEntitiesForDBML,
 	sortByDependencies,
-	graphFromEntities
+	graphFromEntities,
+	buildImportPlan,
+	buildResetScript,
+	buildGrantsScript
 } from '@jerrythomas/dbd-db'
 import { generateDBML } from '@jerrythomas/dbd-dbml'
 import { read, clean } from './config.js'
@@ -57,7 +60,7 @@ class Design {
 			...this.#config.entities
 		]
 
-		this.#importTables = this.organizeImports(config.importTables)
+		this.#importTables = buildImportPlan(config.importTables, config.entities)
 		this.#env = env
 	}
 
@@ -77,7 +80,12 @@ class Design {
 		return this.#databaseURL
 	}
 	get importTables() {
-		return this.#importTables
+		return this.#importTables.map(({ table, procedure, targets, warnings: planWarnings }) => ({
+			...table,
+			procedure,
+			targets,
+			warnings: [...(table.warnings || []), ...planWarnings]
+		}))
 	}
 
 	/**
@@ -96,37 +104,25 @@ class Design {
 		]
 	}
 
-	organizeImports(importTables) {
-		const tables = this.#config.entities.filter((entity) => entity.type === 'table')
-
-		return importTables
-			.map((x) => {
-				const index = tables.findIndex((table) => table.name === x.name)
-				const refers = index >= 0 ? tables[index].refers : []
-				const warnings = refers
-					.map((ref) => {
-						if (!importTables.find((table) => table.name === ref)) {
-							return `Warning: referenced table ${ref} is missing from imports`
-						}
-					})
-					.filter((x) => x)
-				return { ...x, order: index, refers, warnings }
-			})
-			.sort((a, b) => a.order - b.order)
-	}
-
 	validate() {
 		const allowedSchemas = this.#config.project.staging
 
 		this.#roles = this.config.roles.map((role) => validateEntity(role))
 		this.#entities = this.entities.map((entity) => validateEntity(entity, true, this.config.ignore))
-		this.#importTables = this.importTables
-			.filter((entity) => entity.env === null || entity.env === this.#env)
-			.map((entity) => validateEntity(entity, false))
-			.map((entity) => {
-				if (!allowedSchemas.includes(entity.schema))
-					entity.errors = [...(entity.errors || []), 'Import is only allowed for staging schemas']
-				return entity
+		this.#importTables = this.#importTables
+			.filter(({ table }) => table.env === null || table.env === this.#env)
+			.map((entry) => ({ ...entry, table: validateEntity(entry.table, false) }))
+			.map((entry) => {
+				if (!allowedSchemas.includes(entry.table.schema)) {
+					return {
+						...entry,
+						table: {
+							...entry.table,
+							errors: [...(entry.table.errors || []), 'Import is only allowed for staging schemas']
+						}
+					}
+				}
+				return entry
 			})
 
 		this.#isValidated = true
@@ -147,7 +143,34 @@ class Design {
 		return { entity, issues, warnings }
 	}
 
-	async apply(name, dryRun = false) {
+	async apply(name, dryRun = false, target = null) {
+		if (target === 'convex') {
+			if (!this.isValidated) this.validate()
+			const { generateSchemaTs } = await import('@jerrythomas/dbd-convex')
+			const convexConfig = this.#config.convex ?? {}
+			const { content, warnings } = generateSchemaTs(this.entities, convexConfig)
+			warnings.forEach((w) => console.warn(w))
+
+			if (dryRun) {
+				console.info(content)
+				return this
+			}
+
+			fs.mkdirSync('convex', { recursive: true })
+			fs.writeFileSync('convex/schema.ts', content)
+			console.info('Generated convex/schema.ts')
+
+			const convexUrl = process.env.CONVEX_URL
+			const convexKey = process.env.CONVEX_DEPLOY_KEY
+			if (convexUrl && convexKey) {
+				const { execFileSync } = await import('child_process')
+				execFileSync('npx', ['convex', 'deploy'], { stdio: 'inherit', env: { ...process.env } })
+			} else {
+				console.info('CONVEX_URL or CONVEX_DEPLOY_KEY not set — skipping deploy')
+			}
+			return this
+		}
+
 		if (!this.isValidated) this.validate()
 
 		if (dryRun) {
@@ -164,7 +187,7 @@ class Design {
 					console.info(detail)
 				}
 			})
-			return
+			return this
 		}
 
 		const adapter = await this.getAdapter()
@@ -172,7 +195,107 @@ class Design {
 			.filter((entity) => !entity.errors || entity.errors.length === 0)
 			.filter((entity) => !name || entity.name === name)
 
-		await adapter.applyEntities(validEntities)
+		// When targeting a single named entity, skip migration phases
+		if (name) {
+			await adapter.applyEntities(validEntities)
+			return this
+		}
+
+		const { pendingMigrations, latestSnapshot } = await import('./snapshot.js')
+		const dbVersion = await adapter.getDbVersion()
+		const latest = latestSnapshot('.')
+
+		if (dbVersion === 0) {
+			// DB has no migration history. Check whether tables actually exist to distinguish:
+			//   - Truly fresh / post-reset: no tables → create from DDL, record latest version
+			//   - Pre-snapshot existing DB: tables exist → run pending migrations normally
+			const firstTable = validEntities.find((e) => e.type === 'table')
+			const tableExists = firstTable ? await adapter.resolveEntity(firstTable.name) : null
+
+			if (!tableExists) {
+				// Truly fresh or post-reset: apply all entities then record current version
+				for (const entity of validEntities) {
+					await adapter.applyEntity(entity)
+				}
+				if (latest) {
+					await adapter.ensureMigrationsTable()
+					await adapter.applyMigration(latest.version, '', `fresh apply at v${latest.version}`, '')
+				}
+				return this
+			}
+
+			// Tables exist but no migration history — fall through to run pending migrations
+		}
+
+		// Existing DB: run pending migrations interleaved with entity apply.
+		const pending = pendingMigrations(dbVersion)
+
+		if (pending.length > 0) {
+			await adapter.ensureMigrationsTable()
+		}
+
+		// Build map: table name → pending migrations that alter it (in version order)
+		const tableMigrations = new Map()
+		for (const migration of pending) {
+			for (const tableName of migration.altered) {
+				if (!tableMigrations.has(tableName)) tableMigrations.set(tableName, [])
+				tableMigrations.get(tableName).push(migration)
+			}
+		}
+
+		// Apply entities in dependency order.
+		// Before each table entity, run its pending migration SQL (if any).
+		// Interleaving ensures FK migrations to new tables run after those tables are created.
+		for (const entity of validEntities) {
+			if (entity.type === 'table') {
+				const migrations = tableMigrations.get(entity.name)
+				if (migrations) {
+					for (const migration of migrations) {
+						const parts = entity.name.split('.')
+						const schema = parts.length > 1 ? parts[0] : null
+						const tableName = parts[parts.length - 1]
+						const sqlFile = schema
+							? path.join(migration.migrationDir, schema, `${tableName}.sql`)
+							: path.join(migration.migrationDir, `${tableName}.sql`)
+						if (fs.existsSync(sqlFile)) {
+							const sql = fs.readFileSync(sqlFile, 'utf-8')
+							console.info(
+								`Migrating ${entity.name} (v${migration.fromVersion} → v${migration.toVersion})`
+							)
+							await adapter.executeScript(sql)
+						}
+					}
+				}
+			}
+			await adapter.applyEntity(entity)
+		}
+
+		// Handle dropped tables (destructive — run after all entities applied)
+		for (const migration of pending) {
+			for (const tableName of migration.dropped) {
+				const parts = tableName.split('.')
+				const schema = parts.length > 1 ? parts[0] : null
+				const tbl = parts[parts.length - 1]
+				const sqlFile = schema
+					? path.join(migration.migrationDir, schema, `${tbl}.drop.sql`)
+					: path.join(migration.migrationDir, `${tbl}.drop.sql`)
+				if (fs.existsSync(sqlFile)) {
+					const sql = fs.readFileSync(sqlFile, 'utf-8')
+					console.info(
+						`Dropping table ${tableName} (v${migration.fromVersion} → v${migration.toVersion})`
+					)
+					await adapter.executeScript(sql)
+				}
+			}
+		}
+
+		// Record applied migration versions in _dbd_migrations
+		for (const migration of pending) {
+			const description = `migration v${migration.fromVersion} to v${migration.toVersion}`
+			await adapter.applyMigration(migration.toVersion, '', description, migration.checksum)
+		}
+
+		return this
 	}
 
 	combine(file) {
@@ -210,37 +333,70 @@ class Design {
 		return this
 	}
 
-	async importData(name, dryRun = false) {
+	async importData(name, dryRun = false, target = null) {
+		if (target === 'convex') {
+			if (!this.isValidated) this.validate()
+			const { seedTable, convexImportCommand, resolveTableName } =
+				await import('@jerrythomas/dbd-convex')
+			const convexConfig = this.#config.convex ?? {}
+			const isProd = this.#env === 'prod'
+
+			const plan = this.importTables
+				.filter((table) => !table.errors || table.errors.length === 0)
+				.filter((table) => !name || table.name === name || table.file === name)
+
+			if (dryRun) {
+				for (const table of plan) {
+					const tableName = resolveTableName(table, convexConfig)
+					console.info(convexImportCommand(tableName, table.file, table.format ?? 'csv', isProd))
+				}
+				return this
+			}
+
+			for (const table of plan) {
+				console.info(`Seeding ${table.name} into Convex`)
+				table.warnings.forEach((w) => console.warn(w))
+				seedTable(table, convexConfig, isProd)
+			}
+			return this
+		}
+
 		if (!this.isValidated) this.validate()
 
+		const plan = this.importTables
+			.filter((table) => !table.errors || table.errors.length === 0)
+			.filter((table) => !name || table.name === name || table.file === name)
+
 		if (dryRun) {
-			this.importTables
-				.filter((entity) => !entity.errors)
-				.filter((entity) => !name || entity.name === name || entity.file === name)
-				.map((table) => {
-					console.info(`Importing ${table.name}`)
-					table.warnings.map((message) => console.warn(message))
-					console.info(table)
-				})
-		} else {
-			const adapter = await this.getAdapter()
-			const tables = this.importTables
-				.filter((entity) => !entity.errors)
-				.filter((entity) => !name || entity.name === name || entity.file === name)
-
-			for (const table of tables) {
+			for (const table of plan) {
 				console.info(`Importing ${table.name}`)
-				table.warnings.map((message) => console.warn(message))
-				await adapter.importData(table)
+				table.warnings.forEach((w) => console.warn(w))
+				console.info(importScriptForEntity(table))
 			}
-
-			const sharedAfter = this.config.import.after ?? []
-			const envAfter = this.config.import[`after.${this.#env}`] ?? []
-
-			for (const file of [...sharedAfter, ...envAfter]) {
-				console.info(`Processing ${file}`)
-				await adapter.executeFile(file)
+			for (const table of plan) {
+				if (table.procedure) console.info(`call ${table.procedure.name}();`)
 			}
+			return this
+		}
+
+		const adapter = await this.getAdapter()
+		for (const table of plan) {
+			console.info(`Importing ${table.name}`)
+			table.warnings.forEach((w) => console.warn(w))
+			await adapter.importData(table)
+		}
+		for (const table of plan) {
+			if (table.procedure) {
+				console.info(`Calling ${table.procedure.name}`)
+				await adapter.executeScript(`call ${table.procedure.name}();`)
+			}
+		}
+
+		const sharedAfter = this.config.import.after ?? []
+		const envAfter = this.config.import[`after.${this.#env}`] ?? []
+		for (const file of [...sharedAfter, ...envAfter]) {
+			console.info(`Processing ${file}`)
+			await adapter.executeFile(file)
 		}
 
 		return this
@@ -264,6 +420,45 @@ class Design {
 		return this
 	}
 
+	async reset(target = 'supabase', dryRun = false) {
+		const script = buildResetScript(this.#config.schemas, this.#config.roles, target)
+		if (!script) {
+			console.info('No schemas to reset.')
+			return this
+		}
+		if (dryRun) {
+			console.info('[dry-run] reset script:')
+			console.info(script)
+			return this
+		}
+		const adapter = await this.getAdapter()
+		await adapter.executeScript(script)
+		await adapter.clearProjectMigrations()
+		console.info('Reset complete.')
+		return this
+	}
+
+	async grants(target = 'supabase', dryRun = false) {
+		const script = buildGrantsScript(this.#config.schemaGrants ?? [], target)
+		if (!script) {
+			console.info(
+				target === 'postgres'
+					? 'Grants are not applicable for --target postgres'
+					: 'No grants configured in design.yaml'
+			)
+			return this
+		}
+		if (dryRun) {
+			console.info('[dry-run] grants script:')
+			console.info(script)
+			return this
+		}
+		const adapter = await this.getAdapter()
+		await adapter.executeScript(script)
+		console.info('Grants applied.')
+		return this
+	}
+
 	async getAdapter() {
 		return this.#adapter
 	}
@@ -284,10 +479,11 @@ class Design {
 export async function using(file, databaseURL, env = 'prod') {
 	const rawConfig = read(file)
 	const dbType = rawConfig.project?.database || 'PostgreSQL'
+	const project = rawConfig.project?.name || path.basename(path.resolve('.'))
 	const { createAdapter, registerAdapter } = await import('@jerrythomas/dbd-db')
 	registerAdapter('postgres', () => import('@jerrythomas/dbd-postgres-adapter'))
 	registerAdapter('postgresql', () => import('@jerrythomas/dbd-postgres-adapter'))
-	const adapter = await createAdapter(dbType.toLowerCase(), databaseURL)
+	const adapter = await createAdapter(dbType.toLowerCase(), databaseURL, { project })
 	await adapter.initParser()
 	return new Design(rawConfig, adapter, databaseURL, env)
 }

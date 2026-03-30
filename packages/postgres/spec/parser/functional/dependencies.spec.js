@@ -242,7 +242,7 @@ describe('Dependency Extraction', () => {
 			expect(refs).toEqual([])
 		})
 
-		it('handles procedure with no tableReferences property', () => {
+		it('handles procedure with no reads or writes properties', () => {
 			const refs = collectReferences({
 				tables: [],
 				views: [],
@@ -344,6 +344,29 @@ describe('Dependency Extraction', () => {
 			const refNames = references.map((r) => r.name)
 			expect(refNames).toContain('lookups')
 			expect(refNames).toContain('lookup_values')
+		})
+
+		it('extracts references from UNION ALL views', () => {
+			const sql = `
+				set search_path to auth, extensions;
+
+				create or replace view roles_by_lang as
+				  select b.id, b.scope, l.language, coalesce(l.name, b.name) as name
+				    from auth.roles b
+				    join auth.roles_lang l on l.role_id = b.id
+				union all
+				  select b.id, b.scope, 'en' as language, b.name
+				    from auth.roles b
+				   where not exists (
+				     select 1 from auth.roles_lang l
+				      where l.role_id = b.id and l.language = 'en'
+				   );
+			`
+			const { entity, references } = extractDependencies(sql)
+			expect(entity).toMatchObject({ name: 'roles_by_lang', type: 'view' })
+			const refNames = references.map((r) => r.name)
+			expect(refNames).toContain('auth.roles')
+			expect(refNames).toContain('auth.roles_lang')
 		})
 	})
 
@@ -479,11 +502,12 @@ describe('Dependency Extraction', () => {
 			const refs = collectReferences({
 				tables: [],
 				views: [],
-				procedures: [{ tableReferences: ['config.lookups', 'staging.data'] }],
+				procedures: [{ reads: ['config.lookups'], writes: ['staging.data'] }],
 				triggers: []
 			})
 			expect(refs).toHaveLength(2)
-			expect(refs.map((r) => r.name)).toEqual(['config.lookups', 'staging.data'])
+			expect(refs.map((r) => r.name)).toContain('config.lookups')
+			expect(refs.map((r) => r.name)).toContain('staging.data')
 		})
 
 		it('deduplicates across different source types', () => {

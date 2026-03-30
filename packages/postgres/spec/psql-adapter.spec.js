@@ -98,9 +98,10 @@ describe('PsqlAdapter', () => {
 		it('writes script to temp file and executes via psql', async () => {
 			await adapter.executeScript('CREATE TABLE test (id int);')
 			expect(writeFileSync).toHaveBeenCalledWith('_dbd_temp.sql', 'CREATE TABLE test (id int);')
-			expect(execSync).toHaveBeenCalledWith('psql postgresql://localhost/testdb < _dbd_temp.sql', {
-				stdio: 'pipe'
-			})
+			expect(execSync).toHaveBeenCalledWith(
+				'psql postgresql://localhost/testdb -v ON_ERROR_STOP=1 < _dbd_temp.sql',
+				{ stdio: 'pipe', encoding: 'utf8' }
+			)
 			expect(unlinkSync).toHaveBeenCalledWith('_dbd_temp.sql')
 		})
 
@@ -110,6 +111,17 @@ describe('PsqlAdapter', () => {
 			})
 			await expect(adapter.executeScript('BAD SQL')).rejects.toThrow('syntax error')
 			expect(unlinkSync).toHaveBeenCalledWith('_dbd_temp.sql')
+		})
+
+		it('throws with psql stderr when available', async () => {
+			const err = new Error('psql failed')
+			err.stderr = 'ERROR:  relation "test" does not exist'
+			execSync.mockImplementation(() => {
+				throw err
+			})
+			await expect(adapter.executeScript('BAD SQL')).rejects.toThrow(
+				'ERROR:  relation "test" does not exist'
+			)
 		})
 
 		it('skips execution in dryRun mode', async () => {
@@ -128,9 +140,21 @@ describe('PsqlAdapter', () => {
 	describe('executeFile()', () => {
 		it('executes file via psql', async () => {
 			await adapter.executeFile('schema.ddl')
-			expect(execSync).toHaveBeenCalledWith('psql postgresql://localhost/testdb < schema.ddl', {
-				stdio: 'pipe'
+			expect(execSync).toHaveBeenCalledWith(
+				'psql postgresql://localhost/testdb -v ON_ERROR_STOP=1 < schema.ddl',
+				{ stdio: 'pipe', encoding: 'utf8' }
+			)
+		})
+
+		it('throws with psql stderr on failure', async () => {
+			const err = new Error('psql failed')
+			err.stderr = 'ERROR:  syntax error at or near "BAD"'
+			execSync.mockImplementation(() => {
+				throw err
 			})
+			await expect(adapter.executeFile('bad.sql')).rejects.toThrow(
+				'ERROR:  syntax error at or near "BAD"'
+			)
 		})
 
 		it('skips execution in dryRun mode', async () => {
@@ -149,8 +173,8 @@ describe('PsqlAdapter', () => {
 			}
 			await adapter.applyEntity(entity)
 			expect(execSync).toHaveBeenCalledWith(
-				'psql postgresql://localhost/testdb < ddl/table/public/users.ddl',
-				{ stdio: 'pipe' }
+				'psql postgresql://localhost/testdb -v ON_ERROR_STOP=1 < ddl/table/public/users.ddl',
+				{ stdio: 'pipe', encoding: 'utf8' }
 			)
 		})
 

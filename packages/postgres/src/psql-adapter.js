@@ -1,7 +1,12 @@
 import { execSync } from 'child_process'
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs'
 import { BaseDatabaseAdapter } from '@jerrythomas/dbd-db'
-import { extractDependencies } from './parser/index-functional.js'
+import {
+	extractDependencies,
+	extractTables,
+	extractIndexes,
+	parse
+} from './parser/index-functional.js'
 import { initParser } from './parser/parsers/sql.js'
 import { isInternal, matchesKnownExtension, resetCache } from './reference-classifier.js'
 
@@ -63,7 +68,13 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		try {
 			writeFileSync(TMP_SCRIPT, script)
 			this.log(`Executing script (${script.length} bytes)`)
-			execSync(`psql ${this.connectionString} < ${TMP_SCRIPT}`, { stdio: 'pipe' })
+			// ON_ERROR_STOP=1 ensures psql exits non-zero on SQL errors (including failed \copy)
+			execSync(`psql ${this.connectionString} -v ON_ERROR_STOP=1 < ${TMP_SCRIPT}`, {
+				stdio: 'pipe',
+				encoding: 'utf8'
+			})
+		} catch (err) {
+			throw new Error(err.stderr?.trim() || err.message, { cause: err })
 		} finally {
 			if (existsSync(TMP_SCRIPT)) unlinkSync(TMP_SCRIPT)
 		}
@@ -76,7 +87,15 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		}
 
 		this.log(`Executing file: ${file}`)
-		execSync(`psql ${this.connectionString} < ${file}`, { stdio: 'pipe' })
+		try {
+			// ON_ERROR_STOP=1 ensures psql exits non-zero on SQL errors
+			execSync(`psql ${this.connectionString} -v ON_ERROR_STOP=1 < ${file}`, {
+				stdio: 'pipe',
+				encoding: 'utf8'
+			})
+		} catch (err) {
+			throw new Error(err.stderr?.trim() || err.message, { cause: err })
+		}
 	}
 
 	async applyEntity(entity, options = {}) {
@@ -193,6 +212,81 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		await this.executeScript(script, options)
 	}
 
+	parseTableSnapshot(entity) {
+		const content = readFileSync(entity.file, 'utf-8')
+		try {
+			const ast = parse(content)
+			const tables = extractTables(ast)
+			const indexes = extractIndexes(ast)
+			const table = tables[0] ?? { columns: [], constraints: [] }
+			const tableIndexes = indexes.map(({ name, unique, columns }) => ({ name, unique, columns }))
+			return {
+				name: entity.name,
+				schema: entity.schema,
+				columns: table.columns ?? [],
+				indexes: tableIndexes,
+				tableConstraints: table.constraints ?? []
+			}
+		} catch {
+			return {
+				name: entity.name,
+				schema: entity.schema,
+				columns: [],
+				indexes: [],
+				tableConstraints: []
+			}
+		}
+	}
+
+	async ensureMigrationsTable() {
+		const sql = [
+			'CREATE TABLE IF NOT EXISTS _dbd_migrations (',
+			"  project     text NOT NULL DEFAULT '',",
+			'  version     integer NOT NULL,',
+			'  applied_at  timestamptz NOT NULL DEFAULT now(),',
+			'  description text,',
+			'  checksum    text NOT NULL,',
+			'  PRIMARY KEY (project, version)',
+			');'
+		].join('\n')
+		await this.executeScript(sql)
+	}
+
+	async clearProjectMigrations() {
+		const project = this.project.replace(/'/g, "''")
+		try {
+			await this.executeScript(`DELETE FROM _dbd_migrations WHERE project = '${project}';`)
+		} catch {
+			// Table doesn't exist yet — nothing to clear
+		}
+	}
+
+	async getDbVersion() {
+		const project = this.project.replace(/'/g, "''")
+		try {
+			const output = execSync(
+				`psql ${this.connectionString} -t -A -c "SELECT COALESCE(MAX(version), 0) FROM _dbd_migrations WHERE project = '${project}'"`,
+				{ stdio: 'pipe', encoding: 'utf8' }
+			).trim()
+			return parseInt(output, 10) || 0
+		} catch {
+			return 0
+		}
+	}
+
+	async applyMigration(version, sql, description, checksum) {
+		const project = this.project.replace(/'/g, "''")
+		const escapedDesc = (description || '').replace(/'/g, "''")
+		const escapedChecksum = checksum.replace(/'/g, "''")
+		const script = [
+			'BEGIN;',
+			sql,
+			`INSERT INTO _dbd_migrations (project, version, description, checksum) VALUES ('${project}', ${version}, '${escapedDesc}', '${escapedChecksum}');`,
+			'COMMIT;'
+		].join('\n')
+		await this.executeScript(script)
+	}
+
 	// --- Parsing operations ---
 
 	async initParser() {
@@ -249,6 +343,10 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		const excludeEntity = [info.name, fullName]
 		const references = result.references.filter(({ name }) => !excludeEntity.includes(name))
 
+		// For procedure/function entities, attach reads/writes from the parsed procedure body
+		const isRoutine = info.type === 'procedure' || info.type === 'function'
+		const parsedProc = isRoutine ? result.procedures.find((p) => p.name === info.name) : null
+
 		return {
 			...entity,
 			type: info.type,
@@ -256,7 +354,8 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 			schema,
 			searchPaths,
 			references,
-			errors
+			errors,
+			...(parsedProc ? { reads: parsedProc.reads, writes: parsedProc.writes } : {})
 		}
 	}
 }

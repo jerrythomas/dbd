@@ -6,6 +6,7 @@ import {
 	complexProcedureDDL
 } from './fixtures/ddl-samples.js'
 import { SQLParser } from '../../src/parser/parser-utils.js'
+import { extractTableReferencesFromBody } from '../../src/parser/extractors/procedures.js'
 
 describe('SQL Parser - Procedure Definitions', () => {
 	const parser = new SQLParser()
@@ -174,33 +175,6 @@ describe('SQL Parser - Procedure Definitions', () => {
 			expect(proc.body).toContain('BEGIN')
 			expect(proc.body).toContain('INSERT INTO log')
 		})
-
-		it.skip('should extract table references from procedure body', () => {
-			const sql = `
-        CREATE PROCEDURE with_table_refs()
-        LANGUAGE plpgsql
-        AS $$
-        BEGIN
-          INSERT INTO table1 SELECT * FROM table2;
-          UPDATE table3 SET col = 'value';
-          DELETE FROM table4;
-        END;
-        $$;
-      `
-
-			const procedures = parser.extractProcedureDefinitions(parser.parse(sql))
-
-			expect(procedures.length).toBe(1)
-			const proc = procedures[0]
-
-			// Check table references
-			expect(proc.tableReferences).toBeInstanceOf(Array)
-			expect(proc.tableReferences.length).toBe(4)
-			expect(proc.tableReferences).toContain('table1')
-			expect(proc.tableReferences).toContain('table2')
-			expect(proc.tableReferences).toContain('table3')
-			expect(proc.tableReferences).toContain('table4')
-		})
 	})
 
 	describe('Schema Extraction with Procedures', () => {
@@ -264,5 +238,75 @@ describe('SQL Parser - Procedure Definitions', () => {
 			expect(ast.length).toBe(1)
 			expect(ast[0].keyword).toBe('procedure')
 		})
+	})
+})
+
+describe('extractTableReferencesFromBody', () => {
+	it('classifies reads and writes from a mixed body', () => {
+		const body = `
+      BEGIN
+        INSERT INTO table1 SELECT * FROM table2;
+        UPDATE table3 SET col = 'value';
+        DELETE FROM table4;
+      END;
+    `
+		const result = extractTableReferencesFromBody(body)
+		expect(result).toEqual({ reads: expect.any(Array), writes: expect.any(Array) })
+		expect(result.reads).toContain('table2')
+		expect(result.writes).toContain('table1')
+		expect(result.writes).toContain('table3')
+		expect(result.writes).toContain('table4')
+		expect(result.reads).not.toContain('table1')
+	})
+
+	it('returns reads-only when body has only SELECT/FROM/JOIN', () => {
+		const body = `
+      BEGIN
+        SELECT * FROM config.lookups JOIN staging.data ON true;
+      END;
+    `
+		const result = extractTableReferencesFromBody(body)
+		expect(result.reads).toContain('config.lookups')
+		expect(result.reads).toContain('staging.data')
+		expect(result.writes).toEqual([])
+	})
+
+	it('returns writes-only when body has only INSERT/UPDATE/DELETE', () => {
+		const body = `
+      BEGIN
+        INSERT INTO config.lookups VALUES (1, 'a');
+        UPDATE config.lookups SET name = 'b';
+      END;
+    `
+		const result = extractTableReferencesFromBody(body)
+		expect(result.reads).toEqual([])
+		expect(result.writes).toContain('config.lookups')
+	})
+
+	it('returns empty reads and writes for empty body', () => {
+		const result = extractTableReferencesFromBody('')
+		expect(result).toEqual({ reads: [], writes: [] })
+	})
+
+	it('INSERT with subquery: target in writes, source in reads', () => {
+		const body = `
+      BEGIN
+        INSERT INTO config.lookups SELECT id, name FROM staging.lookups;
+      END;
+    `
+		const result = extractTableReferencesFromBody(body)
+		expect(result.writes).toContain('config.lookups')
+		expect(result.reads).toContain('staging.lookups')
+	})
+
+	it('UPDATE ... FROM: source in reads, target in writes', () => {
+		const body = `
+    BEGIN
+      UPDATE config.target SET col = src.col FROM staging.source src WHERE config.target.id = src.id;
+    END;
+  `
+		const result = extractTableReferencesFromBody(body)
+		expect(result.writes).toContain('config.target')
+		expect(result.reads).toContain('staging.source')
 	})
 })

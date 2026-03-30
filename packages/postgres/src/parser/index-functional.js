@@ -179,7 +179,7 @@ const collectViewRefs = (views) => {
 const collectProcRefs = (procedures) => {
 	const refs = []
 	for (const proc of procedures) {
-		for (const tableRef of proc.tableReferences || []) {
+		for (const tableRef of [...(proc.reads ?? []), ...(proc.writes ?? [])]) {
 			refs.push({ name: tableRef, type: 'table/view' })
 		}
 	}
@@ -241,7 +241,8 @@ export const extractDependencies = (sql, options = {}) => {
 	return {
 		entity: identifyEntity(ast, sql),
 		searchPaths: extractSearchPaths(ast),
-		references: collectReferences({ tables, views, procedures, triggers })
+		references: collectReferences({ tables, views, procedures, triggers }),
+		procedures
 	}
 }
 

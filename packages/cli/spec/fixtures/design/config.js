@@ -13,6 +13,15 @@ const roleAdvanced = {
 	errors: []
 }
 
+const tblConfigCategories = {
+	type: 'table',
+	name: 'config.categories',
+	file: 'ddl/table/config/categories.ddl',
+	format: 'ddl',
+	schema: 'config',
+	refers: []
+}
+
 const tblConfigLookups = {
 	type: 'table',
 	name: 'config.lookups',
@@ -28,7 +37,7 @@ const tblConfigLookupValues = {
 	file: 'ddl/table/config/lookup_values.ddl',
 	format: 'ddl',
 	schema: 'config',
-	refers: ['config.lookups']
+	refers: ['config.lookups', 'config.categories']
 }
 
 const tblStagingLookupValues = {
@@ -125,6 +134,18 @@ export const entities = [
 	roleBasic,
 	roleAdvanced,
 	{
+		...tblConfigCategories,
+		references: [
+			{
+				name: 'uuid_generate_v4',
+				type: 'extension'
+			}
+		],
+		searchPaths: ['config', 'extensions'],
+		warnings: [],
+		errors: []
+	},
+	{
 		...tblConfigLookups,
 		references: [
 			{
@@ -176,6 +197,11 @@ export const entities = [
 			},
 			{
 				name: 'config.lookups',
+				type: 'table',
+				schema: 'config'
+			},
+			{
+				name: 'config.categories',
 				type: 'table',
 				schema: 'config'
 			}

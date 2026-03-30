@@ -265,3 +265,100 @@ export function organizeEntities(entities) {
 	}
 	return groups
 }
+
+// --- Import plan ---
+
+/**
+ * Find the target table for a staging import table by matching base name across schemas.
+ * e.g. staging.lookups → config.lookups
+ *
+ * @param {{ name: string, schema: string }} importTable
+ * @param {Array} entities
+ * @returns {Object|null}
+ */
+export function findTargetTable(importTable, entities) {
+	const baseName = importTable.name.split('.')[1]
+	return (
+		entities.find(
+			(e) =>
+				e.type === 'table' && e.name.split('.')[1] === baseName && e.schema !== importTable.schema
+		) ?? null
+	)
+}
+
+/**
+ * Find the import procedure for a staging import table by naming convention.
+ * e.g. staging.lookups → staging.import_lookups
+ *
+ * @param {{ name: string }} importTable
+ * @param {Array} entities
+ * @returns {Object|null}
+ */
+export function findImportProcedure(importTable, entities) {
+	return (
+		entities.find((e) => e.type === 'procedure' && (e.reads ?? []).includes(importTable.name)) ??
+		null
+	)
+}
+
+/**
+ * Build an ordered import plan connecting each staging table to its target table
+ * and import procedure. Order is determined by a topological sort that combines:
+ *   1. Call graph: procedure A depends on procedure B if A reads a config table that B writes
+ *   2. DDL dependency: target table position in the entity dependency graph (tiebreaker)
+ *
+ * @param {Array} importTables - staging import table entities
+ * @param {Array} entities - all project entities (tables, procedures, etc.)
+ * @returns {Array<{ table, targetTable, procedure, targets, warnings }>}
+ */
+export function buildImportPlan(importTables, entities) {
+	const tables = entities.filter((e) => e.type === 'table')
+	const stagingSchemas = [...new Set(importTables.map((t) => t.name.split('.')[0]))]
+
+	const entries = importTables.map((table) => {
+		const targetTable = findTargetTable(table, entities)
+		const procedure = findImportProcedure(table, entities)
+		const warnings = procedure ? [] : [`no import procedure for ${table.name}`]
+		const targets = procedure
+			? (procedure.writes ?? []).filter((name) => !stagingSchemas.includes(name.split('.')[0]))
+			: []
+		const order = targetTable ? tables.findIndex((t) => t.name === targetTable.name) : Infinity
+		return { table, targetTable, procedure, targets, warnings, order }
+	})
+
+	// Build call graph: entry A depends on entry B if A reads a config table that B writes
+	const writtenBy = new Map()
+	entries.forEach((entry, i) => {
+		for (const t of entry.targets) writtenBy.set(t, i)
+	})
+
+	const deps = entries.map((entry) => {
+		const configReads = (entry.procedure?.reads ?? []).filter(
+			(name) => !stagingSchemas.includes(name.split('.')[0])
+		)
+		return new Set(configReads.map((name) => writtenBy.get(name)).filter((j) => j !== undefined))
+	})
+
+	// Topological sort: at each step pick the ready entry with lowest DDL order
+	const remaining = new Set(entries.map((_, i) => i))
+	const sorted = []
+	while (remaining.size > 0) {
+		const ready = [...remaining]
+			.filter((i) => [...deps[i]].every((j) => !remaining.has(j)))
+			.sort((a, b) => entries[a].order - entries[b].order)
+		if (ready.length === 0) {
+			// Cycle: append remaining sorted by DDL order
+			;[...remaining]
+				.sort((a, b) => entries[a].order - entries[b].order)
+				.forEach((i) => sorted.push(i))
+			break
+		}
+		sorted.push(ready[0])
+		remaining.delete(ready[0])
+	}
+
+	return sorted.map((i) => {
+		const { order: _order, ...entry } = entries[i]
+		return entry
+	})
+}

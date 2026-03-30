@@ -30,7 +30,8 @@ export default defineConfig({
 			},
 			{ extends: true, test: { name: 'cli', root: resolve(__dirname, '../packages/cli') } },
 			{ extends: true, test: { name: 'db', root: resolve(__dirname, '../packages/db') } },
-			{ extends: true, test: { name: 'dbml', root: resolve(__dirname, '../packages/dbml') } }
+			{ extends: true, test: { name: 'dbml', root: resolve(__dirname, '../packages/dbml') } },
+			{ extends: true, test: { name: 'convex', root: resolve(__dirname, '../packages/convex') } }
 		]
 	}
 })

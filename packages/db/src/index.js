@@ -31,7 +31,11 @@ export {
 	getValidEntities,
 	getInvalidEntities,
 	// Organization
-	organizeEntities
+	organizeEntities,
+	// Import plan
+	findTargetTable,
+	findImportProcedure,
+	buildImportPlan
 } from './entity-processor.js'
 
 export {
@@ -42,3 +46,8 @@ export {
 	groupByDependencyLevel,
 	graphFromEntities
 } from './dependency-resolver.js'
+
+export { buildResetScript, buildGrantsScript } from './script-builder.js'
+
+export { diffSnapshots, isEmptyDiff, splitByDependency } from './schema-diff.js'
+export { generateMigrationSQL } from './migration-generator.js'

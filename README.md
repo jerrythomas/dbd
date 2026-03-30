@@ -6,6 +6,7 @@
 A CLI tool for managing SQL database schemas. Apply individual DDL scripts to databases, load staging data, export data, and generate DBML documentation for [dbdocs.io](https://dbdocs.io).
 
 - [x] Apply a set of individual DDL scripts to a database
+- [x] Track schema evolution with versioned snapshots and auto-generated migrations
 - [x] Load staging data with post-process scripts for development/testing
 - [x] Export data from tables & views
 - [x] Generate [dbdocs](https://dbdocs.io) DBML for all (or subset) tables
@@ -57,16 +58,20 @@ Individual DDL scripts are expected to be placed under folders with names of the
 
 ### Commands
 
-| Command     | Action                          |
-| ----------- | ------------------------------- |
-| dbd init    | Create an example repo          |
-| dbd inspect | Inspect and report issues       |
-| dbd combine | Combine all into single script  |
-| dbd apply   | Apply the creation scripts      |
-| dbd import  | Load seed/staging files         |
-| dbd export  | Export tables/views             |
-| dbd dbml    | Generate DBML files             |
-| dbd graph   | Output dependency graph as JSON |
+| Command      | Action                               |
+| ------------ | ------------------------------------ |
+| dbd init     | Create an example repo               |
+| dbd inspect  | Inspect and report issues            |
+| dbd combine  | Combine all into single script       |
+| dbd apply    | Apply DDL and run pending migrations |
+| dbd snapshot | Capture schema snapshot + migration  |
+| dbd migrate  | Apply pending migrations standalone  |
+| dbd import   | Load seed/staging files              |
+| dbd export   | Export tables/views                  |
+| dbd reset    | Drop schemas to bare state           |
+| dbd grants   | Apply PostgREST schema grants        |
+| dbd dbml     | Generate DBML files                  |
+| dbd graph    | Output dependency graph as JSON      |
 
 ## LLM Documentation
 

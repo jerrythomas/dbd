@@ -21,6 +21,8 @@ const ENV_ALIASES = {
 	development: 'dev'
 }
 
+const VALID_GRANT_PERMS = ['usage', 'select', 'insert', 'update', 'delete', 'all']
+
 /**
  * Normalizes environment string to 'dev' or 'prod'.
  * Returns 'prod' for null/undefined. Throws for unrecognized values.
@@ -34,6 +36,30 @@ export function normalizeEnv(value) {
 	if (!normalized)
 		throw new Error(`Unknown environment: "${value}". Use dev, development, prod, or production.`)
 	return normalized
+}
+
+/**
+ * Parses a schema entry from design.yaml into { name, grants }.
+ * Accepts either a plain string or an object like { schemaName: { grants: {...} } }.
+ * Throws if any grant permission value is not in VALID_GRANT_PERMS.
+ *
+ * @param {string|Object} entry
+ * @returns {{ name: string, grants: Object|null }}
+ */
+export function normalizeSchema(entry) {
+	if (typeof entry === 'string') return { name: entry, grants: null }
+	const [name, config] = Object.entries(entry)[0]
+	const grants = config?.grants ?? null
+	if (grants) {
+		for (const [role, perms] of Object.entries(grants)) {
+			if (!Array.isArray(perms))
+				throw new Error(`Grant permissions for ${name}.${role} must be an array`)
+			const invalid = perms.filter((p) => !VALID_GRANT_PERMS.includes(p))
+			if (invalid.length)
+				throw new Error(`Unknown grant permissions for ${name}.${role}: ${invalid.join(', ')}`)
+		}
+	}
+	return { name, grants }
 }
 
 /**
@@ -86,7 +112,9 @@ export function read(file) {
 	let data = load(readFileSync(file, 'utf8'))
 
 	data = fillMissingInfoForEntities(data)
-	data.schemas = data.schemas || []
+	const normalizedSchemas = (data.schemas || []).map(normalizeSchema)
+	data.schemas = normalizedSchemas.map((s) => s.name)
+	data.schemaGrants = normalizedSchemas.filter((s) => s.grants)
 
 	data.entities = [...data.tables, ...data.views, ...data.functions, ...data.procedures]
 	data.project = { staging: [], ...data.project }
@@ -208,6 +236,7 @@ function cleanImportTables(data) {
 		.map((file) => ({
 			...options,
 			...entityFromFile(normalizeImportPath(file)),
+			file,
 			env: envFromPath(file)
 		}))
 		.map((table) => ({ ...table, ...schemaOptions[table.schema] }))

@@ -153,11 +153,41 @@ Add the schema name to `design.yaml` under `schemas:`. Do not create a DDL file 
 
 Add the extension name to `design.yaml` under `extensions:`. Do not create a DDL file.
 
+## Evolving an existing schema
+
+When you change DDL files after the initial apply, use snapshots and migrations to track and apply those changes:
+
+```sh
+# 1. Edit DDL files (add column, new table, etc.)
+dbd inspect                                # Validate
+
+# 2. Create a snapshot — captures the diff and generates migration SQL
+dbd snapshot --name "add notes column"
+
+# 3. Review the generated migration
+cat migrations/002/config/lookup_values.sql
+
+# 4. Apply — runs ALTER scripts interleaved with DDL in dependency order
+dbd apply
+```
+
+The snapshot workflow is optional for the first apply (fresh DB). Once you have a snapshot baseline, subsequent `dbd apply` runs automatically detect and apply pending migrations.
+
+## Reset and rebuild
+
+```sh
+dbd reset               # Drop all schemas; clears migration history for this project
+dbd apply               # Rebuild from DDL; records one entry at latest snapshot version
+```
+
+After reset + apply the database is rebuilt from scratch. No ALTER scripts run — the DDL files already represent the final state. Exactly one `_dbd_migrations` row is recorded at the current snapshot version.
+
 ## Typical development loop
 
 ```sh
 # Edit DDL files
 dbd inspect             # Validate
+dbd snapshot            # Capture diff and generate migration
 dbd apply               # Apply to dev database
 dbd combine -f init.sql # Optional: regenerate seed file
 dbd dbml                # Optional: regenerate docs

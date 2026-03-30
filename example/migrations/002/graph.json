@@ -1,0 +1,6 @@
+{
+  "fromVersion": 1,
+  "toVersion": 2,
+  "altered": ["config.lookups", "staging.lookup_values", "config.lookup_values"],
+  "dropped": []
+}

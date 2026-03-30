@@ -243,6 +243,14 @@ export const extractDefaultValue = (columnDef) => {
 				return defaultExpr.value
 			}
 
+			if (typeof defaultExpr.value === 'number') {
+				return String(defaultExpr.value)
+			}
+
+			if (typeof defaultExpr.value === 'boolean') {
+				return defaultExpr.value ? 'TRUE' : 'FALSE'
+			}
+
 			if (defaultExpr.value && defaultExpr.value.type === 'function') {
 				const func = defaultExpr.value
 				const name =
@@ -336,12 +344,43 @@ export const extractColumnConstraints = (columnDef) => {
 
 /**
  * Extract table constraints from CREATE TABLE statement
+ * Handles table-level FOREIGN KEY, UNIQUE, and PRIMARY KEY constraints.
  * @param {Object} stmt - CREATE TABLE statement
- * @returns {Array} Array of table constraints
+ * @returns {Array} Array of table constraints: { type, name, columns, refTable, refSchema, refColumns }
  */
 export const extractTableConstraints = (stmt) => {
-	// TODO: Extract table-level constraints (not column constraints)
-	return []
+	if (!stmt.create_definitions || !Array.isArray(stmt.create_definitions)) return []
+
+	const constraints = []
+
+	for (const def of stmt.create_definitions) {
+		// pgsql-parser: table-level constraints appear as { Constraint: { contype, conname, ... } }
+		const constraint = def.Constraint
+		if (!constraint) continue
+
+		const name = constraint.conname || null
+
+		if (constraint.contype === 'CONSTR_FOREIGN') {
+			const fkCols = (constraint.fk_attrs || []).map((a) => a.String?.str || a.str || a)
+			const pkCols = (constraint.pk_attrs || []).map((a) => a.String?.str || a.str || a)
+			constraints.push({
+				type: 'FOREIGN KEY',
+				name,
+				columns: fkCols,
+				refSchema: constraint.pktable?.schemaname || null,
+				refTable: constraint.pktable?.relname || null,
+				refColumns: pkCols
+			})
+		} else if (constraint.contype === 'CONSTR_UNIQUE') {
+			const cols = (constraint.keys || []).map((k) => k.String?.str || k.str || k)
+			constraints.push({ type: 'UNIQUE', name, columns: cols })
+		} else if (constraint.contype === 'CONSTR_PRIMARY') {
+			const cols = (constraint.keys || []).map((k) => k.String?.str || k.str || k)
+			constraints.push({ type: 'PRIMARY KEY', name, columns: cols })
+		}
+	}
+
+	return constraints
 }
 
 /**

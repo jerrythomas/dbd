@@ -13,9 +13,13 @@ project:
   staging:
     - staging               # Schemas allowed for `dbd import`; import fails for any other schema
 
-schemas:                    # Schemas to CREATE (order does not matter; schemas are created first)
-  - config
-  - extensions
+schemas:                    # Schemas to CREATE; supports optional Supabase grants
+  - config:                 # Object form: declare PostgREST grants
+      grants:
+        anon: [usage, select]         # GRANT USAGE + SELECT ON ALL TABLES
+        authenticated: [usage, select]
+        service_role: [usage, all]    # GRANT USAGE + ALL ON ALL TABLES
+  - extensions              # String form: no grants (unchanged)
   - staging
   - migrate
 
@@ -43,8 +47,8 @@ import:
   schemas:                  # Per-schema option overrides (applied after table options)
     staging:
       truncate: false
-  after:                    # SQL files to execute after all imports complete
-    - import/loader.sql
+  after:                    # SQL files to execute after all imports complete (optional)
+    - import/custom-cleanup.sql
 
 export:                     # Tables to export
   - config.lookups          # Simple string: exports as CSV
@@ -87,6 +91,8 @@ project:
 
 List of schema names. dbd runs `CREATE SCHEMA IF NOT EXISTS <name>` for each.
 Schemas from entity file paths are also auto-added — you only need to list schemas that have no entities (e.g. `extensions`, `migrate`).
+
+Schemas can optionally declare PostgREST grants (for Supabase). Use the object form with a `grants:` key. Grants are applied by `dbd grants`. Valid permission values: `usage`, `select`, `insert`, `update`, `delete`, `all`.
 
 ### `extensions`
 

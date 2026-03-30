@@ -1,0 +1,19 @@
+project:
+  name: AfterScripts
+  database: PostgreSQL
+  staging:
+    - staging
+schemas:
+  - staging
+
+import:
+  options:
+    truncate: true
+  tables:
+    - staging.items
+  after:
+    - import/loader.sql
+  after.prod:
+    - import/prod_loader.sql
+  after.dev:
+    - import/dev_loader.sql

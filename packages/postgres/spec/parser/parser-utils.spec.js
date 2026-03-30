@@ -108,7 +108,7 @@ describe('SQLParser Utility', () => {
 			expect(procedures[0].body).toContain('end')
 
 			// Check table references
-			expect(procedures[0].tableReferences).toContain('information_schema.columns')
+			expect(procedures[0].reads).toContain('information_schema.columns')
 		})
 	})
 

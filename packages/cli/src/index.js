@@ -13,6 +13,13 @@ import { using } from './design.js'
 import { resolveWarnings } from './references.js'
 import { DbReferenceCache } from './db-cache.js'
 import { normalizeEnv } from './config.js'
+import {
+	createSnapshot,
+	listSnapshots,
+	latestSnapshot,
+	pendingMigrations,
+	padVersion
+} from './snapshot.js'
 
 const location = path.dirname(new URL(import.meta.url).pathname)
 const pkg = JSON.parse(fs.readFileSync(path.join(location, '../package.json'), 'utf8'))
@@ -89,12 +96,17 @@ prog
 	.command('apply')
 	.option('-n, --name', 'apply a specific entity or file only')
 	.option('--dry-run', 'just print the entities', false)
+	.option(
+		'--target',
+		'output target: leave unset for postgres, or "convex" to generate schema.ts',
+		null
+	)
 	.describe('Apply the database scripts to database.')
 	.example('dbd apply')
-	.example('dbd apply -c database.yaml')
-	.example('dbd apply -d postgres://localhost:5432')
+	.example('dbd apply --target=convex')
+	.example('dbd apply --target=convex --dry-run')
 	.action(async (opts) => {
-		await (await using(opts.config, opts.database)).apply(opts.name, opts['dry-run'])
+		await (await using(opts.config, opts.database)).apply(opts.name, opts['dry-run'], opts.target)
 	})
 
 prog
@@ -112,13 +124,20 @@ prog
 	.command('import')
 	.option('-n, --name', 'Optional name or file to be imported.')
 	.option('--dry-run', 'just print the entities', false)
+	.option(
+		'--target',
+		'output target: leave unset for postgres, or "convex" to seed via npx convex import',
+		null
+	)
 	.describe('Load csv files into database')
 	.example('dbd import')
 	.example('dbd import -n staging.lookups')
-	.example('dbd import -n import/staging/lookups.csv')
+	.example('dbd import --target=convex')
 	.action(async (opts) => {
 		const env = normalizeEnv(opts.environment)
-		await (await using(opts.config, opts.database, env)).importData(opts.name, opts['dry-run'])
+		await (
+			await using(opts.config, opts.database, env)
+		).importData(opts.name, opts['dry-run'], opts.target)
 		console.log('Import complete.')
 	})
 
@@ -154,5 +173,211 @@ prog
 		const result = design.graph(opts.name)
 		console.log(JSON.stringify(result, null, 2))
 	})
+
+prog
+	.command('reset')
+	.option('--target', 'Target platform: supabase or postgres', 'supabase')
+	.option('--dry-run', 'Print what would be dropped without executing', false)
+	.describe('Drop all design.yaml schemas (bare state). Run dbd apply to rebuild.')
+	.example('dbd reset')
+	.example('dbd reset --target postgres')
+	.example('dbd reset --dry-run')
+	.action(async (opts) => {
+		await (await using(opts.config, opts.database)).reset(opts.target, opts['dry-run'])
+	})
+
+prog
+	.command('grants')
+	.option('--target', 'Target platform: supabase or postgres', 'supabase')
+	.option('--dry-run', 'Print what would be granted without executing', false)
+	.describe('Apply schema grants declared in design.yaml (Supabase only).')
+	.example('dbd grants')
+	.example('dbd grants --dry-run')
+	.action(async (opts) => {
+		await (await using(opts.config, opts.database)).grants(opts.target, opts['dry-run'])
+	})
+
+prog
+	.command('convex schema')
+	.option('-n, --name', 'apply a specific entity only')
+	.option('--dry-run', 'print schema.ts to stdout only', false)
+	.describe(
+		'Generate convex/schema.ts from DDL entities. Deploys if CONVEX_URL and CONVEX_DEPLOY_KEY are set.'
+	)
+	.example('dbd convex schema')
+	.example('dbd convex schema --dry-run')
+	.action(async (opts) => {
+		await (await using(opts.config, opts.database)).apply(opts.name, opts['dry-run'], 'convex')
+	})
+
+prog
+	.command('convex seed')
+	.option('-n, --name', 'Optional name or file to be seeded.')
+	.option('--dry-run', 'print what would be seeded', false)
+	.describe('Seed data into Convex deployment from import files.')
+	.example('dbd convex seed')
+	.example('dbd convex seed -n staging.users')
+	.example('dbd convex seed --dry-run')
+	.action(async (opts) => {
+		const env = normalizeEnv(opts.environment)
+		await (
+			await using(opts.config, opts.database, env)
+		).importData(opts.name, opts['dry-run'], 'convex')
+		console.log('Seed complete.')
+	})
+
+prog
+	.command('snapshot')
+	.option('-n, --name', 'Description for this snapshot')
+	.option('--list', 'List all existing snapshots', false)
+	.describe('Create a versioned schema snapshot and generate a migration SQL file.')
+	.example('dbd snapshot')
+	.example('dbd snapshot --name "add email column"')
+	.example('dbd snapshot --list')
+	.action(async (opts) => {
+		if (opts.list) {
+			const snapshots = listSnapshots('.')
+			if (snapshots.length === 0) {
+				console.log('No snapshots found.')
+				return
+			}
+			snapshots.forEach(({ version, description, timestamp }) => {
+				console.log(
+					`  ${padVersion(version)}  ${timestamp.slice(0, 10)}  ${description || '(no description)'}`
+				)
+			})
+			return
+		}
+
+		const design = await using(opts.config, opts.database)
+		design.validate()
+		const adapter = await design.getAdapter()
+
+		const { version, migrationDir, snapshot } = await createSnapshot(
+			adapter,
+			design.entities,
+			opts.name || '',
+			{ dir: '.' }
+		)
+
+		console.log(`Snapshot ${padVersion(version)} created (${snapshot.tables.length} tables).`)
+		if (migrationDir) {
+			console.log(`Migration folder: ${migrationDir}`)
+		} else if (version === 1) {
+			console.log('First snapshot — no migration generated.')
+		} else {
+			console.log('No schema changes detected — no migration generated.')
+		}
+	})
+
+prog
+	.command('migrate')
+	.option('--apply', 'Apply pending migrations to the database', false)
+	.option('--status', 'Show local version vs database version', false)
+	.option('--to', 'Apply migrations up to this version number', null)
+	.option('--dry-run', 'Print migration SQL without executing', false)
+	.describe('Apply pending schema migrations independently of dbd apply.')
+	.example('dbd migrate --status')
+	.example('dbd migrate --apply')
+	.example('dbd migrate --apply --to 3')
+	.example('dbd migrate --apply --dry-run')
+	.action(async (opts) => {
+		const design = await using(opts.config, opts.database)
+		const adapter = await design.getAdapter()
+
+		const latest = latestSnapshot('.')
+		const localVersion = latest ? latest.version : 0
+
+		const dbVersion = await adapter.getDbVersion()
+		const maxVersion = opts.to ? parseInt(opts.to, 10) : localVersion
+		const pending = pendingMigrations(dbVersion, '.').filter(
+			({ toVersion }) => toVersion <= maxVersion
+		)
+
+		if (opts.status || (!opts.apply && !opts['dry-run'])) {
+			console.log(`Local version:    ${localVersion}`)
+			console.log(`Database version: ${dbVersion}`)
+			if (pending.length === 0) {
+				console.log('Up to date — no pending migrations.')
+			} else {
+				console.log(`\nPending migrations (${pending.length}):`)
+				pending.forEach(({ fromVersion, toVersion, altered, dropped }) => {
+					const summary = []
+					if (altered.length > 0) summary.push(`alter: ${altered.join(', ')}`)
+					if (dropped.length > 0) summary.push(`drop: ${dropped.join(', ')}`)
+					console.log(
+						`  ${padVersion(fromVersion)} → ${padVersion(toVersion)}  ${summary.join(' | ') || '(no table changes)'}`
+					)
+				})
+			}
+			return
+		}
+
+		if (pending.length === 0) {
+			console.log('No pending migrations.')
+			return
+		}
+
+		// Collect all SQL for each migration in graph order
+		const migrationSteps = pending.map((migration) => {
+			const steps = []
+			for (const tableName of migration.altered) {
+				const parts = tableName.split('.')
+				const schema = parts.length > 1 ? parts[0] : null
+				const tbl = parts[parts.length - 1]
+				const sqlFile = schema
+					? path.join(migration.migrationDir, schema, `${tbl}.sql`)
+					: path.join(migration.migrationDir, `${tbl}.sql`)
+				if (fs.existsSync(sqlFile)) {
+					steps.push({ tableName, sql: fs.readFileSync(sqlFile, 'utf-8') })
+				}
+			}
+			for (const tableName of migration.dropped) {
+				const parts = tableName.split('.')
+				const schema = parts.length > 1 ? parts[0] : null
+				const tbl = parts[parts.length - 1]
+				const sqlFile = schema
+					? path.join(migration.migrationDir, schema, `${tbl}.drop.sql`)
+					: path.join(migration.migrationDir, `${tbl}.drop.sql`)
+				if (fs.existsSync(sqlFile)) {
+					steps.push({ tableName, sql: fs.readFileSync(sqlFile, 'utf-8'), drop: true })
+				}
+			}
+			return { migration, steps }
+		})
+
+		if (opts['dry-run']) {
+			for (const { migration, steps } of migrationSteps) {
+				console.log(
+					`\n-- Migration v${migration.fromVersion} → v${migration.toVersion} (${migration.migrationDir})`
+				)
+				for (const { tableName, sql } of steps) {
+					console.log(`\n-- Table: ${tableName}`)
+					console.log(sql)
+				}
+			}
+			return
+		}
+
+		await adapter.ensureMigrationsTable()
+
+		for (const { migration, steps } of migrationSteps) {
+			console.log(`Applying migration v${migration.fromVersion} → v${migration.toVersion}`)
+			for (const { tableName, sql, drop } of steps) {
+				const action = drop ? 'Dropping' : 'Migrating'
+				console.log(`  ${action} ${tableName}`)
+				await adapter.executeScript(sql)
+			}
+			const snap = latestSnapshot('.')
+			const description = snap && snap.version === migration.toVersion ? snap.description : ''
+			await adapter.applyMigration(migration.toVersion, '', description, migration.checksum)
+			console.log(`  Version ${migration.toVersion} recorded.`)
+		}
+	})
+
+process.on('unhandledRejection', (err) => {
+	console.error(err instanceof Error ? err.message : String(err))
+	process.exit(1)
+})
 
 prog.parse(process.argv)
