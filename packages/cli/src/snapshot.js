@@ -6,7 +6,7 @@
  * Migration SQL is generated alongside each snapshot (except the first).
  */
 import { createHash } from 'crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs'
 import path from 'path'
 
 const SNAPSHOTS_DIR = 'snapshots'
@@ -103,7 +103,7 @@ export const nextVersion = (dir = '.') => {
  */
 export const createSnapshot = async (adapter, entities, description, opts = {}) => {
 	const { dir = '.', diff: diffModule } = opts
-	const { diffSnapshots, generateMigrationSQL, isEmptyDiff } =
+	const { diffSnapshots, isEmptyDiff, generateMigrationSQL } =
 		diffModule ?? (await import('@jerrythomas/dbd-db'))
 
 	const tableEntities = entities.filter(
@@ -123,49 +123,95 @@ export const createSnapshot = async (adapter, entities, description, opts = {}) 
 	const snapshotFile = path.join(dir, SNAPSHOTS_DIR, `${padVersion(version)}.json`)
 	writeFileSync(snapshotFile, JSON.stringify(snapshot, null, 2))
 
-	// Generate migration SQL if this isn't the first snapshot
+	// Generate per-table migration SQL files under migrations/<version>/
 	const previous = version > 1 ? readSnapshot(version - 1, dir) : null
 	if (!previous) {
-		return { version, migrationFile: null, migrationSQL: null, snapshot }
+		return { version, migrationDir: null, snapshot }
 	}
 
 	const diff = diffSnapshots(previous, snapshot)
 	if (isEmptyDiff(diff)) {
-		return { version, migrationFile: null, migrationSQL: null, snapshot }
+		return { version, migrationDir: null, snapshot }
 	}
 
-	const migrationSQL = generateMigrationSQL(diff)
-	mkdirSync(path.join(dir, MIGRATIONS_DIR), { recursive: true })
-	const migrationFile = path.join(
-		dir,
-		MIGRATIONS_DIR,
-		`${padVersion(version - 1)}-to-${padVersion(version)}.sql`
-	)
-	writeFileSync(migrationFile, migrationSQL)
+	const migrationDir = path.join(dir, MIGRATIONS_DIR, padVersion(version))
+	mkdirSync(migrationDir, { recursive: true })
 
-	return { version, migrationFile, migrationSQL, snapshot }
+	// Write graph.json — records the apply order and which tables are altered/dropped
+	const graph = {
+		fromVersion: version - 1,
+		toVersion: version,
+		altered: (diff.alteredTables || []).map((t) => t.name),
+		dropped: (diff.droppedTables || []).map((t) => t.name)
+	}
+	const graphFile = path.join(migrationDir, 'graph.json')
+	writeFileSync(graphFile, JSON.stringify(graph, null, 2))
+
+	// Write per-table ALTER SQL files mirroring the DDL folder structure
+	for (const alteredTable of diff.alteredTables || []) {
+		const parts = alteredTable.name.split('.')
+		const schema = parts.length > 1 ? parts[0] : null
+		const tableName = parts[parts.length - 1]
+		const tableDir = schema ? path.join(migrationDir, schema) : migrationDir
+		mkdirSync(tableDir, { recursive: true })
+		const singleDiff = {
+			...diff,
+			addedTables: [],
+			droppedTables: [],
+			alteredTables: [alteredTable]
+		}
+		writeFileSync(path.join(tableDir, `${tableName}.sql`), generateMigrationSQL(singleDiff))
+	}
+
+	// Write per-table DROP SQL files
+	for (const droppedTable of diff.droppedTables || []) {
+		const parts = droppedTable.name.split('.')
+		const schema = parts.length > 1 ? parts[0] : null
+		const tableName = parts[parts.length - 1]
+		const tableDir = schema ? path.join(migrationDir, schema) : migrationDir
+		mkdirSync(tableDir, { recursive: true })
+		const dropDiff = { ...diff, addedTables: [], alteredTables: [], droppedTables: [droppedTable] }
+		writeFileSync(path.join(tableDir, `${tableName}.drop.sql`), generateMigrationSQL(dropDiff))
+	}
+
+	return { version, migrationDir, snapshot }
 }
 
 /**
- * List pending migration files (versions after currentDbVersion).
+ * List pending migrations (versions after currentDbVersion).
+ * Each migration lives in migrations/<version>/ with a graph.json and per-table SQL files.
+ * The graph.json records apply order; SQL files mirror the DDL folder structure.
+ *
  * @param {number} currentDbVersion
  * @param {string} [dir]
- * @returns {Array<{ fromVersion: number, toVersion: number, file: string, checksum: string }>}
+ * @returns {Array<{ fromVersion, toVersion, migrationDir, altered, dropped, checksum }>}
  */
 export const pendingMigrations = (currentDbVersion, dir = '.') => {
 	const migrationsDir = path.join(dir, MIGRATIONS_DIR)
 	if (!existsSync(migrationsDir)) return []
 
 	return readdirSync(migrationsDir)
-		.filter((f) => /^\d{3}-to-\d{3}\.sql$/.test(f))
-		.map((f) => {
-			const match = f.match(/^(\d{3})-to-(\d{3})\.sql$/)
-			const fromVersion = parseInt(match[1], 10)
-			const toVersion = parseInt(match[2], 10)
-			const file = path.join(migrationsDir, f)
-			const sql = readFileSync(file, 'utf-8')
-			return { fromVersion, toVersion, file, sql, checksum: checksumOf(sql) }
+		.filter((f) => {
+			if (!/^\d{3}$/.test(f)) return false
+			return statSync(path.join(migrationsDir, f)).isDirectory()
 		})
+		.map((f) => {
+			const toVersion = parseInt(f, 10)
+			const migrationDir = path.join(migrationsDir, f)
+			const graphFile = path.join(migrationDir, 'graph.json')
+			if (!existsSync(graphFile)) return null
+			const content = readFileSync(graphFile, 'utf-8')
+			const graph = JSON.parse(content)
+			return {
+				fromVersion: graph.fromVersion,
+				toVersion,
+				migrationDir,
+				altered: graph.altered || [],
+				dropped: graph.dropped || [],
+				checksum: checksumOf(content)
+			}
+		})
+		.filter(Boolean)
 		.filter(({ toVersion }) => toVersion > currentDbVersion)
 		.sort((a, b) => a.toVersion - b.toVersion)
 }

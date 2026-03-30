@@ -195,7 +195,84 @@ class Design {
 			.filter((entity) => !entity.errors || entity.errors.length === 0)
 			.filter((entity) => !name || entity.name === name)
 
-		await adapter.applyEntities(validEntities)
+		// When targeting a single named entity, skip migration phases
+		if (name) {
+			await adapter.applyEntities(validEntities)
+			return this
+		}
+
+		// Load pending migrations.
+		// Each migration lives in migrations/<version>/ with graph.json + per-table SQL files.
+		const { pendingMigrations } = await import('./snapshot.js')
+		const dbVersion = await adapter.getDbVersion()
+		const pending = pendingMigrations(dbVersion)
+
+		if (pending.length > 0) {
+			await adapter.ensureMigrationsTable()
+		}
+
+		// Build map: table name → pending migrations that alter it (in version order)
+		const tableMigrations = new Map()
+		for (const migration of pending) {
+			for (const tableName of migration.altered) {
+				if (!tableMigrations.has(tableName)) tableMigrations.set(tableName, [])
+				tableMigrations.get(tableName).push(migration)
+			}
+		}
+
+		// Apply entities in dependency order.
+		// Before each table entity, run its pending migration SQL (if any).
+		// Interleaving ensures FK migrations to new tables run after those tables are created.
+		for (const entity of validEntities) {
+			if (entity.type === 'table') {
+				const migrations = tableMigrations.get(entity.name)
+				if (migrations) {
+					for (const migration of migrations) {
+						const parts = entity.name.split('.')
+						const schema = parts.length > 1 ? parts[0] : null
+						const tableName = parts[parts.length - 1]
+						const sqlFile = schema
+							? path.join(migration.migrationDir, schema, `${tableName}.sql`)
+							: path.join(migration.migrationDir, `${tableName}.sql`)
+						if (fs.existsSync(sqlFile)) {
+							const sql = fs.readFileSync(sqlFile, 'utf-8')
+							console.info(
+								`Migrating ${entity.name} (v${migration.fromVersion} → v${migration.toVersion})`
+							)
+							await adapter.executeScript(sql)
+						}
+					}
+				}
+			}
+			await adapter.applyEntity(entity)
+		}
+
+		// Handle dropped tables (destructive — run after all entities applied)
+		for (const migration of pending) {
+			for (const tableName of migration.dropped) {
+				const parts = tableName.split('.')
+				const schema = parts.length > 1 ? parts[0] : null
+				const tbl = parts[parts.length - 1]
+				const sqlFile = schema
+					? path.join(migration.migrationDir, schema, `${tbl}.drop.sql`)
+					: path.join(migration.migrationDir, `${tbl}.drop.sql`)
+				if (fs.existsSync(sqlFile)) {
+					const sql = fs.readFileSync(sqlFile, 'utf-8')
+					console.info(
+						`Dropping table ${tableName} (v${migration.fromVersion} → v${migration.toVersion})`
+					)
+					await adapter.executeScript(sql)
+				}
+			}
+		}
+
+		// Record applied migration versions in _dbd_migrations
+		for (const migration of pending) {
+			const description = `migration v${migration.fromVersion} to v${migration.toVersion}`
+			await adapter.applyMigration(migration.toVersion, '', description, migration.checksum)
+		}
+
+		return this
 	}
 
 	combine(file) {

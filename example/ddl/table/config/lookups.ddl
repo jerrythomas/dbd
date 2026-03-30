@@ -8,6 +8,7 @@ create table if not exists lookups (
 , description              text
 , modified_on              timestamp with time zone not null default now()
 , modified_by              varchar
+, tags                     text[]
 );
 create unique index if not exists lookup_ukey on lookups(name);
 

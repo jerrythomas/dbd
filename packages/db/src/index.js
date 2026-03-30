@@ -49,5 +49,5 @@ export {
 
 export { buildResetScript, buildGrantsScript } from './script-builder.js'
 
-export { diffSnapshots, isEmptyDiff } from './schema-diff.js'
+export { diffSnapshots, isEmptyDiff, splitByDependency } from './schema-diff.js'
 export { generateMigrationSQL } from './migration-generator.js'

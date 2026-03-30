@@ -29,10 +29,11 @@ const writeSnap = (dir, version, data = {}) => {
 	)
 }
 
-const writeMigration = (dir, from, to, sql = '-- migration') => {
-	const migrationsDir = path.join(dir, 'migrations')
-	mkdirSync(migrationsDir, { recursive: true })
-	writeFileSync(path.join(migrationsDir, `${padVersion(from)}-to-${padVersion(to)}.sql`), sql)
+const writeMigration = (dir, from, to, { altered = [], dropped = [] } = {}) => {
+	const migrationDir = path.join(dir, 'migrations', padVersion(to))
+	mkdirSync(migrationDir, { recursive: true })
+	const graph = { fromVersion: from, toVersion: to, altered, dropped }
+	writeFileSync(path.join(migrationDir, 'graph.json'), JSON.stringify(graph))
 }
 
 beforeEach(() => {
@@ -133,7 +134,7 @@ describe('createSnapshot', () => {
 		const result = await createSnapshot(adapter, entities, 'initial', { dir: TMP })
 
 		expect(result.version).toBe(1)
-		expect(result.migrationFile).toBeNull()
+		expect(result.migrationDir).toBeNull()
 		expect(existsSync(path.join(TMP, 'snapshots', '001.json'))).toBe(true)
 	})
 
@@ -161,9 +162,14 @@ describe('createSnapshot', () => {
 		const result = await createSnapshot(adapter, entities, 'add email', { dir: TMP })
 
 		expect(result.version).toBe(2)
-		expect(result.migrationFile).toBeTruthy()
-		expect(existsSync(path.join(TMP, 'migrations', '001-to-002.sql'))).toBe(true)
-		const sql = readFileSync(path.join(TMP, 'migrations', '001-to-002.sql'), 'utf-8')
+		expect(result.migrationDir).toBeTruthy()
+		expect(existsSync(path.join(TMP, 'migrations', '002', 'graph.json'))).toBe(true)
+		const graph = JSON.parse(
+			readFileSync(path.join(TMP, 'migrations', '002', 'graph.json'), 'utf-8')
+		)
+		expect(graph.altered).toContain('public.users')
+		expect(existsSync(path.join(TMP, 'migrations', '002', 'public', 'users.sql'))).toBe(true)
+		const sql = readFileSync(path.join(TMP, 'migrations', '002', 'public', 'users.sql'), 'utf-8')
 		expect(sql).toContain('ADD COLUMN')
 	})
 
@@ -183,8 +189,8 @@ describe('createSnapshot', () => {
 		const entities = [{ type: 'table', name: 'public.users', schema: 'public', file: 'x.ddl' }]
 
 		const result = await createSnapshot(adapter, entities, 'no change', { dir: TMP })
-		expect(result.migrationFile).toBeNull()
-		expect(existsSync(path.join(TMP, 'migrations', '001-to-002.sql'))).toBe(false)
+		expect(result.migrationDir).toBeNull()
+		expect(existsSync(path.join(TMP, 'migrations', '002'))).toBe(false)
 	})
 })
 
@@ -194,8 +200,8 @@ describe('pendingMigrations', () => {
 	})
 
 	it('returns migrations after currentDbVersion', () => {
-		writeMigration(TMP, 1, 2, '-- v1 to v2')
-		writeMigration(TMP, 2, 3, '-- v2 to v3')
+		writeMigration(TMP, 1, 2)
+		writeMigration(TMP, 2, 3)
 		// currentDbVersion=1 means versions 2 and 3 are both pending
 		const pending = pendingMigrations(1, TMP)
 		expect(pending).toHaveLength(2)
@@ -206,7 +212,9 @@ describe('pendingMigrations', () => {
 	it('returns all migrations when db is at version 0', () => {
 		writeMigration(TMP, 1, 2)
 		writeMigration(TMP, 2, 3)
-		expect(pendingMigrations(0, TMP)).toHaveLength(2)
+		const pending = pendingMigrations(0, TMP)
+		expect(pending).toHaveLength(2)
+		expect(pending[0].migrationDir).toBeDefined()
 	})
 
 	it('returns none when db is up to date', () => {
@@ -216,7 +224,7 @@ describe('pendingMigrations', () => {
 	})
 
 	it('attaches checksum to each migration', () => {
-		writeMigration(TMP, 1, 2, 'SELECT 1;')
+		writeMigration(TMP, 1, 2)
 		const [m] = pendingMigrations(0, TMP)
 		expect(m.checksum).toMatch(/^[0-9a-f]{64}$/)
 	})

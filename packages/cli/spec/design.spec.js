@@ -343,18 +343,20 @@ describe('Design class (packages/cli)', () => {
 
 	// --- apply non-dry-run ---
 
-	it('apply() non-dry-run calls adapter.applyEntities with valid entities', async () => {
+	it('apply() non-dry-run applies each valid entity', async () => {
 		const dx = await using('design.yaml')
 		const adapter = await dx.getAdapter()
-		const spy = vi.spyOn(adapter, 'applyEntities').mockResolvedValue()
+		const entitySpy = vi.spyOn(adapter, 'applyEntity').mockResolvedValue()
+		const versionSpy = vi.spyOn(adapter, 'getDbVersion').mockResolvedValue(0)
 
 		await dx.apply()
 
-		expect(spy).toHaveBeenCalledTimes(1)
-		const entities = spy.mock.calls[0][0]
-		expect(entities.every((e) => !e.errors || e.errors.length === 0)).toBe(true)
+		expect(entitySpy).toHaveBeenCalled()
+		const calledEntities = entitySpy.mock.calls.map((c) => c[0])
+		expect(calledEntities.every((e) => !e.errors || e.errors.length === 0)).toBe(true)
 
-		spy.mockRestore()
+		entitySpy.mockRestore()
+		versionSpy.mockRestore()
 	})
 
 	it('apply() non-dry-run filters by name', async () => {

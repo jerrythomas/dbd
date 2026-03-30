@@ -84,12 +84,29 @@ const diffTable = (from, to) => {
 		(to.tableConstraints || []).filter((c) => c.type === 'FOREIGN KEY').map((c) => [c.name, c])
 	)
 
-	const addedFKs = [...toFKs.values()].filter(
+	const tableLevelAddedFKs = [...toFKs.values()].filter(
 		(fk) => !fromFKs.has(fk.name) || !fkConstraintsEqual(fromFKs.get(fk.name), fk)
 	)
 	const droppedFKs = [...fromFKs.values()].filter(
 		(fk) => !toFKs.has(fk.name) || !fkConstraintsEqual(fk, toFKs.get(fk.name))
 	)
+
+	// Column-level FKs on newly added columns — promote to explicit ADD CONSTRAINT statements
+	// so they can be classified as pre/post and handled separately from the ADD COLUMN.
+	const columnLevelAddedFKs = addedColumns.flatMap((col) =>
+		(col.constraints || [])
+			.filter((c) => c.type === 'FOREIGN KEY' && c.table)
+			.map((c) => ({
+				type: 'FOREIGN KEY',
+				name: null,
+				columns: [col.name],
+				refSchema: c.schema || null,
+				refTable: c.table,
+				refColumns: [c.column || 'id']
+			}))
+	)
+
+	const addedFKs = [...tableLevelAddedFKs, ...columnLevelAddedFKs]
 
 	return {
 		addedColumns,
@@ -148,3 +165,95 @@ export const isEmptyDiff = (diff) =>
 	diff.addedTables.length === 0 &&
 	diff.droppedTables.length === 0 &&
 	diff.alteredTables.length === 0
+
+/**
+ * Split an alteredTable entry into pre and post parts.
+ * Pre = changes that don't reference new tables (safe before CREATE TABLE).
+ * Post = FK additions that reference new tables (must run after CREATE TABLE).
+ *
+ * @param {Object} alteredTable
+ * @param {Set<string>} newTableNames - qualified names of tables in addedTables
+ * @returns {{ pre: Object|null, post: Object|null }}
+ */
+const splitAlteredTable = (alteredTable, newTableNames) => {
+	const refersNewTable = (fk) => {
+		const refName = fk.refSchema ? `${fk.refSchema}.${fk.refTable}` : fk.refTable
+		// Also check unqualified name against new tables
+		return (
+			newTableNames.has(refName) || [...newTableNames].some((n) => n.endsWith(`.${fk.refTable}`))
+		)
+	}
+
+	const preFKs = (alteredTable.addedFKs || []).filter((fk) => !refersNewTable(fk))
+	const postFKs = (alteredTable.addedFKs || []).filter((fk) => refersNewTable(fk))
+
+	const preEntry = {
+		...alteredTable,
+		addedFKs: preFKs
+		// Column additions without FK inline are always pre — ADD COLUMN doesn't depend on new tables
+		// (column-level FKs were already promoted to addedFKs above)
+	}
+	const postEntry = {
+		...alteredTable,
+		addedColumns: [],
+		droppedColumns: [],
+		alteredColumns: [],
+		addedIndexes: [],
+		droppedIndexes: [],
+		droppedFKs: [],
+		addedFKs: postFKs
+	}
+
+	const preHasChanges =
+		preEntry.addedColumns.length > 0 ||
+		preEntry.droppedColumns.length > 0 ||
+		preEntry.alteredColumns.length > 0 ||
+		preEntry.addedIndexes.length > 0 ||
+		preEntry.droppedIndexes.length > 0 ||
+		preEntry.addedFKs.length > 0 ||
+		preEntry.droppedFKs.length > 0
+
+	const postHasChanges = postEntry.addedFKs.length > 0
+
+	return {
+		pre: preHasChanges ? preEntry : null,
+		post: postHasChanges ? postEntry : null
+	}
+}
+
+/**
+ * Split a full diff into pre-apply and post-apply parts.
+ *
+ * Pre-apply: ALTER TABLE changes that don't reference new tables.
+ *            Safe to run before CREATE TABLE.
+ *
+ * Post-apply: ALTER TABLE changes that add FKs referencing new tables.
+ *             Must run after CREATE TABLE.
+ *
+ * @param {Object} diff - Result of diffSnapshots()
+ * @returns {{ pre: Object, post: Object }}
+ */
+export const splitByDependency = (diff) => {
+	const newTableNames = new Set((diff.addedTables || []).map((t) => t.name))
+
+	const preAlteredTables = []
+	const postAlteredTables = []
+
+	for (const table of diff.alteredTables || []) {
+		const { pre, post } = splitAlteredTable(table, newTableNames)
+		if (pre) preAlteredTables.push(pre)
+		if (post) postAlteredTables.push(post)
+	}
+
+	const base = {
+		fromVersion: diff.fromVersion,
+		toVersion: diff.toVersion,
+		addedTables: diff.addedTables,
+		droppedTables: diff.droppedTables
+	}
+
+	return {
+		pre: { ...base, alteredTables: preAlteredTables },
+		post: { ...base, addedTables: [], droppedTables: [], alteredTables: postAlteredTables }
+	}
+}
