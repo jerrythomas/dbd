@@ -1,0 +1,6 @@
+{
+  "fromVersion": 2,
+  "toVersion": 3,
+  "altered": ["config.lookup_values"],
+  "dropped": []
+}

@@ -348,7 +348,9 @@ export function buildImportPlan(importTables, entities) {
 			.sort((a, b) => entries[a].order - entries[b].order)
 		if (ready.length === 0) {
 			// Cycle: append remaining sorted by DDL order
-			;[...remaining].sort((a, b) => entries[a].order - entries[b].order).forEach((i) => sorted.push(i))
+			;[...remaining]
+				.sort((a, b) => entries[a].order - entries[b].order)
+				.forEach((i) => sorted.push(i))
 			break
 		}
 		sorted.push(ready[0])

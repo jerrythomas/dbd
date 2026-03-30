@@ -348,6 +348,9 @@ describe('Design class (packages/cli)', () => {
 		const adapter = await dx.getAdapter()
 		const entitySpy = vi.spyOn(adapter, 'applyEntity').mockResolvedValue()
 		const versionSpy = vi.spyOn(adapter, 'getDbVersion').mockResolvedValue(0)
+		const resolveSpy = vi.spyOn(adapter, 'resolveEntity').mockResolvedValue(null)
+		const ensureSpy = vi.spyOn(adapter, 'ensureMigrationsTable').mockResolvedValue()
+		const migSpy = vi.spyOn(adapter, 'applyMigration').mockResolvedValue()
 
 		await dx.apply()
 
@@ -357,6 +360,9 @@ describe('Design class (packages/cli)', () => {
 
 		entitySpy.mockRestore()
 		versionSpy.mockRestore()
+		resolveSpy.mockRestore()
+		ensureSpy.mockRestore()
+		migSpy.mockRestore()
 	})
 
 	it('apply() non-dry-run filters by name', async () => {

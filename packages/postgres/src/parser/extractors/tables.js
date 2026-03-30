@@ -243,6 +243,14 @@ export const extractDefaultValue = (columnDef) => {
 				return defaultExpr.value
 			}
 
+			if (typeof defaultExpr.value === 'number') {
+				return String(defaultExpr.value)
+			}
+
+			if (typeof defaultExpr.value === 'boolean') {
+				return defaultExpr.value ? 'TRUE' : 'FALSE'
+			}
+
 			if (defaultExpr.value && defaultExpr.value.type === 'function') {
 				const func = defaultExpr.value
 				const name =

@@ -14,6 +14,7 @@ Added `dbd snapshot` and `dbd migrate` commands for incremental schema managemen
 **Design:** `docs/design/07-snapshots-migrations.md` (pre-existing, confirmed)
 
 **Key decisions:**
+
 - `dbd apply` unchanged (clean slate). Migrations are a separate incremental workflow for staging/prod.
 - Migration SQL covers only tables, indexes, FK refs — views/functions/procedures use `CREATE OR REPLACE` via `dbd apply`
 - Migration SQL ordering: CREATE new tables → ALTER ADD/MODIFY COLUMN → CREATE/DROP INDEX → ADD/DROP FK → DROP COLUMN → DROP TABLE

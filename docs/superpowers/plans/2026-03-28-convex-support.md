@@ -12,27 +12,28 @@
 
 ## File Map
 
-| File | Action | Purpose |
-|---|---|---|
-| `packages/convex/package.json` | Create | Package manifest for `@jerrythomas/dbd-convex` |
-| `packages/convex/src/sql-type-map.js` | Create | SQL type string → `v.xxx()` validator string |
-| `packages/convex/src/schema-generator.js` | Create | `generateSchemaTs(entities, config)` → schema.ts content + warnings |
-| `packages/convex/src/data-seeder.js` | Create | `seedTable(table, config, isProd)` → shells `npx convex import` via `execFileSync` |
-| `packages/convex/src/index.js` | Create | Re-exports for the package |
-| `packages/convex/spec/sql-type-map.spec.js` | Create | Unit tests for type mapping |
-| `packages/convex/spec/schema-generator.spec.js` | Create | Unit tests for schema generation |
-| `packages/convex/spec/data-seeder.spec.js` | Create | Unit tests for seeder (mocked execFileSync) |
-| `config/vitest.config.ts` | Modify | Add `convex` project |
-| `package.json` (root) | Modify | Add `test:convex` script |
-| `packages/cli/package.json` | Modify | Add `@jerrythomas/dbd-convex: workspace:*` dep |
-| `packages/cli/src/design.js` | Modify | Add `target` param to `apply()` and `importData()` |
-| `packages/cli/src/index.js` | Modify | Add `--target` to `apply`/`import`; add `convex schema`/`convex seed` commands |
+| File                                            | Action | Purpose                                                                            |
+| ----------------------------------------------- | ------ | ---------------------------------------------------------------------------------- |
+| `packages/convex/package.json`                  | Create | Package manifest for `@jerrythomas/dbd-convex`                                     |
+| `packages/convex/src/sql-type-map.js`           | Create | SQL type string → `v.xxx()` validator string                                       |
+| `packages/convex/src/schema-generator.js`       | Create | `generateSchemaTs(entities, config)` → schema.ts content + warnings                |
+| `packages/convex/src/data-seeder.js`            | Create | `seedTable(table, config, isProd)` → shells `npx convex import` via `execFileSync` |
+| `packages/convex/src/index.js`                  | Create | Re-exports for the package                                                         |
+| `packages/convex/spec/sql-type-map.spec.js`     | Create | Unit tests for type mapping                                                        |
+| `packages/convex/spec/schema-generator.spec.js` | Create | Unit tests for schema generation                                                   |
+| `packages/convex/spec/data-seeder.spec.js`      | Create | Unit tests for seeder (mocked execFileSync)                                        |
+| `config/vitest.config.ts`                       | Modify | Add `convex` project                                                               |
+| `package.json` (root)                           | Modify | Add `test:convex` script                                                           |
+| `packages/cli/package.json`                     | Modify | Add `@jerrythomas/dbd-convex: workspace:*` dep                                     |
+| `packages/cli/src/design.js`                    | Modify | Add `target` param to `apply()` and `importData()`                                 |
+| `packages/cli/src/index.js`                     | Modify | Add `--target` to `apply`/`import`; add `convex schema`/`convex seed` commands     |
 
 ---
 
 ## Task 1: Package scaffold
 
 **Files:**
+
 - Create: `packages/convex/package.json`
 - Create: `packages/convex/src/index.js`
 - Modify: `config/vitest.config.ts`
@@ -131,6 +132,7 @@ git commit -m "chore(convex): scaffold @jerrythomas/dbd-convex package"
 ## Task 2: SQL type map
 
 **Files:**
+
 - Create: `packages/convex/src/sql-type-map.js`
 - Create: `packages/convex/spec/sql-type-map.spec.js`
 
@@ -350,6 +352,7 @@ git commit -m "feat(convex): SQL type to Convex validator map"
 ## Task 3: Schema generator
 
 **Files:**
+
 - Create: `packages/convex/src/schema-generator.js`
 - Create: `packages/convex/spec/schema-generator.spec.js`
 
@@ -372,7 +375,13 @@ const makeTable = (schema, tableName, columns = []) => ({
 })
 
 const basicColumns = [
-  { name: 'id', dataType: 'uuid', nullable: false, constraints: [{ type: 'PRIMARY KEY' }], defaultValue: 'gen_random_uuid()' },
+  {
+    name: 'id',
+    dataType: 'uuid',
+    nullable: false,
+    constraints: [{ type: 'PRIMARY KEY' }],
+    defaultValue: 'gen_random_uuid()'
+  },
   { name: 'label', dataType: 'text', nullable: false, constraints: [], defaultValue: null },
   { name: 'notes', dataType: 'text', nullable: true, constraints: [], defaultValue: null }
 ]
@@ -384,11 +393,15 @@ describe('resolveTableName', () => {
   })
 
   it('strips schema when schemaPrefix is false', () => {
-    expect(resolveTableName(makeTable('config', 'features'), { schemaPrefix: false })).toBe('features')
+    expect(resolveTableName(makeTable('config', 'features'), { schemaPrefix: false })).toBe(
+      'features'
+    )
   })
 
   it('prepends schema_ when schemaPrefix is true', () => {
-    expect(resolveTableName(makeTable('config', 'features'), { schemaPrefix: true })).toBe('config_features')
+    expect(resolveTableName(makeTable('config', 'features'), { schemaPrefix: true })).toBe(
+      'config_features'
+    )
   })
 
   it('skips public schema by default when schemaPrefix is true', () => {
@@ -406,7 +419,13 @@ describe('generateSchemaTs', () => {
   it('filters to table entities only', () => {
     const entities = [
       makeTable('public', 'users', basicColumns),
-      { type: 'view', name: 'public.active_users', schema: 'public', columns: basicColumns, errors: [] },
+      {
+        type: 'view',
+        name: 'public.active_users',
+        schema: 'public',
+        columns: basicColumns,
+        errors: []
+      },
       { type: 'function', name: 'public.get_user', schema: 'public', errors: [] }
     ]
     const { content } = generateSchemaTs(entities)
@@ -437,10 +456,9 @@ describe('generateSchemaTs', () => {
   })
 
   it('handles schemaPrefix config', () => {
-    const { content } = generateSchemaTs(
-      [makeTable('config', 'features', basicColumns)],
-      { schemaPrefix: true }
-    )
+    const { content } = generateSchemaTs([makeTable('config', 'features', basicColumns)], {
+      schemaPrefix: true
+    })
     expect(content).toContain('config_features: defineTable({')
   })
 
@@ -572,6 +590,7 @@ git commit -m "feat(convex): schema generator — DDL entities to convex/schema.
 ## Task 4: Data seeder
 
 **Files:**
+
 - Create: `packages/convex/src/data-seeder.js`
 - Create: `packages/convex/spec/data-seeder.spec.js`
 
@@ -586,25 +605,50 @@ import { buildImportArgs, convexImportCommand } from '../src/data-seeder.js'
 describe('buildImportArgs', () => {
   it('returns arg array for csv in dev', () => {
     expect(buildImportArgs('users', 'data.csv', 'csv', false)).toEqual([
-      'convex', 'import', '--table', 'users', '--format', 'csv', 'data.csv'
+      'convex',
+      'import',
+      '--table',
+      'users',
+      '--format',
+      'csv',
+      'data.csv'
     ])
   })
 
   it('returns arg array with --prod flag', () => {
     expect(buildImportArgs('users', 'data.csv', 'csv', true)).toEqual([
-      'convex', 'import', '--table', 'users', '--format', 'csv', '--prod', 'data.csv'
+      'convex',
+      'import',
+      '--table',
+      'users',
+      '--format',
+      'csv',
+      '--prod',
+      'data.csv'
     ])
   })
 
   it('maps json format to jsonl', () => {
     expect(buildImportArgs('users', 'data.json', 'json', false)).toEqual([
-      'convex', 'import', '--table', 'users', '--format', 'jsonl', 'data.json'
+      'convex',
+      'import',
+      '--table',
+      'users',
+      '--format',
+      'jsonl',
+      'data.json'
     ])
   })
 
   it('defaults unknown format to jsonl', () => {
     expect(buildImportArgs('users', 'data.tsv', 'tsv', false)).toEqual([
-      'convex', 'import', '--table', 'users', '--format', 'jsonl', 'data.tsv'
+      'convex',
+      'import',
+      '--table',
+      'users',
+      '--format',
+      'jsonl',
+      'data.tsv'
     ])
   })
 })
@@ -710,6 +754,7 @@ git commit -m "feat(convex): data seeder — shells to npx convex import via exe
 ## Task 5: Export from package index
 
 **Files:**
+
 - Modify: `packages/convex/src/index.js`
 
 - [ ] **Step 1: Update `packages/convex/src/index.js`**
@@ -740,6 +785,7 @@ git commit -m "chore(convex): export public API from index.js"
 ## Task 6: `design.js` — apply with target=convex
 
 **Files:**
+
 - Modify: `packages/cli/src/design.js`
 - Modify: `packages/cli/spec/design.spec.js`
 
@@ -756,7 +802,9 @@ describe('apply with target=convex', () => {
     const dx = (await using('design.yaml')).validate()
     await dx.apply(null, true, 'convex')
     const calls = console.info.mock.calls.map((c) => c[0])
-    expect(calls.some((c) => typeof c === 'string' && c.includes('export default defineSchema('))).toBe(true)
+    expect(
+      calls.some((c) => typeof c === 'string' && c.includes('export default defineSchema('))
+    ).toBe(true)
     expect(existsSync('convex/schema.ts')).toBe(false)
   })
 
@@ -768,7 +816,11 @@ describe('apply with target=convex', () => {
     expect(content).toContain('export default defineSchema(')
     // cleanup
     unlinkSync('convex/schema.ts')
-    try { rmdirSync('convex') } catch { /* ignore if dir not empty */ }
+    try {
+      rmdirSync('convex')
+    } catch {
+      /* ignore if dir not empty */
+    }
   })
 })
 ```
@@ -837,6 +889,7 @@ git commit -m "feat(cli): design.apply() routes to convex schema generator when 
 ## Task 7: `design.js` — importData with target=convex
 
 **Files:**
+
 - Modify: `packages/cli/src/design.js`
 - Modify: `packages/cli/spec/design.spec.js`
 
@@ -850,7 +903,9 @@ describe('importData with target=convex', () => {
     const dx = (await using('design.yaml')).validate()
     await dx.importData(null, true, 'convex')
     const calls = console.info.mock.calls.map((c) => c[0])
-    const convexCalls = calls.filter((c) => typeof c === 'string' && c.startsWith('npx convex import'))
+    const convexCalls = calls.filter(
+      (c) => typeof c === 'string' && c.startsWith('npx convex import')
+    )
     // example project may have 0 import tables — just confirm no error thrown
     expect(Array.isArray(convexCalls)).toBe(true)
   })
@@ -920,6 +975,7 @@ git commit -m "feat(cli): design.importData() routes to Convex seeder when targe
 ## Task 8: CLI commands — `--target` flag and `dbd convex` subcommands
 
 **Files:**
+
 - Modify: `packages/cli/src/index.js`
 
 - [ ] **Step 1: Add `--target` option to the `apply` command**
@@ -931,7 +987,11 @@ prog
   .command('apply')
   .option('-n, --name', 'apply a specific entity or file only')
   .option('--dry-run', 'just print the entities', false)
-  .option('--target', 'output target: leave unset for postgres, or "convex" to generate schema.ts', null)
+  .option(
+    '--target',
+    'output target: leave unset for postgres, or "convex" to generate schema.ts',
+    null
+  )
   .describe('Apply the database scripts to database.')
   .example('dbd apply')
   .example('dbd apply --target=convex')
@@ -950,14 +1010,20 @@ prog
   .command('import')
   .option('-n, --name', 'Optional name or file to be imported.')
   .option('--dry-run', 'just print the entities', false)
-  .option('--target', 'output target: leave unset for postgres, or "convex" to seed via npx convex import', null)
+  .option(
+    '--target',
+    'output target: leave unset for postgres, or "convex" to seed via npx convex import',
+    null
+  )
   .describe('Load csv files into database')
   .example('dbd import')
   .example('dbd import -n staging.lookups')
   .example('dbd import --target=convex')
   .action(async (opts) => {
     const env = normalizeEnv(opts.environment)
-    await (await using(opts.config, opts.database, env)).importData(opts.name, opts['dry-run'], opts.target)
+    await (
+      await using(opts.config, opts.database, env)
+    ).importData(opts.name, opts['dry-run'], opts.target)
     console.log('Import complete.')
   })
 ```
@@ -971,7 +1037,9 @@ prog
   .command('convex schema')
   .option('-n, --name', 'apply a specific entity only')
   .option('--dry-run', 'print schema.ts to stdout only', false)
-  .describe('Generate convex/schema.ts from DDL entities. Deploys if CONVEX_URL and CONVEX_DEPLOY_KEY are set.')
+  .describe(
+    'Generate convex/schema.ts from DDL entities. Deploys if CONVEX_URL and CONVEX_DEPLOY_KEY are set.'
+  )
   .example('dbd convex schema')
   .example('dbd convex schema --dry-run')
   .action(async (opts) => {
@@ -992,7 +1060,9 @@ prog
   .example('dbd convex seed --dry-run')
   .action(async (opts) => {
     const env = normalizeEnv(opts.environment)
-    await (await using(opts.config, opts.database, env)).importData(opts.name, opts['dry-run'], 'convex')
+    await (
+      await using(opts.config, opts.database, env)
+    ).importData(opts.name, opts['dry-run'], 'convex')
     console.log('Seed complete.')
   })
 ```
