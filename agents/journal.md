@@ -5,6 +5,39 @@ Design details live in `docs/design/` — modular docs per module.
 
 ---
 
+## 2026-03-30
+
+### Snapshots & Migrations — COMPLETE
+
+Added `dbd snapshot` and `dbd migrate` commands for incremental schema management.
+
+**Design:** `docs/design/07-snapshots-migrations.md` (pre-existing, confirmed)
+
+**Key decisions:**
+- `dbd apply` unchanged (clean slate). Migrations are a separate incremental workflow for staging/prod.
+- Migration SQL covers only tables, indexes, FK refs — views/functions/procedures use `CREATE OR REPLACE` via `dbd apply`
+- Migration SQL ordering: CREATE new tables → ALTER ADD/MODIFY COLUMN → CREATE/DROP INDEX → ADD/DROP FK → DROP COLUMN → DROP TABLE
+- Manual snapshots only (not auto after apply)
+- `_dbd_migrations` table tracks applied version + checksum in target DB
+
+**Changes:**
+
+- `packages/postgres/src/parser/extractors/tables.js` — implemented `extractTableConstraints` (table-level FOREIGN KEY, UNIQUE, PRIMARY KEY from `Constraint` nodes)
+- `packages/postgres/src/psql-adapter.js` — `parseTableSnapshot()` (reads DDL → columns/indexes/tableConstraints), `ensureMigrationsTable()`, `getDbVersion()`, `applyMigration()` (transaction-wrapped)
+- `packages/db/src/base-adapter.js` — interface stubs for above 4 methods + `parseTableSnapshot()` default
+- `packages/db/src/schema-diff.js` — `diffSnapshots(from, to)`: added/dropped/altered tables, added/dropped/altered columns, added/dropped indexes, added/dropped FK constraints
+- `packages/db/src/migration-generator.js` — `generateMigrationSQL(diff)`: ordered ALTER/CREATE/DROP SQL with WARNING comments on destructive operations
+- `packages/db/src/index.js` — exports `diffSnapshots`, `isEmptyDiff`, `generateMigrationSQL`
+- `packages/cli/src/snapshot.js` — `createSnapshot`, `listSnapshots`, `readSnapshot`, `latestSnapshot`, `pendingMigrations`, `checksumOf`, `nextVersion`, `padVersion`
+- `packages/cli/src/index.js` — `dbd snapshot [--name] [--list]`, `dbd migrate [--apply|--status|--to|--dry-run]`
+- New test files: `packages/db/spec/schema-diff.spec.js`, `packages/db/spec/migration-generator.spec.js`, `packages/cli/spec/snapshot.spec.js`
+
+**Result:** 941 tests passing, 0 lint errors.
+
+**Commit:** `0c1ace6`
+
+---
+
 ## 2026-03-28
 
 ### Convex Support — COMPLETE

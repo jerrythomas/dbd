@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS _dbd_migrations (
 - [x] Step 7: Add `dbd snapshot [--name] [--list]` and `dbd migrate [--apply] [--status] [--to N]` commands to `packages/cli/src/index.js`
 - [x] Step 8: Unit tests — `schema-diff.spec.js`, `migration-generator.spec.js`, `snapshot.spec.js`
 - [x] Step 9: Run `bun run test && bun run lint` — 941 tests passing, 0 errors
-- [ ] Step 10: Commit
+- [x] Step 10: Commit — `0c1ace6`
 
 ## Verification
 
