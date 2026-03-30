@@ -1,6 +1,6 @@
 {
   "name": "@jerrythomas/dbd-postgres-adapter",
-  "version": "2.2.0",
+  "version": "2.2.2",
   "description": "PostgreSQL adapter for DBD database operations.",
   "type": "module",
   "main": "src/index.js",
