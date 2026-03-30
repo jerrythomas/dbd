@@ -18,15 +18,20 @@ Individual DDL scripts are expected to be placed under folders with names of the
 
 ### Commands
 
-| Command     | Action                         |
-| ----------- | ------------------------------ |
-| dbd init    | Create an example repo         |
-| dbd inspect | Inspect and report issues      |
-| dbd combine | Combine all into single script |
-| dbd apply   | Apply the creation scripts     |
-| dbd import  | Load seed/staging files        |
-| dbd export  | Export tables/views            |
-| dbd dbml    | Generate DBML files            |
+| Command      | Action                               |
+| ------------ | ------------------------------------ |
+| dbd init     | Create an example repo               |
+| dbd inspect  | Inspect and report issues            |
+| dbd combine  | Combine all into single script       |
+| dbd apply    | Apply DDL and run pending migrations |
+| dbd snapshot | Capture schema snapshot + migration  |
+| dbd migrate  | Apply pending migrations standalone  |
+| dbd import   | Load seed/staging files              |
+| dbd export   | Export tables/views                  |
+| dbd reset    | Drop schemas to bare state           |
+| dbd grants   | Apply PostgREST schema grants        |
+| dbd dbml     | Generate DBML files                  |
+| dbd graph    | Output dependency graph as JSON      |
 
 ### Options
 

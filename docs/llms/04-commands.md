@@ -196,6 +196,50 @@ For each grant entry, generates:
 
 ---
 
+## `dbd snapshot`
+
+Capture the current DDL state as a versioned snapshot and generate a migration folder.
+
+```sh
+dbd snapshot                              # Create next snapshot
+dbd snapshot --name "add email column"   # Attach a description
+dbd snapshot --list                       # List existing snapshots
+```
+
+Writes `snapshots/NNN.json` and, if there are schema changes, `migrations/NNN/` with `graph.json` and per-table ALTER SQL files.
+
+The first snapshot (version 1) never generates a migration folder. An empty diff (no table structure changes) creates the snapshot JSON but no migration folder.
+
+---
+
+## `dbd migrate`
+
+Apply pending schema migrations independently of `dbd apply`.
+
+```sh
+dbd migrate                         # Show status (same as --status)
+dbd migrate --status                # Show local version vs DB version and pending list
+dbd migrate --apply                 # Apply all pending migrations
+dbd migrate --apply --dry-run       # Print SQL without executing
+dbd migrate --apply --to 3          # Apply up to version 3 only
+```
+
+**Status output example:**
+
+```
+Local version:    3
+Database version: 2
+
+Pending migrations (1):
+  002 → 003  alter: config.lookup_values
+```
+
+`dbd apply` also runs pending migrations automatically (interleaved with DDL). Use `dbd migrate --apply` when you want to run only the ALTER scripts without re-applying DDL files.
+
+See [07-snapshots-migrations.md](./07-snapshots-migrations.md) for full details on the snapshot/migration system.
+
+---
+
 ## `dbd dbml`
 
 Generate DBML documentation files for dbdocs.io.
