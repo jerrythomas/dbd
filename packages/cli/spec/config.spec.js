@@ -19,8 +19,7 @@ import {
 } from '../src/config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const repoRoot = join(__dirname, '..', '..', '..')
-const exampleDir = join(repoRoot, 'example')
+const exampleDir = join(__dirname, '..', 'example')
 
 describe('config', () => {
 	let originalPath

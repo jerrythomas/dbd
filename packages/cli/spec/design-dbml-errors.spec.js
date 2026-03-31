@@ -9,8 +9,7 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const repoRoot = join(__dirname, '..', '..', '..')
-const exampleDir = join(repoRoot, 'example')
+const exampleDir = join(__dirname, '..', 'example')
 
 // Mock fs — wrap writeFileSync so we can control it per-test
 const _writeFileSyncImpl = { fn: null }

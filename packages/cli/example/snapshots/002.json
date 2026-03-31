@@ -1,7 +1,7 @@
 {
-  "version": 1,
-  "description": "initial schema",
-  "timestamp": "2026-03-30T17:23:47.977Z",
+  "version": 2,
+  "description": "add display_order to lookups",
+  "timestamp": "2026-03-30T17:25:48.723Z",
   "tables": [
     {
       "name": "config.categories",
@@ -71,7 +71,7 @@
           "name": "is_editable",
           "dataType": "boolean",
           "nullable": true,
-          "defaultValue": null,
+          "defaultValue": "TRUE",
           "constraints": [],
           "comment": "Flag indicating whether this lookup is editable."
         },
@@ -92,7 +92,7 @@
           "comment": "Description of the lookup. Provides additional details about the lookup."
         },
         {
-          "name": "modified_on",
+          "name": "modified_at",
           "dataType": "timestamptz",
           "nullable": false,
           "defaultValue": "now()",
@@ -112,6 +112,13 @@
           "dataType": "text[]",
           "nullable": true,
           "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "display_order",
+          "dataType": "int",
+          "nullable": true,
+          "defaultValue": "0",
           "constraints": []
         }
       ],
@@ -158,14 +165,14 @@
           "name": "is_active",
           "dataType": "boolean",
           "nullable": true,
-          "defaultValue": null,
+          "defaultValue": "TRUE",
           "constraints": []
         },
         {
           "name": "is_hidden",
           "dataType": "boolean",
           "nullable": true,
-          "defaultValue": null,
+          "defaultValue": "FALSE",
           "constraints": []
         },
         {
@@ -183,7 +190,7 @@
           "constraints": []
         },
         {
-          "name": "modified_on",
+          "name": "modified_at",
           "dataType": "timestamp",
           "nullable": true,
           "defaultValue": null,
@@ -248,7 +255,7 @@
           "constraints": []
         },
         {
-          "name": "modified_on",
+          "name": "modified_at",
           "dataType": "timestamptz",
           "nullable": true,
           "defaultValue": "now()",
@@ -327,7 +334,7 @@
           "name": "is_active",
           "dataType": "boolean",
           "nullable": true,
-          "defaultValue": null,
+          "defaultValue": "TRUE",
           "constraints": [],
           "comment": "Flag indicating if the lookup value is active. Used to determine if the value is currently in use."
         },
@@ -335,7 +342,7 @@
           "name": "is_hidden",
           "dataType": "boolean",
           "nullable": true,
-          "defaultValue": null,
+          "defaultValue": "FALSE",
           "constraints": [],
           "comment": "Flag indicating if the lookup value should be hidden. Used to exclude the value from display."
         },
@@ -356,7 +363,7 @@
           "comment": "Description of the lookup value. Provides additional context about the value."
         },
         {
-          "name": "modified_on",
+          "name": "modified_at",
           "dataType": "timestamptz",
           "nullable": false,
           "defaultValue": "now()",

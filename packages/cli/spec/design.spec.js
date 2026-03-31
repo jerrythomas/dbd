@@ -12,8 +12,7 @@ import { using } from '../src/design.js'
 import { entities as expectedEntities } from './fixtures/design/config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const repoRoot = join(__dirname, '..', '..', '..')
-const exampleDir = join(repoRoot, 'example')
+const exampleDir = join(__dirname, '..', 'example')
 
 describe('Design class (packages/cli)', () => {
 	let originalPath
@@ -722,7 +721,7 @@ describe('Design env filtering', () => {
 	})
 
 	beforeEach(() => {
-		process.chdir(join(__dirname, '../../../example'))
+		process.chdir(join(__dirname, '..', 'example'))
 		vi.spyOn(console, 'log').mockImplementation(() => {})
 		vi.spyOn(console, 'info').mockImplementation(() => {})
 		vi.spyOn(console, 'warn').mockImplementation(() => {})

@@ -1,4 +1,4 @@
-name,value,sequence,is_active,is_hidden,details,description,modified_on,modified_by
+name,value,sequence,is_active,is_hidden,details,description,modified_at,modified_by
 Gender,Male,1,t,f,,,2024-04-04,admin
 Gender,Female,1,t,f,,,2024-04-04,admin
 Range,< .5,1,t,f,"{""upper_bound"":0.5}",,2024-04-04,admin

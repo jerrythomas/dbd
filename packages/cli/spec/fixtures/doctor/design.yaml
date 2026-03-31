@@ -1,0 +1,22 @@
+project:
+  name: test
+  database: PostgreSQL
+  staging:
+    - staging
+    - orphan_staging
+  extensionSchema: extensions
+
+schemas:
+  - config
+  - extensions
+  - staging
+  - orphan
+
+import:
+  tables:
+    - config.items
+    - config.missing_table
+
+export:
+  - config.items
+  - config.nonexistent

@@ -8,7 +8,7 @@
 import fs from 'fs'
 import path from 'path'
 import sade from 'sade'
-import { execSync } from 'child_process'
+
 import { using } from './design.js'
 import { resolveWarnings } from './references.js'
 import { DbReferenceCache } from './db-cache.js'
@@ -20,6 +20,7 @@ import {
 	pendingMigrations,
 	padVersion
 } from './snapshot.js'
+import { auditDesign, fixDesign, checkExportColumns } from './doctor.js'
 
 const location = path.dirname(new URL(import.meta.url).pathname)
 const pkg = JSON.parse(fs.readFileSync(path.join(location, '../package.json'), 'utf8'))
@@ -40,7 +41,30 @@ prog
 	.example('dbd init')
 	.example('dbd init -p app')
 	.action((opts) => {
-		execSync(`npx degit jerrythomas/dbd/example ${opts.project}`)
+		if (fs.existsSync(opts.project)) {
+			console.error(`Error: folder "${opts.project}" already exists.`)
+			process.exit(1)
+		}
+		const templateDir = path.join(location, '../example')
+		const skip = ['migrations', 'snapshots', 'design.yaml']
+		fs.cpSync(templateDir, opts.project, {
+			recursive: true,
+			filter: (src) => !skip.some((d) => src.startsWith(path.join(templateDir, d)))
+		})
+		const designYaml = [
+			`project:`,
+			`  name: ${opts.project}`,
+			`  database: PostgreSQL`,
+			``,
+			`schemas:`,
+			`  - public`,
+			``,
+			`extensions:`,
+			`  - uuid-ossp`,
+			``
+		].join('\n')
+		fs.writeFileSync(path.join(opts.project, 'design.yaml'), designYaml)
+		console.log(`Initialized project in "${opts.project}".`)
 	})
 
 prog
@@ -87,8 +111,53 @@ prog
 			console.log('\nWarnings:')
 			warnings.map((item) => console.log(showDetails(item, 'warnings', opts.verbose)))
 		}
-		if (issues.length === 0 && warnings.length === 0) {
+		// Export view column consistency check
+		const adapter = await design.getAdapter()
+		const exportIssues = checkExportColumns(design.config, adapter)
+		if (exportIssues.length > 0) {
+			console.log('\nExport view column issues:')
+			for (const issue of exportIssues) {
+				console.log(`  ${issue.export} ← ${issue.stagingTable}`)
+				if (issue.missingColumns.length > 0)
+					console.log(`    columns not in staging: ${issue.missingColumns.join(', ')}`)
+				if (issue.orderMismatch) console.log(`    column order differs from staging table`)
+			}
+		} else if (issues.length === 0 && warnings.length === 0) {
 			console.log('Everything looks ok')
+		}
+	})
+
+prog
+	.command('doctor')
+	.option('--fix', 'Remove stale entries from design.yaml', false)
+	.describe('Audit design.yaml for stale entries and optionally remove them.')
+	.example('dbd doctor')
+	.example('dbd doctor --fix')
+	.action((opts) => {
+		const audit = auditDesign(opts.config)
+		const hasIssues = Object.values(audit).some((arr) => arr.length > 0)
+
+		if (!hasIssues) {
+			console.log('design.yaml is clean — no stale entries found.')
+			return
+		}
+
+		if (audit.staleSchemas.length > 0)
+			console.log(`Stale schemas:         ${audit.staleSchemas.join(', ')}`)
+		if (audit.staleStaging.length > 0)
+			console.log(`Stale staging schemas: ${audit.staleStaging.join(', ')}`)
+		if (audit.staleImport.length > 0) {
+			const names = audit.staleImport.map((e) => (typeof e === 'string' ? e : Object.keys(e)[0]))
+			console.log(`Stale import tables:   ${names.join(', ')}`)
+		}
+		if (audit.staleExport.length > 0)
+			console.log(`Stale export entries:  ${audit.staleExport.join(', ')}`)
+
+		if (opts.fix) {
+			fs.writeFileSync(opts.config, fixDesign(opts.config))
+			console.log(`\nFixed ${opts.config}`)
+		} else {
+			console.log('\nRun with --fix to remove stale entries.')
 		}
 	})
 

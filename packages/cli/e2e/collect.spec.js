@@ -11,8 +11,7 @@ import { resetCache } from '../src/references.js'
 import { config, exports, validations } from '../spec/fixtures/design'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const repoRoot = join(__dirname, '..', '..', '..')
-const exampleDir = join(repoRoot, 'example')
+const exampleDir = join(__dirname, '..', 'example')
 const badExampleDir = join(__dirname, '..', 'spec', 'fixtures', 'bad-example')
 
 describe('collect', async () => {

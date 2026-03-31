@@ -9,7 +9,7 @@ create table if not exists lookup_values (
 , is_hidden                boolean default false
 , details                  jsonb
 , description              text
-, modified_on              timestamp with time zone not null default now()
+, modified_at              timestamp with time zone not null default now()
 , modified_by              varchar
 , category_id              uuid references categories(id)
 , notes                    text
@@ -46,7 +46,7 @@ comment on column lookup_values.details IS
 comment on column lookup_values.description IS
 'Description of the lookup value. Provides additional context about the value.';
 
-comment on column lookup_values.modified_on IS
+comment on column lookup_values.modified_at IS
 'The date the lookup value was last modified. Provides a history of when changes were made.';
 
 comment on column lookup_values.modified_by IS

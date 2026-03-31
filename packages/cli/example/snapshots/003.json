@@ -92,7 +92,7 @@
           "comment": "Description of the lookup. Provides additional details about the lookup."
         },
         {
-          "name": "modified_on",
+          "name": "modified_at",
           "dataType": "timestamptz",
           "nullable": false,
           "defaultValue": "now()",
@@ -190,7 +190,7 @@
           "constraints": []
         },
         {
-          "name": "modified_on",
+          "name": "modified_at",
           "dataType": "timestamp",
           "nullable": true,
           "defaultValue": null,
@@ -255,7 +255,7 @@
           "constraints": []
         },
         {
-          "name": "modified_on",
+          "name": "modified_at",
           "dataType": "timestamptz",
           "nullable": true,
           "defaultValue": "now()",
@@ -363,7 +363,7 @@
           "comment": "Description of the lookup value. Provides additional context about the value."
         },
         {
-          "name": "modified_on",
+          "name": "modified_at",
           "dataType": "timestamptz",
           "nullable": false,
           "defaultValue": "now()",

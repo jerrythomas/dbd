@@ -168,6 +168,17 @@ export class BaseDatabaseAdapter {
 		}
 	}
 
+	/**
+	 * Parse a view entity's DDL file and return its column names in order.
+	 * Used for export view column consistency checks.
+	 *
+	 * @param {Object} entity - Entity with { file, name, schema }
+	 * @returns {string[]} Ordered column names
+	 */
+	parseViewColumns(entity) {
+		return []
+	}
+
 	// --- Migration tracking ---
 
 	/**

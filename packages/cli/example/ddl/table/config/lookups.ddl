@@ -6,7 +6,7 @@ create table if not exists lookups (
 , is_editable              boolean default true
 , icon                     varchar
 , description              text
-, modified_on              timestamp with time zone not null default now()
+, modified_at              timestamp with time zone not null default now()
 , modified_by              varchar
 , tags                     text[]
 , display_order            integer default 0
@@ -31,7 +31,7 @@ comment on column lookups.icon IS
 comment on column lookups.description IS
 'Description of the lookup. Provides additional details about the lookup.';
 
-comment on column lookups.modified_on IS
+comment on column lookups.modified_at IS
 'Date and time the lookup entry was last modified. Provides a history of when changes were made.';
 
 comment on column lookups.modified_by IS

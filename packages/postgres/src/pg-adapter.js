@@ -6,6 +6,7 @@ import {
 	extractDependencies,
 	extractTables,
 	extractIndexes,
+	extractViewDefinitions,
 	parse
 } from './parser/index-functional.js'
 import { initParser } from './parser/parsers/sql.js'
@@ -327,6 +328,16 @@ export class PgAdapter extends BaseDatabaseAdapter {
 				indexes: [],
 				tableConstraints: []
 			}
+		}
+	}
+
+	parseViewColumns(entity) {
+		const content = readFileSync(entity.file, 'utf-8')
+		try {
+			const views = extractViewDefinitions(content)
+			return views[0]?.columns.map((c) => c.name) ?? []
+		} catch {
+			return []
 		}
 	}
 

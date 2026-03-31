@@ -6,7 +6,7 @@ create table if not exists lookups
 , is_editable              boolean
 , icon                     varchar
 , description              varchar
-, modified_on              timestamp with time zone default now()
+, modified_at              timestamp with time zone default now()
 , modified_by              varchar default current_user
 );
 

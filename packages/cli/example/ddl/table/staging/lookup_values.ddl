@@ -7,7 +7,7 @@ create table if not exists lookup_values(
 , is_hidden                boolean default false
 , details                  jsonb
 , description              text
-, modified_on              timestamp
+, modified_at              timestamp
 , modified_by              varchar
 );
 
