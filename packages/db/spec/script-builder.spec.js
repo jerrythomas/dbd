@@ -115,4 +115,31 @@ describe('buildGrantsScript', () => {
 		const script = buildGrantsScript(grants, 'supabase')
 		expect(script).toContain('GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA api TO anon;')
 	})
+
+	it('supabase target: sets pgrst.db_schemas on authenticator role', () => {
+		const script = buildGrantsScript(schemaGrants, 'supabase')
+		expect(script).toContain("ALTER ROLE authenticator SET pgrst.db_schemas TO 'config';")
+	})
+
+	it('supabase target: notifies pgrst to reload config and schema', () => {
+		const script = buildGrantsScript(schemaGrants, 'supabase')
+		expect(script).toContain("NOTIFY pgrst, 'reload config';")
+		expect(script).toContain("NOTIFY pgrst, 'reload schema';")
+	})
+
+	it('supabase target: exposes all schemas in pgrst.db_schemas when multiple schemas granted', () => {
+		const multiGrants = [
+			{ name: 'config', grants: { anon: ['usage', 'select'] } },
+			{ name: 'api', grants: { anon: ['usage', 'select'] } }
+		]
+		const script = buildGrantsScript(multiGrants, 'supabase')
+		expect(script).toContain("ALTER ROLE authenticator SET pgrst.db_schemas TO 'config, api';")
+	})
+
+	it('pgrst lines appear after grant lines', () => {
+		const script = buildGrantsScript(schemaGrants, 'supabase')
+		const grantPos = script.indexOf('GRANT USAGE ON SCHEMA config TO anon;')
+		const prgstPos = script.indexOf('ALTER ROLE authenticator')
+		expect(grantPos).toBeLessThan(prgstPos)
+	})
 })

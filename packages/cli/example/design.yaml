@@ -4,6 +4,8 @@ project:
   extensionSchema: extensions
   staging:
     - staging
+  migrate:
+    - migrate
   dbdocs:
     base:
       exclude:
@@ -41,7 +43,7 @@ import:
   tables:
     - staging.lookup_values:
         env: [dev, prod]
-    - staging.dev_fixture_table:
+    - staging.lookups:
         env: dev
 
 export:

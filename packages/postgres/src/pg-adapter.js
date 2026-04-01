@@ -150,8 +150,9 @@ export class PgAdapter extends BaseDatabaseAdapter {
 			await this.#db`CREATE TABLE IF NOT EXISTS _temp (data jsonb)`
 			const writeStream = await this.#db.unsafe(`COPY _temp FROM STDIN`).writable()
 			await pipeline(createReadStream(entity.file), writeStream)
+			const schema = entity.schema ?? entity.name.split('.')[0]
 			await this.#db.unsafe(
-				`CALL staging.import_jsonb_to_table('_temp', '${entity.name.replace(/'/g, "''")}')`
+				`CALL ${schema}.import_jsonb_to_table('_temp', '${entity.name.replace(/'/g, "''")}')`
 			)
 			await this.#db`DROP TABLE IF EXISTS _temp`
 		} else {

@@ -117,7 +117,7 @@ export function read(file) {
 	data.schemaGrants = normalizedSchemas.filter((s) => s.grants)
 
 	data.entities = [...data.tables, ...data.views, ...data.functions, ...data.procedures]
-	data.project = { staging: [], ...data.project }
+	data.project = { staging: [], migrate: [], ...data.project }
 
 	return data
 }

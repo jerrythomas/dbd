@@ -51,9 +51,10 @@ describe('auditDesign — stale entries', () => {
 		expect(staleSchemas).toContain('orphan')
 	})
 
-	it('does not flag schemas protected by project.staging or extensionSchema', () => {
+	it('does not flag schemas protected by project.staging, project.migrate, or extensionSchema', () => {
 		const { staleSchemas } = auditDesign('design.yaml')
 		expect(staleSchemas).not.toContain('staging')
+		expect(staleSchemas).not.toContain('migrate')
 		expect(staleSchemas).not.toContain('extensions')
 	})
 
@@ -61,6 +62,12 @@ describe('auditDesign — stale entries', () => {
 		const { staleStaging } = auditDesign('design.yaml')
 		expect(staleStaging).toContain('orphan_staging')
 		expect(staleStaging).not.toContain('staging')
+	})
+
+	it('detects migrate schemas with no DDL files', () => {
+		const { staleMigrate } = auditDesign('design.yaml')
+		expect(staleMigrate).toContain('orphan_migrate')
+		expect(staleMigrate).not.toContain('migrate')
 	})
 
 	it('detects import tables with no corresponding file', () => {
@@ -95,6 +102,8 @@ describe('fixDesign', () => {
 		expect(parsed.schemas).toContain('config')
 		expect(parsed.project?.staging ?? []).not.toContain('orphan_staging')
 		expect(parsed.project?.staging ?? []).toContain('staging')
+		expect(parsed.project?.migrate ?? []).not.toContain('orphan_migrate')
+		expect(parsed.project?.migrate ?? []).toContain('migrate')
 		expect(parsed.export).not.toContain('config.nonexistent')
 		expect(parsed.export).toContain('config.items')
 	})

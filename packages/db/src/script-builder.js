@@ -43,7 +43,7 @@ export function buildResetScript(schemas, roles, target = 'supabase') {
 export function buildGrantsScript(schemaGrants, target = 'supabase') {
 	if (target !== 'supabase') return ''
 
-	return schemaGrants
+	const grantLines = schemaGrants
 		.flatMap(({ name, grants }) =>
 			Object.entries(grants).flatMap(([role, perms]) => {
 				const lines = []
@@ -59,4 +59,14 @@ export function buildGrantsScript(schemaGrants, target = 'supabase') {
 			})
 		)
 		.join('\n')
+
+	if (!grantLines) return ''
+
+	const exposedSchemas = schemaGrants.map((s) => s.name).join(', ')
+	return [
+		grantLines,
+		`ALTER ROLE authenticator SET pgrst.db_schemas TO '${exposedSchemas}';`,
+		`NOTIFY pgrst, 'reload config';`,
+		`NOTIFY pgrst, 'reload schema';`
+	].join('\n')
 }

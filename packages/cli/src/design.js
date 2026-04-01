@@ -463,6 +463,10 @@ class Design {
 		return this.#adapter
 	}
 
+	async disconnect() {
+		await this.#adapter.disconnect()
+	}
+
 	graph(name) {
 		return graphFromEntities(this.config.entities, name)
 	}

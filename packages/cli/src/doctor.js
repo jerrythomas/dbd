@@ -58,7 +58,7 @@ function ddlFileExists(entityName) {
  * or export DDL that no longer exist on the filesystem.
  *
  * @param {string} [configPath] - path to design.yaml
- * @returns {{ staleSchemas: string[], staleStaging: string[], staleImport: Array, staleExport: string[] }}
+ * @returns {{ staleSchemas: string[], staleStaging: string[], staleMigrate: string[], staleImport: Array, staleExport: string[] }}
  */
 export function auditDesign(configPath = 'design.yaml') {
 	const raw = load(readFileSync(configPath, 'utf8'))
@@ -66,7 +66,11 @@ export function auditDesign(configPath = 'design.yaml') {
 
 	// Schemas referenced elsewhere in config are protected even if they have no DDL
 	const protectedSchemas = new Set(
-		[...(raw.project?.staging ?? []), raw.project?.extensionSchema].filter(Boolean)
+		[
+			...(raw.project?.staging ?? []),
+			...(raw.project?.migrate ?? []),
+			raw.project?.extensionSchema
+		].filter(Boolean)
 	)
 
 	const staleSchemas = (raw.schemas ?? [])
@@ -74,6 +78,7 @@ export function auditDesign(configPath = 'design.yaml') {
 		.filter((s) => !activeSchemas.has(s) && !protectedSchemas.has(s))
 
 	const staleStaging = (raw.project?.staging ?? []).filter((s) => !activeSchemas.has(s))
+	const staleMigrate = (raw.project?.migrate ?? []).filter((s) => !activeSchemas.has(s))
 
 	const importFiles = existsSync('import')
 		? scan('import').filter((f) => ['.csv', '.tsv', '.jsonl'].includes(extname(f)))
@@ -89,7 +94,7 @@ export function auditDesign(configPath = 'design.yaml') {
 
 	const staleExport = (raw.export ?? []).filter((e) => !ddlFileExists(e))
 
-	return { staleSchemas, staleStaging, staleImport, staleExport }
+	return { staleSchemas, staleStaging, staleMigrate, staleImport, staleExport }
 }
 
 /**
@@ -112,6 +117,11 @@ export function fixDesign(configPath = 'design.yaml') {
 	if (raw.project?.staging && audit.staleStaging.length > 0) {
 		raw.project.staging = raw.project.staging.filter((s) => !audit.staleStaging.includes(s))
 		if (raw.project.staging.length === 0) delete raw.project.staging
+	}
+
+	if (raw.project?.migrate && audit.staleMigrate.length > 0) {
+		raw.project.migrate = raw.project.migrate.filter((s) => !audit.staleMigrate.includes(s))
+		if (raw.project.migrate.length === 0) delete raw.project.migrate
 	}
 
 	if (raw.import?.tables && audit.staleImport.length > 0) {

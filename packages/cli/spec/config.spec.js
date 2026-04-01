@@ -377,7 +377,7 @@ export: []
 		it('annotates files under import/dev/ with env "dev"', () => {
 			const data = read('design.yaml')
 			const result = clean(data, parseEntity, matchRefs)
-			const devTable = result.importTables.find((t) => t.name === 'staging.dev_fixtures')
+			const devTable = result.importTables.find((t) => t.name === 'staging.lookups')
 			expect(devTable).toBeDefined()
 			expect(devTable.env).toBe('dev')
 		})
@@ -385,7 +385,7 @@ export: []
 		it('annotates files under import/prod/ with env "prod"', () => {
 			const data = read('design.yaml')
 			const result = clean(data, parseEntity, matchRefs)
-			const prodTable = result.importTables.find((t) => t.name === 'staging.prod_seeds')
+			const prodTable = result.importTables.find((t) => t.name === 'staging.categories')
 			expect(prodTable).toBeDefined()
 			expect(prodTable.env).toBe('prod')
 		})
@@ -393,8 +393,8 @@ export: []
 		it('annotates ungrouped import files with env null (shared)', () => {
 			const data = read('design.yaml')
 			const result = clean(data, parseEntity, matchRefs)
-			// staging.lookups is at import/staging/lookups.csv — no dev/prod parent folder
-			const sharedTable = result.importTables.find((t) => t.name === 'staging.lookups')
+			// staging.lookup_values is at import/staging/lookup_values.csv — no dev/prod parent folder
+			const sharedTable = result.importTables.find((t) => t.name === 'staging.lookup_values')
 			expect(sharedTable).toBeDefined()
 			expect(sharedTable.env).toBeNull()
 		})
@@ -414,8 +414,8 @@ export: []
 		it('annotates YAML-listed table with env "dev" when env field is "dev"', () => {
 			const data = read('design.yaml')
 			const result = clean(data, parseEntity, matchRefs)
-			// staging.dev_fixture_table is in import.tables with env: dev
-			const table = result.importTables.find((t) => t.name === 'staging.dev_fixture_table')
+			// staging.lookups is in import.tables with env: dev
+			const table = result.importTables.find((t) => t.name === 'staging.lookups')
 			expect(table).toBeDefined()
 			expect(table.env).toBe('dev')
 		})
@@ -429,13 +429,13 @@ export: []
 			expect(table.env).toBeNull()
 		})
 
-		it('annotates YAML-listed table with env null when no env field (implicitly shared)', () => {
+		it('annotates non-YAML table with env derived from file path', () => {
 			const data = read('design.yaml')
 			const result = clean(data, parseEntity, matchRefs)
-			// staging.lookups is discovered from filesystem with no YAML entry → env from path = null
-			const table = result.importTables.find((t) => t.name === 'staging.lookups')
+			// staging.categories is not in import.tables — env comes from import/prod/... path
+			const table = result.importTables.find((t) => t.name === 'staging.categories')
 			expect(table).toBeDefined()
-			expect(table.env).toBeNull()
+			expect(table.env).toBe('prod')
 		})
 	})
 })

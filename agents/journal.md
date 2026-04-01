@@ -5,6 +5,40 @@ Design details live in `docs/design/` — modular docs per module.
 
 ---
 
+## 2026-03-31
+
+### dbd doctor + inspect export column check — COMPLETE
+
+Added `dbd doctor` command and enhanced `dbd inspect` with export view column validation.
+
+**Key decisions:**
+
+- `dbd doctor` audits design.yaml for 4 stale entry types: schemas with no DDL files, staging schemas with no DDL, import tables with no matching import file, export entries with no DDL
+- Protected schemas (referenced by `project.staging` or `project.extensionSchema`) are never flagged as stale
+- `dbd doctor --fix` removes all stale entries and rewrites design.yaml (original YAML structure not preserved — js-yaml dump used)
+- `checkExportColumns` validates that export view column names all exist in corresponding staging table and appear in the same relative order
+- Column order check: extract shared columns, map to their staging positions, verify positions are monotonically increasing
+- Export now moved to `packages/cli/example/` as canonical location; test specs updated to use relative paths from `__dirname`
+- npm bundle restricted to `example/ddl` and `example/import` (migrations/snapshots/design.yaml excluded via `files` field)
+- `dbd init` generates `design.yaml` programmatically; no longer copies from template
+
+**Changes:**
+
+- `packages/cli/src/doctor.js` — new: `findDDLFile`, `auditDesign`, `fixDesign`, `checkExportColumns`
+- `packages/cli/src/index.js` — `dbd doctor` command; export column check in `dbd inspect`; `dbd init` uses `fs.cpSync` with filter + programmatic `design.yaml`
+- `packages/db/src/base-adapter.js` — `parseViewColumns` stub
+- `packages/postgres/src/psql-adapter.js` / `pg-adapter.js` — `parseViewColumns` implementation using `extractViewDefinitions`
+- `packages/cli/package.json` — `files` field restricted to `src`, `example/ddl`, `example/import`
+- `example/` → `packages/cli/example/` (renamed); all `modified_on` → `modified_at` in DDL files
+- `packages/cli/spec/doctor.spec.js` — 16 tests for all doctor functions
+- `packages/cli/spec/fixtures/doctor/` — test fixture with stale entries
+
+**Result:** 958 tests passing, 0 lint errors.
+
+**Commit:** `b8289dc`
+
+---
+
 ## 2026-03-30
 
 ### Snapshots & Migrations — COMPLETE

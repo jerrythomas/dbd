@@ -232,32 +232,32 @@ describe('Design class (packages/cli)', () => {
 
 	it('importData dry-run filters by name and logs matching table', async () => {
 		const dx = await using('design.yaml')
-		dx.importData('staging.lookups', true)
+		dx.importData('staging.lookup_values', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
 		const importMessages = infoCalls.filter(
 			(c) => typeof c === 'string' && c.startsWith('Importing ')
 		)
-		expect(importMessages).toEqual(['Importing staging.lookups'])
+		expect(importMessages).toEqual(['Importing staging.lookup_values'])
 	})
 
 	it('importData dry-run logs the \\copy script for the table', async () => {
 		const dx = await using('design.yaml')
-		dx.importData('staging.lookups', true)
+		dx.importData('staging.lookup_values', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
 		const copyScript = infoCalls.find((c) => typeof c === 'string' && c.includes('\\copy'))
 		expect(copyScript).toBeDefined()
-		expect(copyScript).toContain('staging.lookups')
+		expect(copyScript).toContain('staging.lookup_values')
 	})
 
 	it('importData dry-run logs call statement when procedure exists', async () => {
 		const dx = await using('design.yaml')
-		dx.importData('staging.lookups', true)
+		dx.importData('staging.lookup_values', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
 		const callStatement = infoCalls.find(
-			(c) => typeof c === 'string' && c.startsWith('call staging.import_lookups')
+			(c) => typeof c === 'string' && c.startsWith('call staging.import_lookup_values')
 		)
 		expect(callStatement).toBeDefined()
 	})
@@ -736,56 +736,56 @@ describe('Design env filtering', () => {
 	it('defaults to prod env when no env arg given', async () => {
 		const dx = await using('design.yaml')
 		dx.validate()
-		const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
+		const devTable = dx.importTables.find((t) => t.name === 'staging.lookups')
 		expect(devTable).toBeUndefined()
 	})
 
 	it('includes shared tables in prod env', async () => {
 		const dx = await using('design.yaml', undefined, 'prod')
 		dx.validate()
-		const shared = dx.importTables.find((t) => t.name === 'staging.lookups')
+		const shared = dx.importTables.find((t) => t.name === 'staging.lookup_values')
 		expect(shared).toBeDefined()
 	})
 
 	it('excludes dev-only folder table when env is prod', async () => {
 		const dx = await using('design.yaml', undefined, 'prod')
 		dx.validate()
-		const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
+		const devTable = dx.importTables.find((t) => t.name === 'staging.lookups')
 		expect(devTable).toBeUndefined()
 	})
 
 	it('includes dev-only folder table when env is dev', async () => {
 		const dx = await using('design.yaml', undefined, 'dev')
 		dx.validate()
-		const devTable = dx.importTables.find((t) => t.name === 'staging.dev_fixtures')
+		const devTable = dx.importTables.find((t) => t.name === 'staging.lookups')
 		expect(devTable).toBeDefined()
 	})
 
 	it('excludes prod-only folder table when env is dev', async () => {
 		const dx = await using('design.yaml', undefined, 'dev')
 		dx.validate()
-		const prodTable = dx.importTables.find((t) => t.name === 'staging.prod_seeds')
+		const prodTable = dx.importTables.find((t) => t.name === 'staging.categories')
 		expect(prodTable).toBeUndefined()
 	})
 
 	it('includes prod-only folder table when env is prod', async () => {
 		const dx = await using('design.yaml', undefined, 'prod')
 		dx.validate()
-		const prodTable = dx.importTables.find((t) => t.name === 'staging.prod_seeds')
+		const prodTable = dx.importTables.find((t) => t.name === 'staging.categories')
 		expect(prodTable).toBeDefined()
 	})
 
 	it('excludes dev YAML table when env is prod', async () => {
 		const dx = await using('design.yaml', undefined, 'prod')
 		dx.validate()
-		const devYaml = dx.importTables.find((t) => t.name === 'staging.dev_fixture_table')
+		const devYaml = dx.importTables.find((t) => t.name === 'staging.lookups')
 		expect(devYaml).toBeUndefined()
 	})
 
 	it('includes dev YAML table when env is dev', async () => {
 		const dx = await using('design.yaml', undefined, 'dev')
 		dx.validate()
-		const devYaml = dx.importTables.find((t) => t.name === 'staging.dev_fixture_table')
+		const devYaml = dx.importTables.find((t) => t.name === 'staging.lookups')
 		expect(devYaml).toBeDefined()
 	})
 
@@ -798,8 +798,7 @@ describe('Design env filtering', () => {
 		const names = infoCalls
 			.filter((m) => typeof m === 'string' && m.startsWith('Importing'))
 			.map((m) => m.replace('Importing ', ''))
-		expect(names).not.toContain('staging.dev_fixtures')
-		expect(names).not.toContain('staging.dev_fixture_table')
+		expect(names).not.toContain('staging.lookups')
 	})
 })
 

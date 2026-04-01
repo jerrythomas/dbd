@@ -4,12 +4,16 @@ project:
   staging:
     - staging
     - orphan_staging
+  migrate:
+    - migrate
+    - orphan_migrate
   extensionSchema: extensions
 
 schemas:
   - config
   - extensions
   - staging
+  - migrate
   - orphan
 
 import:
