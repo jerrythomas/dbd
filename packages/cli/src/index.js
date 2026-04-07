@@ -37,9 +37,11 @@ prog
 prog
 	.command('init')
 	.option('-p, --project', 'Name of the project', 'database')
+	.option('--target', 'Target platform (e.g. supabase)', null)
 	.describe('Initialize a starter project')
 	.example('dbd init')
 	.example('dbd init -p app')
+	.example('dbd init -p app --target supabase')
 	.action((opts) => {
 		if (fs.existsSync(opts.project)) {
 			console.error(`Error: folder "${opts.project}" already exists.`)
@@ -51,18 +53,43 @@ prog
 			recursive: true,
 			filter: (src) => !skip.some((d) => src.startsWith(path.join(templateDir, d)))
 		})
-		const designYaml = [
-			`project:`,
-			`  name: ${opts.project}`,
-			`  database: PostgreSQL`,
-			``,
-			`schemas:`,
-			`  - public`,
-			``,
-			`extensions:`,
-			`  - uuid-ossp`,
-			``
-		].join('\n')
+		const designYaml =
+			opts.target === 'supabase'
+				? [
+						`project:`,
+						`  name: ${opts.project}`,
+						`  database: PostgreSQL`,
+						``,
+						`# Schemas exposed via PostgREST (dbd grants --target supabase)`,
+						`supabase:`,
+						`  - public`,
+						``,
+						`schemas:`,
+						`  - public`,
+						``,
+						`extensions:`,
+						`  - uuid-ossp`,
+						``,
+						`# External tables managed by Supabase — stubs for DBML FK references`,
+						`external:`,
+						`  - name: auth.users`,
+						`    note: Supabase managed authentication table`,
+						`    columns:`,
+						`      - id: uuid`,
+						``
+					].join('\n')
+				: [
+						`project:`,
+						`  name: ${opts.project}`,
+						`  database: PostgreSQL`,
+						``,
+						`schemas:`,
+						`  - public`,
+						``,
+						`extensions:`,
+						`  - uuid-ossp`,
+						``
+					].join('\n')
 		fs.writeFileSync(path.join(opts.project, 'design.yaml'), designYaml)
 		console.log(`Initialized project in "${opts.project}".`)
 	})
@@ -288,6 +315,23 @@ prog
 		const dx = await using(opts.config, opts.database)
 		try {
 			await dx.reset(opts.target, opts['dry-run'])
+		} finally {
+			await dx.disconnect()
+		}
+	})
+
+prog
+	.command('policies')
+	.option('-n, --name', 'Apply policies for a specific entity only (e.g. config.lookups)')
+	.option('--dry-run', 'Print policy files that would be applied without executing', false)
+	.describe('Apply RLS policies and grants from the policies/ folder.')
+	.example('dbd policies')
+	.example('dbd policies --name config.lookups')
+	.example('dbd policies --dry-run')
+	.action(async (opts) => {
+		const dx = await using(opts.config, opts.database)
+		try {
+			await dx.policies(opts.name, opts['dry-run'])
 		} finally {
 			await dx.disconnect()
 		}

@@ -33,6 +33,19 @@ export function removeIndexCreationStatements(ddlText) {
 }
 
 /**
+ * Remove statements that @dbml/core cannot parse and are not needed for schema generation:
+ * GRANT, REVOKE, CREATE/DROP POLICY, ALTER TABLE ... ENABLE/DISABLE ROW LEVEL SECURITY.
+ */
+export function removeNonSchemaStatements(ddlText) {
+	return ddlText
+		.replace(/\bgrant\s[\s\S]*?;\n?/gim, '')
+		.replace(/\brevoke\s[\s\S]*?;\n?/gim, '')
+		.replace(/\bcreate\s+(?:or\s+replace\s+)?policy\s[\s\S]*?;\n?/gim, '')
+		.replace(/\bdrop\s+policy\s[\s\S]*?;\n?/gim, '')
+		.replace(/\balter\s+table\s+\S+\s+(?:enable|disable)\s+row\s+level\s+security\s*;\n?/gim, '')
+}
+
+/**
  * Normalize multi-line COMMENT ON TABLE statements to single-line.
  * @deprecated Use normalizeComments() instead.
  */
@@ -191,6 +204,7 @@ export function removeRedundantInlineRefs(ddlText) {
 export function cleanupDDLForDBML(ddlText, schema, tableLookup) {
 	if (!ddlText) return ddlText
 	let cleaned = removeIndexCreationStatements(ddlText)
+	cleaned = removeNonSchemaStatements(cleaned)
 	cleaned = normalizeComments(cleaned)
 	if (schema) {
 		cleaned = qualifyTableNames(cleaned, schema, tableLookup)
@@ -209,7 +223,7 @@ export function cleanupDDLForDBML(ddlText, schema, tableLookup) {
  */
 export function buildTableReplacements(entities) {
 	return entities
-		.filter((entity) => entity.type === 'table')
+		.filter((entity) => entity.type === 'table' || entity.type === 'external')
 		.map(({ name, schema }) => ({
 			name: name.replace(schema + '.', ''),
 			schema
@@ -283,26 +297,7 @@ export function generateDBML({
 	filterEntities,
 	file = 'design.dbml'
 }) {
-	const keys = Object.keys(project.dbdocs)
-	let docs = []
-
-	if (keys.includes('exclude') || keys.includes('include')) {
-		docs = [
-			{
-				config: project.dbdocs,
-				project: project.name
-			}
-		]
-	}
-	docs = [
-		...docs,
-		...keys
-			.filter((key) => key !== 'exclude' && key !== 'include')
-			.map((key) => ({
-				config: project.dbdocs[key],
-				project: project.name + '-' + key
-			}))
-	]
+	const docs = buildDocList(project, file)
 
 	return docs.map((doc) => {
 		const filtered = filterEntities(entities, doc.config)
@@ -312,25 +307,49 @@ export function generateDBML({
 		)
 
 		const replacements = buildTableReplacements(filtered)
-		const combinedSql = combined.join('\n')
-
 		const projectBlock = buildProjectBlock(doc.project, project.database, project.note)
-		const fileName = [doc.project, file].join('-')
 
 		try {
-			const dbml = convertToDBML(combinedSql)
-			const qualifiedDbml = applyTableReplacements(dbml, replacements)
-
+			const dbml = convertToDBML(combined.join('\n'))
 			return {
-				fileName,
-				content: projectBlock + qualifiedDbml
+				fileName: doc.fileName,
+				content: projectBlock + applyTableReplacements(dbml, replacements)
 			}
 		} catch (err) {
-			return {
-				fileName,
-				content: null,
-				error: err
-			}
+			return { fileName: doc.fileName, content: null, error: err }
 		}
 	})
+}
+
+/**
+ * Build the list of DBML doc descriptors from the project config.
+ * When project.dbdocs is absent, returns a single descriptor covering all entities.
+ * @param {Object} project
+ * @param {string} file - base filename
+ * @returns {Array<{config, project, fileName}>}
+ */
+function buildDocList(project, file) {
+	if (!project.dbdocs) {
+		return [{ config: {}, project: project.name, fileName: file }]
+	}
+
+	const keys = Object.keys(project.dbdocs)
+	let docs = []
+
+	if (keys.includes('exclude') || keys.includes('include')) {
+		docs = [
+			{ config: project.dbdocs, project: project.name, fileName: [project.name, file].join('-') }
+		]
+	}
+
+	return [
+		...docs,
+		...keys
+			.filter((key) => key !== 'exclude' && key !== 'include')
+			.map((key) => ({
+				config: project.dbdocs[key],
+				project: project.name + '-' + key,
+				fileName: [project.name + '-' + key, file].join('-')
+			}))
+	]
 }

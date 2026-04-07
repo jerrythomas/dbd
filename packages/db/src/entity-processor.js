@@ -103,6 +103,13 @@ export function ddlFromEntity(entity) {
 	if (entity.type === 'role') {
 		return generateRoleScript(entity)
 	}
+	if (entity.type === 'external') {
+		const cols = (entity.columns ?? []).map((col) => {
+			const [[name, type]] = Object.entries(col)
+			return `  ${name} ${type}`
+		})
+		return `CREATE TABLE ${entity.name} (\n${cols.join(',\n')}\n);`
+	}
 	return null
 }
 
@@ -178,12 +185,17 @@ export function exportScriptForEntity(entity) {
 export function filterEntitiesForDBML(entities, config) {
 	const { include, exclude } = { exclude: {}, include: {}, ...config }
 
-	return entities
+	const tables = entities
 		.filter((entity) => entity.type === 'table')
 		.filter((entity) => !include.schemas || include.schemas.includes(entity.schema))
 		.filter((entity) => !include.tables || include.tables.includes(entity.name))
 		.filter((entity) => !exclude.schemas || !exclude.schemas.includes(entity.schema))
 		.filter((entity) => !exclude.tables || !exclude.tables.includes(entity.name))
+
+	// External entities (e.g. auth.users) are always included so FK references resolve in DBML
+	const external = entities.filter((entity) => entity.type === 'external')
+
+	return [...tables, ...external]
 }
 
 // --- Validation ---

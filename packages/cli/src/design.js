@@ -38,10 +38,11 @@ class Design {
 
 	constructor(rawConfig, adapter, databaseURL, env = 'prod') {
 		const parseEntity = (entity) => adapter.parseEntityScript(entity)
+		const externalEntities = rawConfig.externalEntities ?? []
 		const matchRefs = (entities, exts) =>
-			matchReferences(entities, exts, (name, installed) =>
+			matchReferences([...entities, ...externalEntities], exts, (name, installed) =>
 				adapter.classifyReference(name, installed)
-			)
+			).filter((e) => e.type !== 'external')
 
 		let config = clean(rawConfig, parseEntity, matchRefs)
 
@@ -57,7 +58,8 @@ class Design {
 			...this.#config.schemas.map((schema) => entityFromSchemaName(schema)),
 			...this.#config.extensions.map((item) => entityFromExtensionConfig(item, extensionSchema)),
 			...this.#config.roles,
-			...this.#config.entities
+			...this.#config.entities,
+			...(this.#config.externalEntities ?? [])
 		]
 
 		this.#importTables = buildImportPlan(config.importTables, config.entities)
@@ -100,7 +102,8 @@ class Design {
 				entityFromExtensionConfig(item, this.#config.project.extensionSchema)
 			),
 			...this.#config.roles,
-			...this.#config.entities
+			...this.#config.entities,
+			...(this.#config.externalEntities ?? [])
 		]
 	}
 
@@ -108,7 +111,9 @@ class Design {
 		const allowedSchemas = this.#config.project.staging
 
 		this.#roles = this.config.roles.map((role) => validateEntity(role))
-		this.#entities = this.entities.map((entity) => validateEntity(entity, true, this.config.ignore))
+		this.#entities = this.entities.map((entity) =>
+			entity.type === 'external' ? entity : validateEntity(entity, true, this.config.ignore)
+		)
 		this.#importTables = this.#importTables
 			.filter(({ table }) => table.env === null || table.env === this.#env)
 			.map((entry) => ({ ...entry, table: validateEntity(entry.table, false) }))
@@ -174,25 +179,28 @@ class Design {
 		if (!this.isValidated) this.validate()
 
 		if (dryRun) {
-			this.entities.map((entity) => {
-				const using =
-					entity.file || entity.type === 'extension'
-						? ` using "${entity.file || entity.schema}"`
-						: ''
-				const detail = `${entity.type} => ${entity.name}${using}`
+			this.entities
+				.filter((entity) => entity.type !== 'external')
+				.map((entity) => {
+					const using =
+						entity.file || entity.type === 'extension'
+							? ` using "${entity.file || entity.schema}"`
+							: ''
+					const detail = `${entity.type} => ${entity.name}${using}`
 
-				if (entity.errors && entity.errors.length > 0) {
-					console.error(pick(['type', 'name', 'file', 'errors'], entity))
-				} else {
-					console.info(detail)
-				}
-			})
+					if (entity.errors && entity.errors.length > 0) {
+						console.error(pick(['type', 'name', 'file', 'errors'], entity))
+					} else {
+						console.info(detail)
+					}
+				})
 			return this
 		}
 
 		const adapter = await this.getAdapter()
 		const validEntities = this.entities
 			.filter((entity) => !entity.errors || entity.errors.length === 0)
+			.filter((entity) => entity.type !== 'external')
 			.filter((entity) => !name || entity.name === name)
 
 		// When targeting a single named entity, skip migration phases
@@ -302,6 +310,7 @@ class Design {
 		if (!this.isValidated) this.validate()
 		const combined = this.entities
 			.filter((entity) => !entity.errors || entity.errors.length === 0)
+			.filter((entity) => entity.type !== 'external')
 			.map((entity) => ddlFromEntity(entity))
 
 		fs.writeFileSync(file, combined.join('\n'))
@@ -438,14 +447,37 @@ class Design {
 		return this
 	}
 
+	async policies(name, dryRun = false) {
+		const files = (this.#config.policyFiles ?? []).filter((p) => !name || p.name === name)
+
+		if (!files.length) {
+			console.info(name ? `No policy file found for ${name}` : 'No policies found in policies/')
+			return this
+		}
+
+		if (dryRun) {
+			console.info('[dry-run] policy files:')
+			files.forEach((p) => console.info(`  ${p.file}`))
+			return this
+		}
+
+		const adapter = await this.getAdapter()
+		for (const p of files) {
+			const sql = fs.readFileSync(p.file, 'utf8')
+			await adapter.executeScript(sql)
+			console.info(`Applied policies from ${p.file}`)
+		}
+		return this
+	}
+
 	async grants(target = 'supabase', dryRun = false) {
-		const script = buildGrantsScript(this.#config.schemaGrants ?? [], target)
+		const script = buildGrantsScript(
+			this.#config.schemaGrants ?? [],
+			this.#config.supabaseSchemas ?? [],
+			target
+		)
 		if (!script) {
-			console.info(
-				target === 'postgres'
-					? 'Grants are not applicable for --target postgres'
-					: 'No grants configured in design.yaml'
-			)
+			console.info('No grants configured in design.yaml')
 			return this
 		}
 		if (dryRun) {

@@ -576,3 +576,33 @@ Implemented environment-aware import so different tables and post-import scripts
 - CLI `-e` default changed from `'development'` to `'prod'`; wired through `normalizeEnv()` to `using()`
 
 **Commits:** e6f723c ← d3d151e ← c2264f7 ← 1e37037 ← f9dcff9 ← 4fb18f6 ← 2b75c7a ← 2883395 (+ earlier)
+
+---
+
+## 2026-04-06
+
+### external: section + dbd init --target supabase — COMPLETE
+
+Added `external:` support in `design.yaml` for declaring Supabase-managed tables (e.g. `auth.users`), and added `--target supabase` to `dbd init`.
+
+**Features:**
+
+- `external:` section in `design.yaml` declares tables managed outside the project. Each entry: `{ name, note?, columns?: [{col: type}, ...] }`
+- External entities are included in the reference lookup during matchReferences so FK references to them don't generate "not found" warnings
+- External entities generate minimal stub DDL (`CREATE TABLE auth.users (id uuid);`) for DBML FK rendering
+- `filterEntitiesForDBML` always includes external entities (bypass include/exclude filters) so FK references resolve in all dbdocs configs
+- `buildTableReplacements` includes external entities for schema-qualified DBML output
+- External entities are skipped in `dbd apply`, `dbd combine`, and `validate()` (never applied to DB)
+- `normalizeExternal()` in `config.js` parses external entries; `read()` populates `data.externalEntities`
+- `dbd init --target supabase` generates a Supabase-flavored `design.yaml` with `supabase:` and `external: auth.users` pre-populated
+- Example `design.yaml` updated with `external:` block for `auth.users`
+
+**Files changed:**
+- `packages/cli/src/config.js` — `normalizeExternal()`, `read()` populates `externalEntities`
+- `packages/cli/src/design.js` — external entities in lookup (matchRefs), entity list, skipped in apply/combine/validate
+- `packages/cli/src/index.js` — `dbd init --target supabase`
+- `packages/db/src/entity-processor.js` — `ddlFromEntity` handles `external`, `filterEntitiesForDBML` always includes externals
+- `packages/dbml/src/converter.js` — `buildTableReplacements` includes external entities
+- `packages/cli/example/design.yaml` — added `external:` example block
+
+**Tests:** 1004 passing, 0 lint errors

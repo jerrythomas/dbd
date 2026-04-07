@@ -17,6 +17,9 @@ project:
       include:
         schemas:
           - config
+supabase:
+  - config
+
 schemas:
   - config:
       grants:
@@ -29,6 +32,14 @@ schemas:
 
 extensions:
   - uuid-ossp
+
+# External tables managed outside this project — stubs used for DBML FK references only
+# Never applied by dbd apply
+external:
+  - name: auth.users
+    note: Supabase managed authentication table
+    columns:
+      - id: uuid
 
 roles:
   - name: advanced

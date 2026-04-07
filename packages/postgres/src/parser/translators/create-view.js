@@ -74,6 +74,17 @@ export const translateViewStmt = (viewStmt, originalSql) => {
 
 	const where = query?.whereClause ? translateWhereExpr(query.whereClause) : null
 
+	// Extract CTEs — pgsql-parser puts them at query.withClause.ctes (no extra wrapper key)
+	const ctes = (query?.withClause?.ctes ?? []).map(({ CommonTableExpr: cte }) => ({
+		name: cte.ctename,
+		stmt: {
+			from: (cte.ctequery?.SelectStmt?.fromClause ?? []).flatMap((item) => {
+				const result = translateFromItem(item)
+				return Array.isArray(result) ? result : result ? [result] : []
+			})
+		}
+	}))
+
 	return {
 		type: 'create',
 		keyword: 'view',
@@ -84,7 +95,13 @@ export const translateViewStmt = (viewStmt, originalSql) => {
 		},
 		replace: viewStmt.replace || false,
 		or_replace: viewStmt.replace || false,
-		select: { type: 'select', columns: selectColumns, from: fromClause, where },
+		select: {
+			type: 'select',
+			columns: selectColumns,
+			from: fromClause,
+			where,
+			...(ctes.length ? { with: ctes } : {})
+		},
 		_original_sql: originalSql
 	}
 }

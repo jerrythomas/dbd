@@ -70,76 +70,107 @@ describe('buildGrantsScript', () => {
 		}
 	]
 
-	it('supabase target: generates GRANT USAGE for usage perm', () => {
-		const script = buildGrantsScript(schemaGrants, 'supabase')
-		expect(script).toContain('GRANT USAGE ON SCHEMA config TO anon;')
-		expect(script).toContain('GRANT USAGE ON SCHEMA config TO service_role;')
+	describe('explicit grants (all targets)', () => {
+		it('generates GRANT USAGE for usage perm', () => {
+			const script = buildGrantsScript(schemaGrants, [], 'supabase')
+			expect(script).toContain('GRANT USAGE ON SCHEMA config TO anon;')
+			expect(script).toContain('GRANT USAGE ON SCHEMA config TO service_role;')
+		})
+
+		it('generates GRANT ON ALL TABLES for table-level perms', () => {
+			const script = buildGrantsScript(schemaGrants, [], 'supabase')
+			expect(script).toContain('GRANT SELECT ON ALL TABLES IN SCHEMA config TO anon;')
+			expect(script).toContain('GRANT ALL ON ALL TABLES IN SCHEMA config TO service_role;')
+		})
+
+		it('generates ALTER DEFAULT PRIVILEGES for table-level perms', () => {
+			const script = buildGrantsScript(schemaGrants, [], 'supabase')
+			expect(script).toContain(
+				'ALTER DEFAULT PRIVILEGES IN SCHEMA config GRANT SELECT ON TABLES TO anon;'
+			)
+			expect(script).toContain(
+				'ALTER DEFAULT PRIVILEGES IN SCHEMA config GRANT ALL ON TABLES TO service_role;'
+			)
+		})
+
+		it('applies to postgres target', () => {
+			const script = buildGrantsScript(schemaGrants, [], 'postgres')
+			expect(script).toContain('GRANT USAGE ON SCHEMA config TO anon;')
+			expect(script).toContain('GRANT ALL ON ALL TABLES IN SCHEMA config TO service_role;')
+		})
+
+		it('postgres target: no pgrst lines', () => {
+			const script = buildGrantsScript(schemaGrants, [], 'postgres')
+			expect(script).not.toContain('pgrst')
+			expect(script).not.toContain('authenticator')
+		})
+
+		it('all table-level permission types are uppercased in output', () => {
+			const grants = [{ name: 'api', grants: { anon: ['insert', 'update', 'delete'] } }]
+			const script = buildGrantsScript(grants, [], 'supabase')
+			expect(script).toContain('GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA api TO anon;')
+		})
+
+		it('schema with empty grants object: produces no output', () => {
+			const script = buildGrantsScript([{ name: 'config', grants: {} }], [], 'supabase')
+			expect(script).toBe('')
+		})
 	})
 
-	it('supabase target: generates GRANT ON ALL TABLES for table-level perms', () => {
-		const script = buildGrantsScript(schemaGrants, 'supabase')
-		expect(script).toContain('GRANT SELECT ON ALL TABLES IN SCHEMA config TO anon;')
-		expect(script).toContain('GRANT ALL ON ALL TABLES IN SCHEMA config TO service_role;')
+	describe('supabase schema exposure', () => {
+		it('grants USAGE to anon, authenticated, service_role for each schema', () => {
+			const script = buildGrantsScript([], ['core', 'api'], 'supabase')
+			expect(script).toContain('GRANT USAGE ON SCHEMA core TO anon, authenticated, service_role;')
+			expect(script).toContain('GRANT USAGE ON SCHEMA api TO anon, authenticated, service_role;')
+		})
+
+		it('sets pgrst.db_schemas to the supabase schema list', () => {
+			const script = buildGrantsScript([], ['core', 'api'], 'supabase')
+			expect(script).toContain("ALTER ROLE authenticator SET pgrst.db_schemas TO 'core, api';")
+		})
+
+		it('notifies pgrst to reload', () => {
+			const script = buildGrantsScript([], ['core'], 'supabase')
+			expect(script).toContain("NOTIFY pgrst, 'reload config';")
+			expect(script).toContain("NOTIFY pgrst, 'reload schema';")
+		})
+
+		it('postgres target: supabase schemas produce no output', () => {
+			const script = buildGrantsScript([], ['core', 'api'], 'postgres')
+			expect(script).toBe('')
+		})
+
+		it('pgrst lines appear after grant lines', () => {
+			const script = buildGrantsScript([], ['core'], 'supabase')
+			const grantPos = script.indexOf('GRANT USAGE ON SCHEMA core')
+			const pgrstPos = script.indexOf('ALTER ROLE authenticator')
+			expect(grantPos).toBeLessThan(pgrstPos)
+		})
 	})
 
-	it('supabase target: generates ALTER DEFAULT PRIVILEGES for table-level perms', () => {
-		const script = buildGrantsScript(schemaGrants, 'supabase')
-		expect(script).toContain(
-			'ALTER DEFAULT PRIVILEGES IN SCHEMA config GRANT SELECT ON TABLES TO anon;'
-		)
-		expect(script).toContain(
-			'ALTER DEFAULT PRIVILEGES IN SCHEMA config GRANT ALL ON TABLES TO service_role;'
-		)
+	describe('combined explicit grants + supabase exposure', () => {
+		it('includes both explicit grants and supabase USAGE grants', () => {
+			const script = buildGrantsScript(schemaGrants, ['core'], 'supabase')
+			expect(script).toContain('GRANT USAGE ON SCHEMA config TO anon;')
+			expect(script).toContain('GRANT USAGE ON SCHEMA core TO anon, authenticated, service_role;')
+		})
+
+		it('pgrst.db_schemas uses supabase list, not schemaGrants', () => {
+			const script = buildGrantsScript(schemaGrants, ['core'], 'supabase')
+			expect(script).toContain("ALTER ROLE authenticator SET pgrst.db_schemas TO 'core';")
+			expect(script).not.toContain('config, core')
+		})
 	})
 
-	it('postgres target: returns empty string', () => {
-		expect(buildGrantsScript(schemaGrants, 'postgres')).toBe('')
-	})
+	describe('empty inputs', () => {
+		it('no grants and no supabase schemas: returns empty string', () => {
+			expect(buildGrantsScript([], [], 'supabase')).toBe('')
+			expect(buildGrantsScript([], [], 'postgres')).toBe('')
+		})
 
-	it('empty schemaGrants array: returns empty string', () => {
-		expect(buildGrantsScript([], 'supabase')).toBe('')
-	})
-
-	it('schema with empty grants object: produces no output', () => {
-		const script = buildGrantsScript([{ name: 'config', grants: {} }], 'supabase')
-		expect(script).toBe('')
-	})
-
-	it('defaults to supabase target', () => {
-		const script = buildGrantsScript(schemaGrants)
-		expect(script).toContain('GRANT USAGE ON SCHEMA config TO anon;')
-	})
-
-	it('all table-level permission types are uppercased in output', () => {
-		const grants = [{ name: 'api', grants: { anon: ['insert', 'update', 'delete'] } }]
-		const script = buildGrantsScript(grants, 'supabase')
-		expect(script).toContain('GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA api TO anon;')
-	})
-
-	it('supabase target: sets pgrst.db_schemas on authenticator role', () => {
-		const script = buildGrantsScript(schemaGrants, 'supabase')
-		expect(script).toContain("ALTER ROLE authenticator SET pgrst.db_schemas TO 'config';")
-	})
-
-	it('supabase target: notifies pgrst to reload config and schema', () => {
-		const script = buildGrantsScript(schemaGrants, 'supabase')
-		expect(script).toContain("NOTIFY pgrst, 'reload config';")
-		expect(script).toContain("NOTIFY pgrst, 'reload schema';")
-	})
-
-	it('supabase target: exposes all schemas in pgrst.db_schemas when multiple schemas granted', () => {
-		const multiGrants = [
-			{ name: 'config', grants: { anon: ['usage', 'select'] } },
-			{ name: 'api', grants: { anon: ['usage', 'select'] } }
-		]
-		const script = buildGrantsScript(multiGrants, 'supabase')
-		expect(script).toContain("ALTER ROLE authenticator SET pgrst.db_schemas TO 'config, api';")
-	})
-
-	it('pgrst lines appear after grant lines', () => {
-		const script = buildGrantsScript(schemaGrants, 'supabase')
-		const grantPos = script.indexOf('GRANT USAGE ON SCHEMA config TO anon;')
-		const prgstPos = script.indexOf('ALTER ROLE authenticator')
-		expect(grantPos).toBeLessThan(prgstPos)
+		it('defaults to supabase target', () => {
+			const script = buildGrantsScript(schemaGrants)
+			expect(script).toContain('GRANT USAGE ON SCHEMA config TO anon;')
+		})
 	})
 })

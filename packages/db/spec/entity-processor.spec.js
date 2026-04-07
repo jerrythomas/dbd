@@ -226,6 +226,24 @@ describe('entity-processor', () => {
 		it('returns null for unknown type without file', () => {
 			expect(ddlFromEntity({ type: 'table', name: 'test' })).toBeNull()
 		})
+
+		it('generates stub DDL for external entity with columns', () => {
+			const entity = {
+				type: 'external',
+				name: 'auth.users',
+				columns: [{ id: 'uuid' }, { email: 'text' }]
+			}
+			const result = ddlFromEntity(entity)
+			expect(result).toContain('CREATE TABLE auth.users')
+			expect(result).toContain('id uuid')
+			expect(result).toContain('email text')
+		})
+
+		it('generates stub DDL for external entity with no columns', () => {
+			const entity = { type: 'external', name: 'auth.users', columns: [] }
+			const result = ddlFromEntity(entity)
+			expect(result).toBe('CREATE TABLE auth.users (\n\n);')
+		})
 	})
 
 	describe('generateRoleScript()', () => {
@@ -281,40 +299,60 @@ describe('entity-processor', () => {
 			{ type: 'table', name: 'public.users', schema: 'public' },
 			{ type: 'table', name: 'staging.data', schema: 'staging' },
 			{ type: 'table', name: 'public.orders', schema: 'public' },
-			{ type: 'view', name: 'public.user_view', schema: 'public' }
+			{ type: 'view', name: 'public.user_view', schema: 'public' },
+			{ type: 'external', name: 'auth.users', schema: 'auth' }
 		]
 
-		it('returns only tables', () => {
+		it('returns tables and external entities', () => {
 			const result = filterEntitiesForDBML(entities, {})
-			expect(result.every((e) => e.type === 'table')).toBe(true)
-			expect(result.length).toBe(3)
+			expect(result.filter((e) => e.type === 'table').length).toBe(3)
+			expect(result.filter((e) => e.type === 'external').length).toBe(1)
+			expect(result.length).toBe(4)
 		})
 
-		it('filters by include.schemas', () => {
+		it('external entities bypass include.schemas filter', () => {
 			const result = filterEntitiesForDBML(entities, { include: { schemas: ['public'] } })
-			expect(result.every((e) => e.schema === 'public')).toBe(true)
-			expect(result.length).toBe(2)
+			expect(result.some((e) => e.name === 'auth.users')).toBe(true)
+			expect(result.filter((e) => e.type === 'table').every((e) => e.schema === 'public')).toBe(
+				true
+			)
 		})
 
-		it('filters by exclude.schemas', () => {
+		it('external entities bypass exclude.schemas filter', () => {
+			const result = filterEntitiesForDBML(entities, { exclude: { schemas: ['auth'] } })
+			expect(result.some((e) => e.name === 'auth.users')).toBe(true)
+		})
+
+		it('filters tables by include.schemas (external always included)', () => {
+			const result = filterEntitiesForDBML(entities, { include: { schemas: ['public'] } })
+			const tables = result.filter((e) => e.type === 'table')
+			expect(tables.every((e) => e.schema === 'public')).toBe(true)
+			expect(tables.length).toBe(2)
+			expect(result.length).toBe(3) // 2 tables + 1 external
+		})
+
+		it('filters tables by exclude.schemas (external always included)', () => {
 			const result = filterEntitiesForDBML(entities, { exclude: { schemas: ['staging'] } })
-			expect(result.every((e) => e.schema !== 'staging')).toBe(true)
-			expect(result.length).toBe(2)
+			const tables = result.filter((e) => e.type === 'table')
+			expect(tables.every((e) => e.schema !== 'staging')).toBe(true)
+			expect(result.length).toBe(3) // 2 tables + 1 external
 		})
 
-		it('filters by include.tables', () => {
+		it('filters tables by include.tables (external always included)', () => {
 			const result = filterEntitiesForDBML(entities, {
 				include: { tables: ['public.users'] }
 			})
-			expect(result.length).toBe(1)
-			expect(result[0].name).toBe('public.users')
+			expect(result.length).toBe(2) // 1 table + 1 external
+			expect(result.find((e) => e.name === 'public.users')).toBeDefined()
+			expect(result.find((e) => e.name === 'auth.users')).toBeDefined()
 		})
 
-		it('filters by exclude.tables', () => {
+		it('filters tables by exclude.tables (external always included)', () => {
 			const result = filterEntitiesForDBML(entities, {
 				exclude: { tables: ['public.users'] }
 			})
 			expect(result.find((e) => e.name === 'public.users')).toBeUndefined()
+			expect(result.find((e) => e.name === 'auth.users')).toBeDefined()
 		})
 	})
 

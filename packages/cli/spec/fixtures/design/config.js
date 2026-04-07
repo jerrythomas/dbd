@@ -322,6 +322,17 @@ export const entities = [
 		searchPaths: ['staging'],
 		warnings: [],
 		type: 'procedure'
+	},
+	{
+		type: 'external',
+		name: 'auth.users',
+		schema: 'auth',
+		note: 'Supabase managed authentication table',
+		columns: [{ id: 'uuid' }],
+		refers: [],
+		references: [],
+		warnings: [],
+		searchPaths: []
 	}
 ]
 

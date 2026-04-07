@@ -204,7 +204,8 @@ describe('Design class (packages/cli)', () => {
 
 	it('apply dry-run logs errors for invalid entities with entity details', async () => {
 		const dx = await using('design.yaml')
-		const lastEntity = dx.entities[dx.entities.length - 1]
+		// Use the last non-external entity (external entities are skipped in apply)
+		const lastEntity = [...dx.entities].reverse().find((e) => e.type !== 'external')
 		lastEntity.errors = ['test error']
 		dx.apply(undefined, true)
 
@@ -545,19 +546,19 @@ describe('Design class (packages/cli)', () => {
 	// --- grants ---
 
 	describe('grants()', () => {
-		it('prints info when postgres target', async () => {
+		it('prints info when postgres target with no grants', async () => {
 			const dx = await using('design.yaml')
+			dx.config.schemaGrants = []
 			await dx.grants('postgres', false)
 
 			const infoCalls = console.info.mock.calls.map((c) => c[0])
-			expect(infoCalls.some((c) => c === 'Grants are not applicable for --target postgres')).toBe(
-				true
-			)
+			expect(infoCalls.some((c) => c === 'No grants configured in design.yaml')).toBe(true)
 		})
 
 		it('prints info when no grants configured', async () => {
 			const dx = await using('design.yaml')
 			dx.config.schemaGrants = []
+			dx.config.supabaseSchemas = []
 			await dx.grants('supabase', false)
 
 			const infoCalls = console.info.mock.calls.map((c) => c[0])
@@ -597,6 +598,64 @@ describe('Design class (packages/cli)', () => {
 			expect(spy).toHaveBeenCalledTimes(1)
 			expect(spy.mock.calls[0][0]).toContain('GRANT USAGE ON SCHEMA config TO anon;')
 
+			spy.mockRestore()
+		})
+	})
+
+	// --- policies ---
+
+	describe('policies()', () => {
+		it('prints info when no policies found', async () => {
+			const dx = await using('design.yaml')
+			dx.config.policyFiles = []
+			await dx.policies(null, false)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => c === 'No policies found in policies/')).toBe(true)
+		})
+
+		it('prints info when named entity has no policy file', async () => {
+			const dx = await using('design.yaml')
+			dx.config.policyFiles = []
+			await dx.policies('config.nonexistent', false)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => c === 'No policy file found for config.nonexistent')).toBe(true)
+		})
+
+		it('dry-run lists policy files without executing', async () => {
+			const dx = await using('design.yaml')
+			await dx.policies(null, true)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			expect(infoCalls.some((c) => c === '[dry-run] policy files:')).toBe(true)
+			expect(infoCalls.some((c) => typeof c === 'string' && c.includes('policies/'))).toBe(true)
+		})
+
+		it('dry-run returns this (chainable)', async () => {
+			const dx = await using('design.yaml')
+			const result = await dx.policies(null, true)
+			expect(result).toBe(dx)
+		})
+
+		it('dry-run with --name filters to matching entity only', async () => {
+			const dx = await using('design.yaml')
+			await dx.policies('config.lookups', true)
+
+			const infoCalls = console.info.mock.calls.map((c) => c[0])
+			const filePrints = infoCalls.filter((c) => typeof c === 'string' && c.includes('policies/'))
+			expect(filePrints.length).toBe(1)
+			expect(filePrints[0]).toContain('lookups')
+		})
+
+		it('non-dry-run calls adapter.executeScript for each policy file', async () => {
+			const dx = await using('design.yaml')
+			const adapter = await dx.getAdapter()
+			const spy = vi.spyOn(adapter, 'executeScript').mockResolvedValue()
+
+			await dx.policies(null, false)
+
+			expect(spy).toHaveBeenCalledTimes(dx.config.policyFiles.length)
 			spy.mockRestore()
 		})
 	})

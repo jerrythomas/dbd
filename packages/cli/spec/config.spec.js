@@ -15,7 +15,10 @@ import {
 	clean,
 	cleanDDLEntities,
 	normalizeEnv,
-	normalizeSchema
+	normalizeSchema,
+	normalizeExternal,
+	policyFileFromPath,
+	scanPolicies
 } from '../src/config.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -437,5 +440,94 @@ export: []
 			expect(table).toBeDefined()
 			expect(table.env).toBe('prod')
 		})
+	})
+})
+
+describe('policyFileFromPath()', () => {
+	it('parses a policies/schema/entity.ddl path', () => {
+		const result = policyFileFromPath('policies/config/lookups.ddl')
+		expect(result).toEqual({
+			schema: 'config',
+			name: 'config.lookups',
+			file: 'policies/config/lookups.ddl'
+		})
+	})
+
+	it('parses a .sql extension', () => {
+		const result = policyFileFromPath('policies/core/profiles.sql')
+		expect(result).toEqual({
+			schema: 'core',
+			name: 'core.profiles',
+			file: 'policies/core/profiles.sql'
+		})
+	})
+
+	it('returns null when path does not have schema/entity depth', () => {
+		expect(policyFileFromPath('policies/lookups.ddl')).toBeNull()
+		expect(policyFileFromPath('policies/a/b/c.ddl')).toBeNull()
+	})
+
+	it('handles path without policies/ prefix', () => {
+		const result = policyFileFromPath('config/lookups.ddl')
+		expect(result).toEqual({ schema: 'config', name: 'config.lookups', file: 'config/lookups.ddl' })
+	})
+})
+
+describe('normalizeExternal()', () => {
+	it('parses a schema-qualified name', () => {
+		const result = normalizeExternal({
+			name: 'auth.users',
+			note: 'Supabase auth',
+			columns: [{ id: 'uuid' }]
+		})
+		expect(result).toEqual({
+			type: 'external',
+			name: 'auth.users',
+			schema: 'auth',
+			note: 'Supabase auth',
+			columns: [{ id: 'uuid' }],
+			refers: [],
+			references: [],
+			warnings: [],
+			searchPaths: []
+		})
+	})
+
+	it('defaults to public schema when name is unqualified', () => {
+		const result = normalizeExternal({ name: 'users' })
+		expect(result.schema).toBe('public')
+		expect(result.name).toBe('users')
+	})
+
+	it('defaults note to null when absent', () => {
+		const result = normalizeExternal({ name: 'auth.users' })
+		expect(result.note).toBeNull()
+	})
+
+	it('defaults columns to empty array when absent', () => {
+		const result = normalizeExternal({ name: 'auth.users' })
+		expect(result.columns).toEqual([])
+	})
+})
+
+describe('scanPolicies()', () => {
+	beforeEach(() => {
+		process.chdir(exampleDir)
+	})
+
+	it('returns policy descriptors for all .ddl files in policies/', () => {
+		const policies = scanPolicies()
+		expect(policies.length).toBeGreaterThan(0)
+		expect(policies.every((p) => p.schema && p.name && p.file)).toBe(true)
+	})
+
+	it('all names are schema-qualified', () => {
+		const policies = scanPolicies()
+		expect(policies.every((p) => p.name.includes('.'))).toBe(true)
+	})
+
+	it('returns empty array when policies/ folder does not exist', () => {
+		process.chdir(join(exampleDir, '..', 'spec', 'fixtures', 'doctor'))
+		expect(scanPolicies()).toEqual([])
 	})
 })

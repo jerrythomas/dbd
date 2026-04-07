@@ -309,4 +309,58 @@ describe('extractTableReferencesFromBody', () => {
 		expect(result.writes).toContain('config.target')
 		expect(result.reads).toContain('staging.source')
 	})
+
+	it('CTE alias is not treated as a table reference', () => {
+		const body = `
+      BEGIN
+        RETURN QUERY
+          WITH bfs AS (
+            SELECT id FROM graph_nodes
+          )
+          SELECT id FROM bfs;
+      END;
+    `
+		const result = extractTableReferencesFromBody(body)
+		expect(result.reads).toContain('graph_nodes')
+		expect(result.reads).not.toContain('bfs')
+	})
+
+	it('multiple CTEs: all aliases excluded, real tables included', () => {
+		const body = `
+      BEGIN
+        RETURN QUERY
+          WITH terms AS (
+            SELECT id FROM source_docs
+          ),
+          matches AS (
+            SELECT id FROM term_index
+          )
+          SELECT t.id FROM terms t JOIN matches m ON t.id = m.id;
+      END;
+    `
+		const result = extractTableReferencesFromBody(body)
+		expect(result.reads).toContain('source_docs')
+		expect(result.reads).toContain('term_index')
+		expect(result.reads).not.toContain('terms')
+		expect(result.reads).not.toContain('matches')
+	})
+
+	it('RECURSIVE CTE alias is excluded', () => {
+		const body = `
+      BEGIN
+        RETURN QUERY
+          WITH RECURSIVE bfs AS (
+            SELECT id FROM start_nodes
+            UNION ALL
+            SELECT n.id FROM graph_edges e JOIN bfs ON e.from_id = bfs.id JOIN graph_nodes n ON e.to_id = n.id
+          )
+          SELECT id FROM bfs;
+      END;
+    `
+		const result = extractTableReferencesFromBody(body)
+		expect(result.reads).toContain('start_nodes')
+		expect(result.reads).toContain('graph_edges')
+		expect(result.reads).toContain('graph_nodes')
+		expect(result.reads).not.toContain('bfs')
+	})
 })

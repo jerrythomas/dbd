@@ -4,8 +4,8 @@
  * Extracted from src/metadata.js + src/filler.js.
  * Uses @jerrythomas/dbd-db for entity processing and dependency resolution.
  */
-import { readdirSync, readFileSync, statSync } from 'fs'
-import { join, extname } from 'path'
+import { readdirSync, readFileSync, statSync, existsSync } from 'fs'
+import { join, extname, sep } from 'path'
 import { load } from 'js-yaml'
 import {
 	entityFromFile,
@@ -103,6 +103,58 @@ export function scan(root = '.') {
 }
 
 /**
+ * Parses a policy file path (policies/schema/entity.ddl) into a structured descriptor.
+ * Returns null for paths that don't match the expected depth.
+ *
+ * @param {string} file - relative file path
+ * @returns {{ schema: string, name: string, file: string }|null}
+ */
+export function policyFileFromPath(file) {
+	const parts = file.replace(extname(file), '').split(sep)
+	const trimmed = parts[0] === 'policies' ? parts.slice(1) : parts
+	if (trimmed.length !== 2) return null
+	const [schema, entity] = trimmed
+	return { schema, name: `${schema}.${entity}`, file }
+}
+
+/**
+ * Scans the policies/ folder and returns structured policy file descriptors.
+ * Returns an empty array when the folder does not exist.
+ *
+ * @returns {Array<{ schema: string, name: string, file: string }>}
+ */
+export function scanPolicies() {
+	if (!existsSync('policies')) return []
+	return scan('policies')
+		.filter((file) => ['.ddl', '.sql'].includes(extname(file)))
+		.map(policyFileFromPath)
+		.filter(Boolean)
+}
+
+/**
+ * Normalize an external entity entry from design.yaml into a structured descriptor.
+ * External entities are tables managed outside the project (e.g. Supabase auth.users).
+ *
+ * @param {Object} entry - { name, note?, columns?: [{colName: type}, ...] }
+ * @returns {{ type: 'external', name, schema, note, columns, refers, references, warnings, searchPaths }}
+ */
+export function normalizeExternal(entry) {
+	const parts = entry.name.split('.')
+	const schema = parts.length > 1 ? parts[0] : 'public'
+	return {
+		type: 'external',
+		name: entry.name,
+		schema,
+		note: entry.note ?? null,
+		columns: entry.columns ?? [],
+		refers: [],
+		references: [],
+		warnings: [],
+		searchPaths: []
+	}
+}
+
+/**
  * Reads and parses a design.yaml configuration file.
  *
  * @param {string} file - path to YAML config
@@ -115,6 +167,9 @@ export function read(file) {
 	const normalizedSchemas = (data.schemas || []).map(normalizeSchema)
 	data.schemas = normalizedSchemas.map((s) => s.name)
 	data.schemaGrants = normalizedSchemas.filter((s) => s.grants)
+	data.supabaseSchemas = data.supabase ?? []
+	data.policyFiles = scanPolicies()
+	data.externalEntities = (data.external ?? []).map(normalizeExternal)
 
 	data.entities = [...data.tables, ...data.views, ...data.functions, ...data.procedures]
 	data.project = { staging: [], migrate: [], ...data.project }
