@@ -1,6 +1,6 @@
 {
   "name": "dbd-workspace",
-  "version": "2.2.3",
+  "version": "2.3.0",
   "description": "Deploy databases using DDL scripts.",
   "private": true,
   "type": "module",
