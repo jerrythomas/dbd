@@ -1,7 +1,7 @@
 {
   "name": "@jerrythomas/dbd-convex",
-  "version": "2.2.2",
-  "description": "Convex schema generation and data seeding for DBD.",
+  "version": "2.3.1",
+  "description": "Convex adapter and schema generation for DBD.",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
@@ -11,6 +11,7 @@
   "keywords": [
     "database",
     "convex",
+    "adapter",
     "schema",
     "seeding"
   ],
@@ -20,7 +21,9 @@
   },
   "author": "Jerry Thomas <me@jerrythomas.name>",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "@jerrythomas/dbd-db": "workspace:*"
+  },
   "devDependencies": {},
   "publishConfig": {
     "access": "public"

@@ -13,7 +13,6 @@ import {
 	entityFromExtensionConfig,
 	ddlFromEntity,
 	validateEntity,
-	importScriptForEntity,
 	exportScriptForEntity,
 	filterEntitiesForDBML,
 	sortByDependencies,
@@ -148,34 +147,7 @@ class Design {
 		return { entity, issues, warnings }
 	}
 
-	async apply(name, dryRun = false, target = null) {
-		if (target === 'convex') {
-			if (!this.isValidated) this.validate()
-			const { generateSchemaTs } = await import('@jerrythomas/dbd-convex')
-			const convexConfig = this.#config.convex ?? {}
-			const { content, warnings } = generateSchemaTs(this.entities, convexConfig)
-			warnings.forEach((w) => console.warn(w))
-
-			if (dryRun) {
-				console.info(content)
-				return this
-			}
-
-			fs.mkdirSync('convex', { recursive: true })
-			fs.writeFileSync('convex/schema.ts', content)
-			console.info('Generated convex/schema.ts')
-
-			const convexUrl = process.env.CONVEX_URL
-			const convexKey = process.env.CONVEX_DEPLOY_KEY
-			if (convexUrl && convexKey) {
-				const { execFileSync } = await import('child_process')
-				execFileSync('npx', ['convex', 'deploy'], { stdio: 'inherit', env: { ...process.env } })
-			} else {
-				console.info('CONVEX_URL or CONVEX_DEPLOY_KEY not set — skipping deploy')
-			}
-			return this
-		}
-
+	async apply(name, dryRun = false) {
 		if (!this.isValidated) this.validate()
 
 		if (dryRun) {
@@ -205,6 +177,12 @@ class Design {
 
 		// When targeting a single named entity, skip migration phases
 		if (name) {
+			await adapter.applyEntities(validEntities)
+			return this
+		}
+
+		// Batch adapters (e.g. ConvexAdapter) generate output from all entities at once
+		if (adapter.prefersBatchApply()) {
 			await adapter.applyEntities(validEntities)
 			return this
 		}
@@ -345,45 +323,20 @@ class Design {
 		return this
 	}
 
-	async importData(name, dryRun = false, target = null) {
-		if (target === 'convex') {
-			if (!this.isValidated) this.validate()
-			const { seedTable, convexImportCommand, resolveTableName } =
-				await import('@jerrythomas/dbd-convex')
-			const convexConfig = this.#config.convex ?? {}
-			const isProd = this.#env === 'prod'
-
-			const plan = this.importTables
-				.filter((table) => !table.errors || table.errors.length === 0)
-				.filter((table) => !name || table.name === name || table.file === name)
-
-			if (dryRun) {
-				for (const table of plan) {
-					const tableName = resolveTableName(table, convexConfig)
-					console.info(convexImportCommand(tableName, table.file, table.format ?? 'csv', isProd))
-				}
-				return this
-			}
-
-			for (const table of plan) {
-				console.info(`Seeding ${table.name} into Convex`)
-				table.warnings.forEach((w) => console.warn(w))
-				seedTable(table, convexConfig, isProd)
-			}
-			return this
-		}
-
+	async importData(name, dryRun = false) {
 		if (!this.isValidated) this.validate()
 
 		const plan = this.importTables
 			.filter((table) => !table.errors || table.errors.length === 0)
 			.filter((table) => !name || table.name === name || table.file === name)
 
+		const adapter = await this.getAdapter()
+
 		if (dryRun) {
 			for (const table of plan) {
 				console.info(`Importing ${table.name}`)
 				table.warnings.forEach((w) => console.warn(w))
-				console.info(importScriptForEntity(table))
+				await adapter.importData(table, { dryRun: true })
 			}
 			for (const table of plan) {
 				if (table.procedure) console.info(`call ${table.procedure.name}();`)
@@ -391,7 +344,6 @@ class Design {
 			return this
 		}
 
-		const adapter = await this.getAdapter()
 		for (const table of plan) {
 			console.info(`Importing ${table.name}`)
 			table.warnings.forEach((w) => console.warn(w))
@@ -528,7 +480,9 @@ export async function using(file, databaseURL, env = 'prod', opts = {}) {
 		registerAdapter('postgres', () => import('@jerrythomas/dbd-postgres-adapter'))
 		registerAdapter('postgresql', () => import('@jerrythomas/dbd-postgres-adapter'))
 		registerAdapter('supabase', () => import('@jerrythomas/dbd-supabase-adapter'))
-		adapter = await createAdapter(dbType.toLowerCase(), databaseURL, { project })
+		registerAdapter('convex', () => import('@jerrythomas/dbd-convex'))
+		const convex = rawConfig.convex ?? {}
+		adapter = await createAdapter(dbType.toLowerCase(), databaseURL, { project, env, convex })
 	}
 	await adapter.initParser()
 	return new Design(rawConfig, adapter, databaseURL, env)

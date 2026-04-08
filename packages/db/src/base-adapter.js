@@ -221,6 +221,16 @@ export class BaseDatabaseAdapter {
 		// Default: no-op
 	}
 
+	/**
+	 * Whether this adapter prefers to receive all entities at once via applyEntities()
+	 * rather than one-at-a-time via applyEntity(). Adapters that generate output from
+	 * the full entity set (e.g. ConvexAdapter generating schema.ts) should return true.
+	 * @returns {boolean}
+	 */
+	prefersBatchApply() {
+		return false
+	}
+
 	// --- Utility ---
 
 	log(message, level = 'info') {

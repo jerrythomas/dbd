@@ -218,14 +218,13 @@ describe('Design class (packages/cli)', () => {
 
 	it('importData dry-run logs "Importing <name>" for each table', async () => {
 		const dx = await using('design.yaml')
-		dx.importData(undefined, true)
+		await dx.importData(undefined, true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
 		const importMessages = infoCalls.filter(
 			(c) => typeof c === 'string' && c.startsWith('Importing ')
 		)
 		expect(importMessages.length).toBeGreaterThan(0)
-		// Each message should include the table name
 		importMessages.forEach((msg) => {
 			expect(msg).toMatch(/^Importing \w+\.\w+/)
 		})
@@ -233,7 +232,7 @@ describe('Design class (packages/cli)', () => {
 
 	it('importData dry-run filters by name and logs matching table', async () => {
 		const dx = await using('design.yaml')
-		dx.importData('staging.lookup_values', true)
+		await dx.importData('staging.lookup_values', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
 		const importMessages = infoCalls.filter(
@@ -244,7 +243,7 @@ describe('Design class (packages/cli)', () => {
 
 	it('importData dry-run logs the \\copy script for the table', async () => {
 		const dx = await using('design.yaml')
-		dx.importData('staging.lookup_values', true)
+		await dx.importData('staging.lookup_values', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
 		const copyScript = infoCalls.find((c) => typeof c === 'string' && c.includes('\\copy'))
@@ -254,7 +253,7 @@ describe('Design class (packages/cli)', () => {
 
 	it('importData dry-run logs call statement when procedure exists', async () => {
 		const dx = await using('design.yaml')
-		dx.importData('staging.lookup_values', true)
+		await dx.importData('staging.lookup_values', true)
 
 		const infoCalls = console.info.mock.calls.map((c) => c[0])
 		const callStatement = infoCalls.find(
@@ -660,12 +659,14 @@ describe('Design class (packages/cli)', () => {
 		})
 	})
 
-	// --- apply with target=convex ---
+	// --- ConvexAdapter via using() ---
 
-	describe('apply with target=convex', () => {
+	describe('apply() with ConvexAdapter (database: convex)', () => {
 		it('dry-run prints schema.ts content without writing file', async () => {
-			const dx = (await using('design.yaml')).validate()
-			await dx.apply(null, true, 'convex')
+			const { ConvexAdapter } = await import('@jerrythomas/dbd-convex')
+			const adapter = new ConvexAdapter('', { convex: {}, env: 'prod', dryRun: true })
+			const dx = (await using('design.yaml', null, 'prod', { adapter })).validate()
+			await dx.apply()
 			const calls = console.info.mock.calls.map((c) => c[0])
 			expect(
 				calls.some((c) => typeof c === 'string' && c.includes('export default defineSchema('))
@@ -674,9 +675,11 @@ describe('Design class (packages/cli)', () => {
 		})
 
 		it('writes convex/schema.ts to disk on non-dry-run', async () => {
-			const dx = (await using('design.yaml')).validate()
+			const { ConvexAdapter } = await import('@jerrythomas/dbd-convex')
+			const adapter = new ConvexAdapter('', { convex: {}, env: 'prod' })
+			const dx = (await using('design.yaml', null, 'prod', { adapter })).validate()
 			try {
-				await dx.apply(null, false, 'convex')
+				await dx.apply()
 				expect(existsSync('convex/schema.ts')).toBe(true)
 				const content = readFileSync('convex/schema.ts', 'utf8')
 				expect(content).toContain('export default defineSchema(')
@@ -685,24 +688,21 @@ describe('Design class (packages/cli)', () => {
 				try {
 					rmdirSync('convex')
 				} catch {
-					/* ignore if dir not empty */
+					/* ignore */
 				}
 			}
 		})
 	})
 
-	// --- importData with target=convex ---
-
-	describe('importData with target=convex', () => {
-		it('dry-run prints npx convex import commands to stdout', async () => {
-			const dx = (await using('design.yaml')).validate()
-			await dx.importData(null, true, 'convex')
+	describe('importData() with ConvexAdapter', () => {
+		it('dry-run prints npx convex import commands', async () => {
+			const { ConvexAdapter } = await import('@jerrythomas/dbd-convex')
+			const adapter = new ConvexAdapter('', { convex: {}, env: 'prod', dryRun: true })
+			const dx = (await using('design.yaml', null, 'prod', { adapter })).validate()
+			await dx.importData(null, true)
 			const calls = console.info.mock.calls.map((c) => c[0])
-			const convexCalls = calls.filter(
-				(c) => typeof c === 'string' && c.startsWith('npx convex import')
-			)
-			// example project may have 0 import tables — just confirm no error thrown
-			expect(Array.isArray(convexCalls)).toBe(true)
+			// example project may have 0 import tables — confirm no error thrown
+			expect(Array.isArray(calls)).toBe(true)
 		})
 	})
 

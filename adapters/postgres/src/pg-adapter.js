@@ -132,7 +132,8 @@ export class PgAdapter extends BaseDatabaseAdapter {
 		}
 
 		if (this.dryRun || options.dryRun) {
-			this.log(`[dry-run] Would import: ${entity.name}`)
+			const { importScriptForEntity } = await import('@jerrythomas/dbd-db')
+			console.info(importScriptForEntity(entity))
 			return
 		}
 

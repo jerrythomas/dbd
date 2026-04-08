@@ -198,19 +198,13 @@ prog
 	.command('apply')
 	.option('-n, --name', 'apply a specific entity or file only')
 	.option('--dry-run', 'just print the entities', false)
-	.option(
-		'--target',
-		'output target: leave unset for postgres, or "convex" to generate schema.ts',
-		null
-	)
 	.describe('Apply the database scripts to database.')
 	.example('dbd apply')
-	.example('dbd apply --target=convex')
-	.example('dbd apply --target=convex --dry-run')
+	.example('dbd apply --dry-run')
 	.action(async (opts) => {
 		const dx = await using(opts.config, opts.database)
 		try {
-			await dx.apply(opts.name, opts['dry-run'], opts.target)
+			await dx.apply(opts.name, opts['dry-run'])
 		} finally {
 			await dx.disconnect()
 		}
@@ -236,20 +230,14 @@ prog
 	.command('import')
 	.option('-n, --name', 'Optional name or file to be imported.')
 	.option('--dry-run', 'just print the entities', false)
-	.option(
-		'--target',
-		'output target: leave unset for postgres, or "convex" to seed via npx convex import',
-		null
-	)
 	.describe('Load csv files into database')
 	.example('dbd import')
 	.example('dbd import -n staging.lookups')
-	.example('dbd import --target=convex')
 	.action(async (opts) => {
 		const env = normalizeEnv(opts.environment)
 		const dx = await using(opts.config, opts.database, env)
 		try {
-			await dx.importData(opts.name, opts['dry-run'], opts.target)
+			await dx.importData(opts.name, opts['dry-run'])
 			console.log('Import complete.')
 		} finally {
 			await dx.disconnect()
@@ -348,43 +336,6 @@ prog
 		const dx = await using(opts.config, opts.database)
 		try {
 			await dx.grants(opts.target, opts['dry-run'])
-		} finally {
-			await dx.disconnect()
-		}
-	})
-
-prog
-	.command('convex schema')
-	.option('-n, --name', 'apply a specific entity only')
-	.option('--dry-run', 'print schema.ts to stdout only', false)
-	.describe(
-		'Generate convex/schema.ts from DDL entities. Deploys if CONVEX_URL and CONVEX_DEPLOY_KEY are set.'
-	)
-	.example('dbd convex schema')
-	.example('dbd convex schema --dry-run')
-	.action(async (opts) => {
-		const dx = await using(opts.config, opts.database)
-		try {
-			await dx.apply(opts.name, opts['dry-run'], 'convex')
-		} finally {
-			await dx.disconnect()
-		}
-	})
-
-prog
-	.command('convex seed')
-	.option('-n, --name', 'Optional name or file to be seeded.')
-	.option('--dry-run', 'print what would be seeded', false)
-	.describe('Seed data into Convex deployment from import files.')
-	.example('dbd convex seed')
-	.example('dbd convex seed -n staging.users')
-	.example('dbd convex seed --dry-run')
-	.action(async (opts) => {
-		const env = normalizeEnv(opts.environment)
-		const dx = await using(opts.config, opts.database, env)
-		try {
-			await dx.importData(opts.name, opts['dry-run'], 'convex')
-			console.log('Seed complete.')
 		} finally {
 			await dx.disconnect()
 		}
