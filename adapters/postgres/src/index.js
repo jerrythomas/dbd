@@ -7,14 +7,17 @@ export { PsqlAdapter, PgAdapter }
  * Factory function called by @jerrythomas/dbd-db's createAdapter().
  *
  * Uses the programmatic PgAdapter (postgres.js library) by default.
- * PsqlAdapter is still available for direct use if needed.
+ * Pass `driver: 'psql'` in options to use the CLI-based PsqlAdapter instead.
  *
  * @param {string} connectionString — PostgreSQL connection URL
- * @param {Object} [options] — { verbose, dryRun }
- * @returns {PgAdapter}
+ * @param {Object} [options] — { verbose, dryRun, driver: 'pg' | 'psql' }
+ * @returns {PgAdapter|PsqlAdapter}
  */
 export function createAdapter(connectionString, options = {}) {
-	return new PgAdapter(connectionString, options)
+	const { driver = 'pg', ...adapterOptions } = options
+	return driver === 'psql'
+		? new PsqlAdapter(connectionString, adapterOptions)
+		: new PgAdapter(connectionString, adapterOptions)
 }
 
 // Re-export parser API for direct usage

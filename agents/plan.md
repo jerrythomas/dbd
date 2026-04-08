@@ -1,142 +1,110 @@
-# Plan: Snapshots & Migrations
+# Plan: Adapter Restructure + SQLite Support
 
 ## Context
 
-DDL files always reflect the desired final state. When a column is added to a DDL file, the DB needs an `ALTER TABLE ADD COLUMN` — not a `CREATE TABLE` re-run. Migrations bridge the gap between the current DB state and the new desired state.
+The adapter landscape has grown organically and no longer matches the intended pattern:
 
-`dbd apply` remains unchanged (clean slate). Migrations are a separate incremental workflow for staging/prod.
+- `packages/postgres` contains two adapters (`PsqlAdapter`, `PgAdapter`) plus the parser — a single package doing too much
+- `packages/convex` is a utility library, not an adapter — `design.js` special-cases it with `target === 'convex'` branches in both `apply()` and `importData()`
+- Supabase is a config template only, no adapter
+- No SQLite support
+
+Goal: a clean `adapters/` folder where every database target is a proper `BaseDatabaseAdapter` implementation, and `design.js` has zero target-specific branches.
 
 ## Approach
 
-### Snapshot
-
-`dbd snapshot` (manual, not automatic) does two things:
-
-1. Parses all table DDL files → structured column/index/FK data → writes `snapshots/N.json`
-2. Diffs against `snapshots/N-1.json` → generates `migrations/(N-1)-to-N.sql`
-
-### Migration SQL (tables/indexes/FK refs only)
-
-Views, functions, procedures, triggers are NOT in migration SQL — they use `CREATE OR REPLACE` via `dbd apply`. Within a migration file, ordering is:
-
-1. CREATE new schemas (IF NOT EXISTS)
-2. CREATE new tables (dependency order)
-3. ALTER TABLE ADD/MODIFY COLUMN
-4. CREATE/DROP INDEX
-5. ADD/DROP FK constraints
-6. ALTER TABLE DROP COLUMN (destructive — last)
-7. DROP TABLE (reverse dep order — destructive last)
-
-### Version tracking
-
-- Local version = highest N in `snapshots/` directory
-- DB version = `MAX(version)` from `_dbd_migrations` table
-- `dbd migrate --status` shows both
-
-### Workflow (staging/prod)
+### Folder structure
 
 ```
-dbd snapshot             → creates snapshots/N.json + migrations/(N-1)-to-N.sql
-dbd migrate --status     → local N vs DB version
-dbd migrate --apply      → apply pending migrations, record in _dbd_migrations
-dbd import               → load data (after schema is up to date)
+dbd/
+  packages/
+    cli/         — unchanged
+    db/          — BaseDatabaseAdapter, factory, entity-processor (unchanged)
+    dbml/        — unchanged
+  adapters/
+    postgres/    — PgAdapter (default) + PsqlAdapter (driver option), parser, reference-classifier
+    supabase/    — SupabaseAdapter extends PgAdapter (skip managed schemas/extensions)
+    sqlite/      — SqliteAdapter (new, uses better-sqlite3)
+    convex/      — ConvexAdapter extends BaseDatabaseAdapter (replaces packages/convex)
 ```
 
-### Snapshot format
+Root `package.json` workspaces: `["packages/*", "adapters/*"]`
 
-```json
-{
-  "version": 2,
-  "description": "add users table",
-  "timestamp": "2026-03-30T...",
-  "tables": [
-    {
-      "name": "config.profiles",
-      "schema": "config",
-      "columns": [
-        {
-          "name": "id",
-          "type": "uuid",
-          "nullable": false,
-          "default": "uuid_generate_v4()",
-          "constraints": [{ "type": "PRIMARY KEY" }]
-        },
-        {
-          "name": "email",
-          "type": "varchar(255)",
-          "nullable": false,
-          "default": null,
-          "constraints": [{ "type": "FOREIGN KEY", "table": "auth.users", "column": "email" }]
-        }
-      ],
-      "indexes": [
-        {
-          "name": "idx_profiles_email",
-          "unique": true,
-          "columns": [{ "name": "email", "order": "ASC" }]
-        }
-      ]
-    }
-  ]
-}
-```
+### Postgres: builder/factory with driver option
 
-### `_dbd_migrations` table
+`createAdapter(url, { driver: 'pg' | 'psql' })` — default `'pg'`. Both adapters stay in
+the same package (they share the parser). Factory selects the right class.
 
-```sql
-CREATE TABLE IF NOT EXISTS _dbd_migrations (
-  version     integer PRIMARY KEY,
-  applied_at  timestamptz NOT NULL DEFAULT now(),
-  description text,
-  checksum    text NOT NULL
-);
-```
+### Supabase: thin wrapper over PgAdapter
 
-## New files
+`SupabaseAdapter extends PgAdapter`:
 
-- `packages/cli/src/snapshot.js` — snapshot file I/O
-- `packages/db/src/schema-diff.js` — pure diff function
-- `packages/db/src/migration-generator.js` — diff → ordered SQL
+- `applyEntity` skips managed schemas (`auth`, `storage`, `realtime`, `graphql_public`, `supabase_functions`)
+- `applyEntity` skips extensions that Supabase pre-installs (`uuid-ossp`, `pgcrypto`, etc.)
 
-## Modified files
+Connection string is still a standard PostgreSQL URL.
 
-- `packages/postgres/src/parser/extractors/tables.js` — implement `extractTableConstraints` (table-level FKs)
-- `packages/postgres/src/psql-adapter.js` — `parseTableSnapshot()`, `ensureMigrationsTable()`, `getDbVersion()`, `applyMigration()`
-- `packages/db/src/base-adapter.js` — interface stubs for above 4 methods
-- `packages/db/src/index.js` — export `diffSnapshots`, `generateMigrationSQL`
-- `packages/cli/src/index.js` — add `dbd snapshot` and `dbd migrate` commands
+### SQLite: new SqliteAdapter
+
+Uses `better-sqlite3` (synchronous API, no extra deps).
+
+- `executeScript(sql)` — `db.exec(sql)`
+- `applyEntity(entity)` — reads file, strips unsupported DDL (schemas, extensions, roles), runs via `exec()`
+- `importData(entity)` — reads CSV/TSV/JSON file, inserts rows via prepared statements
+- No `parseEntityScript` / `parseTableSnapshot` — stub returns empty (no pgsql-parser for SQLite DDL)
+- No migration support in this phase — stubs are no-ops
+- Connection string = file path (e.g. `./local.db`)
+
+Schema handling: SQLite has no schemas. Entity names like `config.profiles` strip the schema prefix → table name `profiles`.
+
+### Convex: proper adapter, remove special-casing
+
+`ConvexAdapter extends BaseDatabaseAdapter`:
+
+- `applyEntities(entities)` override — calls `generateSchemaTs(tables, convexConfig)`, writes `convex/schema.ts`, deploys if env vars present. Key override because schema generation requires all entities at once.
+- `applyEntity()` — no-op (individual entity apply is meaningless for Convex)
+- `importData(entity)` — seeds via Convex CLI
+- `executeScript()` — no-op
+- Constructor takes `convexConfig` from options
+
+`design.js`:
+
+- `apply()`: check `adapter.prefersBatchApply()` — if true, call `applyEntities(validEntities)` instead of per-entity loop. `ConvexAdapter` returns `true`; all others return `false` (default in `BaseDatabaseAdapter`).
+- Remove `target === 'convex'` branch from `apply()`
+- Remove `target === 'convex'` branch from `importData()`
+
+CLI:
+
+- Remove `dbd convex schema` and `dbd convex seed` commands
+- Remove `--target` option from `dbd apply` and `dbd import`
+- `using()` registers `postgres`, `postgresql`, `supabase`, `sqlite`, `convex`
+
+`packages/convex` — deleted after migration.
 
 ## Steps
 
-- [x] Step 1: Implement `extractTableConstraints` — table-level FK constraints in `packages/postgres/src/parser/extractors/tables.js`
-- [x] Step 2: Add `parseTableSnapshot(entity)` to `BaseDatabaseAdapter` (stub) and `PsqlAdapter` (impl) — reads DDL → `{name, schema, columns, indexes}`
-- [x] Step 3: Implement `packages/db/src/schema-diff.js` — `diffSnapshots(from, to)` pure function (table add/drop/alter, column add/drop/modify, index add/drop, FK add/drop)
-- [x] Step 4: Implement `packages/db/src/migration-generator.js` — `generateMigrationSQL(diff, fromVersion, toVersion)` → ordered SQL string
-- [x] Step 5: Implement `packages/cli/src/snapshot.js` — `readSnapshot`, `latestSnapshot`, `listSnapshots`, `createSnapshot`
-- [x] Step 6: Add `ensureMigrationsTable`, `getDbVersion`, `applyMigration` to `BaseDatabaseAdapter` and `PsqlAdapter`
-- [x] Step 7: Add `dbd snapshot [--name] [--list]` and `dbd migrate [--apply] [--status] [--to N]` commands to `packages/cli/src/index.js`
-- [x] Step 8: Unit tests — `schema-diff.spec.js`, `migration-generator.spec.js`, `snapshot.spec.js`
-- [x] Step 9: Run `bun run test && bun run lint` — 941 tests passing, 0 errors
-- [x] Step 10: Commit — `0c1ace6`
+- [x] Step 1: Update workspace config — add `"adapters/*"` to `package.json` workspaces; update vitest config to include adapter projects
+- [x] Step 2: Create `adapters/postgres` — move `packages/postgres` contents, update package name to `@jerrythomas/dbd-postgres-adapter`, add `driver` option to `createAdapter()`
+- [x] Step 3: Create `adapters/supabase` — `SupabaseAdapter extends PgAdapter`, skip Supabase-managed schemas/extensions in `applyEntity()`
+- [ ] Step 4: Create `adapters/convex` — `ConvexAdapter extends BaseDatabaseAdapter`, move + adapt code from `packages/convex`, implement `applyEntities()` and `importData()`
+- [ ] Step 5: Add `prefersBatchApply()` to `BaseDatabaseAdapter` (returns `false`); override to `true` in `ConvexAdapter`
+- [ ] Step 6: Update `design.js` — remove `target === 'convex'` branches from `apply()` and `importData()`; add batch-vs-individual check in `apply()` fresh path; register all adapters in `using()`
+- [ ] Step 7: Update CLI (`index.js`) — remove `dbd convex schema` / `dbd convex seed` commands; remove `--target` option from `dbd apply` and `dbd import`
+- [ ] Step 8: Create `adapters/sqlite` — `SqliteAdapter extends BaseDatabaseAdapter`, `better-sqlite3` dependency, `executeScript`, `applyEntity` (strip unsupported DDL, strip schema prefix), `importData` (CSV/TSV/JSON via prepared statements)
+- [x] Step 9: Delete `packages/postgres` (done alongside Step 2 to resolve workspace name collision)
+- [x] Step 10: Update all internal references (vitest project names, coverage config, `using()` registers supabase)
+- [ ] Step 11: Run `bun run test && bun run lint` — all tests pass, 0 errors
+- [ ] Step 12: Commit
 
 ## Verification
 
 ```bash
-# Create snapshot (requires DDL files and snapshots/ dir)
-dbd snapshot --name "initial schema"
-# → writes snapshots/001.json
-# → no migration (first snapshot)
-
-dbd snapshot --name "add email column"
-# → writes snapshots/002.json
-# → writes migrations/001-to-002.sql with ALTER TABLE ADD COLUMN email...
-
-dbd migrate --status
-# → Local version: 2, DB version: 0 (or 1)
-
-dbd migrate --apply
-# → Applying 001-to-002.sql... Migration 2 applied.
-
-# Tests pass
+# All tests pass after restructure
 bun run test
+
+# Postgres adapter still works (factory picks PgAdapter by default)
+# Convex apply generates schema.ts (no --target needed)
+# SQLite apply executes DDL against a .db file
+# SQLite import loads CSV rows
+bun run lint
 ```

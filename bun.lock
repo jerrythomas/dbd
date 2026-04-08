@@ -16,9 +16,28 @@
         "vitest": "^4.1.0",
       },
     },
+    "adapters/postgres": {
+      "name": "@jerrythomas/dbd-postgres-adapter",
+      "version": "2.2.2",
+      "dependencies": {
+        "@jerrythomas/dbd-db": "workspace:*",
+        "csvtojson": "^2.0.10",
+        "pgsql-parser": "^17.9.11",
+        "postgres": "^3.4.8",
+        "ramda": "^0.29.1",
+      },
+    },
+    "adapters/supabase": {
+      "name": "@jerrythomas/dbd-supabase-adapter",
+      "version": "2.3.1",
+      "dependencies": {
+        "@jerrythomas/dbd-db": "workspace:*",
+        "@jerrythomas/dbd-postgres-adapter": "workspace:*",
+      },
+    },
     "packages/cli": {
       "name": "@jerrythomas/dbd",
-      "version": "2.2.0",
+      "version": "2.2.2",
       "bin": {
         "dbd": "src/index.js",
       },
@@ -34,29 +53,18 @@
     },
     "packages/convex": {
       "name": "@jerrythomas/dbd-convex",
-      "version": "2.2.0",
+      "version": "2.2.2",
     },
     "packages/db": {
       "name": "@jerrythomas/dbd-db",
-      "version": "2.2.0",
+      "version": "2.2.2",
     },
     "packages/dbml": {
       "name": "@jerrythomas/dbd-dbml",
-      "version": "2.2.0",
+      "version": "2.2.2",
       "dependencies": {
         "@dbml/core": "^6.4.0",
         "@jerrythomas/dbd-db": "workspace:*",
-      },
-    },
-    "packages/postgres": {
-      "name": "@jerrythomas/dbd-postgres-adapter",
-      "version": "2.2.0",
-      "dependencies": {
-        "@jerrythomas/dbd-db": "workspace:*",
-        "csvtojson": "^2.0.10",
-        "pgsql-parser": "^17.9.11",
-        "postgres": "^3.4.8",
-        "ramda": "^0.29.1",
       },
     },
   },
@@ -113,7 +121,9 @@
 
     "@jerrythomas/dbd-dbml": ["@jerrythomas/dbd-dbml@workspace:packages/dbml"],
 
-    "@jerrythomas/dbd-postgres-adapter": ["@jerrythomas/dbd-postgres-adapter@workspace:packages/postgres"],
+    "@jerrythomas/dbd-postgres-adapter": ["@jerrythomas/dbd-postgres-adapter@workspace:adapters/postgres"],
+
+    "@jerrythomas/dbd-supabase-adapter": ["@jerrythomas/dbd-supabase-adapter@workspace:adapters/supabase"],
 
     "@jridgewell/resolve-uri": ["@jridgewell/resolve-uri@3.1.2", "", {}, "sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw=="],
 

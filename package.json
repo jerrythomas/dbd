@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "adapters/*"
   ],
   "scripts": {
     "test": "vitest run --config config/vitest.config.ts",
@@ -16,6 +17,7 @@
     "test:dbml": "vitest run --config config/vitest.config.ts --project dbml",
     "test:convex": "vitest run --config config/vitest.config.ts --project convex",
     "test:postgres": "vitest run --config config/vitest.config.ts --project postgres",
+    "test:supabase": "vitest run --config config/vitest.config.ts --project supabase",
     "test:unit": "vitest run --config config/vitest.config.ts",
     "test:nopg": "vitest run --config config/vitest.config.ts",
     "coverage": "vitest run --config config/vitest.config.ts --coverage",

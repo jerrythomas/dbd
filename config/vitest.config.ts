@@ -15,8 +15,8 @@ export default defineConfig({
 		coverage: {
 			provider: 'v8',
 			reporter: ['lcov', 'text'],
-			include: ['packages/*/src/**/*.js'],
-			exclude: ['packages/cli/src/index.js', 'packages/postgres/src/parser/parse-ddl.js'],
+			include: ['packages/*/src/**/*.js', 'adapters/*/src/**/*.js'],
+			exclude: ['packages/cli/src/index.js', 'adapters/postgres/src/parser/parse-ddl.js'],
 			thresholds: { statements: 80, branches: 80, functions: 80, lines: 80 }
 		},
 		projects: [
@@ -24,8 +24,15 @@ export default defineConfig({
 				extends: true,
 				test: {
 					name: 'postgres',
-					root: resolve(__dirname, '../packages/postgres'),
+					root: resolve(__dirname, '../adapters/postgres'),
 					setupFiles: ['spec/parser/setup.js']
+				}
+			},
+			{
+				extends: true,
+				test: {
+					name: 'supabase',
+					root: resolve(__dirname, '../adapters/supabase')
 				}
 			},
 			{ extends: true, test: { name: 'cli', root: resolve(__dirname, '../packages/cli') } },

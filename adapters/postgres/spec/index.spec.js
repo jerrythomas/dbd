@@ -28,4 +28,14 @@ describe('adapter factory', () => {
 		expect(adapter.verbose).toBe(true)
 		expect(adapter.dryRun).toBe(true)
 	})
+
+	it('createAdapter with driver:psql returns PsqlAdapter', () => {
+		const adapter = createAdapter('postgresql://localhost/test', { driver: 'psql' })
+		expect(adapter).toBeInstanceOf(PsqlAdapter)
+	})
+
+	it('createAdapter with driver:pg returns PgAdapter', () => {
+		const adapter = createAdapter('postgresql://localhost/test', { driver: 'pg' })
+		expect(adapter).toBeInstanceOf(PgAdapter)
+	})
 })

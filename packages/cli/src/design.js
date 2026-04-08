@@ -527,6 +527,7 @@ export async function using(file, databaseURL, env = 'prod', opts = {}) {
 		const { createAdapter, registerAdapter } = await import('@jerrythomas/dbd-db')
 		registerAdapter('postgres', () => import('@jerrythomas/dbd-postgres-adapter'))
 		registerAdapter('postgresql', () => import('@jerrythomas/dbd-postgres-adapter'))
+		registerAdapter('supabase', () => import('@jerrythomas/dbd-supabase-adapter'))
 		adapter = await createAdapter(dbType.toLowerCase(), databaseURL, { project })
 	}
 	await adapter.initParser()

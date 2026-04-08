@@ -1,0 +1,38 @@
+{
+  "name": "@jerrythomas/dbd-supabase-adapter",
+  "version": "2.3.1",
+  "description": "Supabase adapter for DBD database operations.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "database",
+    "supabase",
+    "postgresql",
+    "adapter",
+    "ddl"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jerrythomas/dbd"
+  },
+  "author": "Jerry Thomas <me@jerrythomas.name>",
+  "license": "MIT",
+  "dependencies": {
+    "@jerrythomas/dbd-db": "workspace:*",
+    "@jerrythomas/dbd-postgres-adapter": "workspace:*"
+  },
+  "devDependencies": {},
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  }
+}
