@@ -32,7 +32,7 @@
     "bench:db": "vitest bench --config config/vitest.bench.db.config.ts",
     "bump": "bumpp --config config/bumpp.config.js",
     "bump:next": "bumpp --config config/bumpp.config.js --preid=next",
-    "publish:all": "find ./packages ./adapters -type d -depth 1 -exec sh -c 'cd \"{}\" && bun publish' \\;",
+    "publish:all": "for dir in packages/db packages/dbml adapters/postgres adapters/supabase adapters/convex adapters/sqlite packages/cli; do (cd $dir && bun publish --access public); done",
     "release": "bun run publish:all"
   },
   "author": "Jerry Thomas <me@jerrythomas.name>",
