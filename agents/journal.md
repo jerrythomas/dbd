@@ -5,6 +5,28 @@ Design details live in `docs/design/` — modular docs per module.
 
 ---
 
+## 2026-04-08
+
+### DBML grant regex bug fix + friendlier error output — COMPLETE
+
+**Root cause:** `removeNonSchemaStatements` used `\bgrant\s` (word boundary) which matched the word `grant` anywhere in the text — including inside SQL string literals. A COMMENT ON TABLE string containing `the grant applies platform-wide` triggered the pattern; the lazy `[\s\S]*?;\n?` then consumed everything up to the statement-closing semicolon, silently truncating the comment and leaving an unclosed string literal. `normalizeComments` then failed to normalize the corrupted comment, and `@dbml/core` saw `'Reference to the role being granted this permission.'` as a bare `Reference` token — producing the cryptic ANTLR error `mismatched input 'Reference' expecting <EOF>`.
+
+**Fix:** Anchored all five `removeNonSchemaStatements` patterns to `^\s*` so they only match keywords at the start of a line (top-level SQL statements, never string content).
+
+**Also fixed:** `dbd dbml` error output — instead of dumping the raw `@dbml/core` `CompilerError` object (minified class `_` with `diags` array), now prints `DBML conversion failed for <fileName>:\n  <message>`.
+
+**Changes:**
+
+- `packages/dbml/src/converter.js` — `removeNonSchemaStatements`: `\bgrant\s` → `^\s*grant\s` (and same for revoke, create policy, drop policy, alter table rls)
+- `packages/cli/src/design.js` — `dbml()` error handler: extract `.diags[].message` from CompilerError
+- `packages/cli/spec/design-dbml-errors.spec.js` — updated test assertion to match new formatted error string
+
+**Result:** 1004 tests passing, 0 lint errors.
+
+**Commit:** `17421e3`
+
+---
+
 ## 2026-03-31
 
 ### dbd doctor + inspect export column check — COMPLETE
@@ -598,6 +620,7 @@ Added `external:` support in `design.yaml` for declaring Supabase-managed tables
 - Example `design.yaml` updated with `external:` block for `auth.users`
 
 **Files changed:**
+
 - `packages/cli/src/config.js` — `normalizeExternal()`, `read()` populates `externalEntities`
 - `packages/cli/src/design.js` — external entities in lookup (matchRefs), entity list, skipped in apply/combine/validate
 - `packages/cli/src/index.js` — `dbd init --target supabase`
