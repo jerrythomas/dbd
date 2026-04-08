@@ -8,7 +8,7 @@
 import fs from 'fs'
 import path from 'path'
 import sade from 'sade'
-import { execSync } from 'child_process'
+
 import { using } from './design.js'
 import { resolveWarnings } from './references.js'
 import { DbReferenceCache } from './db-cache.js'
@@ -20,6 +20,7 @@ import {
 	pendingMigrations,
 	padVersion
 } from './snapshot.js'
+import { auditDesign, fixDesign, checkExportColumns } from './doctor.js'
 
 const location = path.dirname(new URL(import.meta.url).pathname)
 const pkg = JSON.parse(fs.readFileSync(path.join(location, '../package.json'), 'utf8'))
@@ -36,11 +37,61 @@ prog
 prog
 	.command('init')
 	.option('-p, --project', 'Name of the project', 'database')
+	.option('--target', 'Target platform (e.g. supabase)', null)
 	.describe('Initialize a starter project')
 	.example('dbd init')
 	.example('dbd init -p app')
+	.example('dbd init -p app --target supabase')
 	.action((opts) => {
-		execSync(`npx degit jerrythomas/dbd/example ${opts.project}`)
+		if (fs.existsSync(opts.project)) {
+			console.error(`Error: folder "${opts.project}" already exists.`)
+			process.exit(1)
+		}
+		const templateDir = path.join(location, '../example')
+		const skip = ['migrations', 'snapshots', 'design.yaml']
+		fs.cpSync(templateDir, opts.project, {
+			recursive: true,
+			filter: (src) => !skip.some((d) => src.startsWith(path.join(templateDir, d)))
+		})
+		const designYaml =
+			opts.target === 'supabase'
+				? [
+						`project:`,
+						`  name: ${opts.project}`,
+						`  database: PostgreSQL`,
+						``,
+						`# Schemas exposed via PostgREST (dbd grants --target supabase)`,
+						`supabase:`,
+						`  - public`,
+						``,
+						`schemas:`,
+						`  - public`,
+						``,
+						`extensions:`,
+						`  - uuid-ossp`,
+						``,
+						`# External tables managed by Supabase — stubs for DBML FK references`,
+						`external:`,
+						`  - name: auth.users`,
+						`    note: Supabase managed authentication table`,
+						`    columns:`,
+						`      - id: uuid`,
+						``
+					].join('\n')
+				: [
+						`project:`,
+						`  name: ${opts.project}`,
+						`  database: PostgreSQL`,
+						``,
+						`schemas:`,
+						`  - public`,
+						``,
+						`extensions:`,
+						`  - uuid-ossp`,
+						``
+					].join('\n')
+		fs.writeFileSync(path.join(opts.project, 'design.yaml'), designYaml)
+		console.log(`Initialized project in "${opts.project}".`)
 	})
 
 prog
@@ -53,42 +104,93 @@ prog
 	.action(async (opts) => {
 		const design = (await using(opts.config, opts.database)).validate()
 
-		// If a database URL is available, resolve warnings against the DB catalog
-		if (opts.database) {
-			try {
-				const adapter = await design.getAdapter()
-				const connected = await adapter.testConnection()
-				if (connected) {
-					const dbResolver = new DbReferenceCache(adapter, opts.database)
-					if (!opts['no-cache']) dbResolver.load()
-					const entities = await resolveWarnings(design.config.entities, dbResolver)
-					design.updateEntities(entities)
-					dbResolver.save()
+		try {
+			// If a database URL is available, resolve warnings against the DB catalog
+			if (opts.database) {
+				try {
+					const adapter = await design.getAdapter()
+					const connected = await adapter.testConnection()
+					if (connected) {
+						const dbResolver = new DbReferenceCache(adapter, opts.database)
+						if (!opts['no-cache']) dbResolver.load()
+						const entities = await resolveWarnings(design.config.entities, dbResolver)
+						design.updateEntities(entities)
+						dbResolver.save()
+					}
+				} catch {
+					// DB not available — continue with static resolution only
 				}
-			} catch {
-				// DB not available — continue with static resolution only
 			}
+
+			const { entity, issues, warnings } = design.report(opts.name)
+
+			if (entity) console.log(JSON.stringify(entity, null, 2))
+
+			const showDetails = (item, key, verbose) => {
+				let details = `\n${item.file ? item.file : item.name} =>\n  ${item[key].join('\n  ')}`
+				if (verbose) details += `\n${JSON.stringify(item, null, 2)}`
+				return details
+			}
+			if (issues.length > 0) {
+				console.log('Errors:')
+				issues.map((item) => console.log(showDetails(item, 'errors', opts.verbose)))
+			}
+			if (warnings.length > 0) {
+				console.log('\nWarnings:')
+				warnings.map((item) => console.log(showDetails(item, 'warnings', opts.verbose)))
+			}
+			// Export view column consistency check
+			const adapter = await design.getAdapter()
+			const exportIssues = checkExportColumns(design.config, adapter)
+			if (exportIssues.length > 0) {
+				console.log('\nExport view column issues:')
+				for (const issue of exportIssues) {
+					console.log(`  ${issue.export} ← ${issue.stagingTable}`)
+					if (issue.missingColumns.length > 0)
+						console.log(`    columns not in staging: ${issue.missingColumns.join(', ')}`)
+					if (issue.orderMismatch) console.log(`    column order differs from staging table`)
+				}
+			} else if (issues.length === 0 && warnings.length === 0) {
+				console.log('Everything looks ok')
+			}
+		} finally {
+			await design.disconnect()
+		}
+	})
+
+prog
+	.command('doctor')
+	.option('--fix', 'Remove stale entries from design.yaml', false)
+	.describe('Audit design.yaml for stale entries and optionally remove them.')
+	.example('dbd doctor')
+	.example('dbd doctor --fix')
+	.action((opts) => {
+		const audit = auditDesign(opts.config)
+		const hasIssues = Object.values(audit).some((arr) => arr.length > 0)
+
+		if (!hasIssues) {
+			console.log('design.yaml is clean — no stale entries found.')
+			return
 		}
 
-		const { entity, issues, warnings } = design.report(opts.name)
+		if (audit.staleSchemas.length > 0)
+			console.log(`Stale schemas:         ${audit.staleSchemas.join(', ')}`)
+		if (audit.staleStaging.length > 0)
+			console.log(`Stale staging schemas: ${audit.staleStaging.join(', ')}`)
+		if (audit.staleMigrate.length > 0)
+			console.log(`Stale migrate schemas: ${audit.staleMigrate.join(', ')}`)
+		if (audit.staleImport.length > 0) {
+			const names = audit.staleImport.map((e) => (typeof e === 'string' ? e : Object.keys(e)[0]))
+			console.log(`Stale import tables:   ${names.join(', ')}`)
+		}
+		if (audit.staleExport.length > 0)
+			console.log(`Stale export entries:  ${audit.staleExport.join(', ')}`)
 
-		if (entity) console.log(JSON.stringify(entity, null, 2))
-
-		const showDetails = (item, key, verbose) => {
-			let details = `\n${item.file ? item.file : item.name} =>\n  ${item[key].join('\n  ')}`
-			if (verbose) details += `\n${JSON.stringify(item, null, 2)}`
-			return details
-		}
-		if (issues.length > 0) {
-			console.log('Errors:')
-			issues.map((item) => console.log(showDetails(item, 'errors', opts.verbose)))
-		}
-		if (warnings.length > 0) {
-			console.log('\nWarnings:')
-			warnings.map((item) => console.log(showDetails(item, 'warnings', opts.verbose)))
-		}
-		if (issues.length === 0 && warnings.length === 0) {
-			console.log('Everything looks ok')
+		if (opts.fix) {
+			fs.writeFileSync(opts.config, fixDesign(opts.config))
+			console.log(`\nFixed ${opts.config}`)
+		} else {
+			console.log('\nRun with --fix to remove stale entries.')
 		}
 	})
 
@@ -106,7 +208,12 @@ prog
 	.example('dbd apply --target=convex')
 	.example('dbd apply --target=convex --dry-run')
 	.action(async (opts) => {
-		await (await using(opts.config, opts.database)).apply(opts.name, opts['dry-run'], opts.target)
+		const dx = await using(opts.config, opts.database)
+		try {
+			await dx.apply(opts.name, opts['dry-run'], opts.target)
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -116,8 +223,13 @@ prog
 	.example('dbd combine')
 	.example('dbd combine -f init.sql')
 	.action(async (opts) => {
-		;(await using(opts.config, opts.database)).combine(opts.file)
-		console.log(`Generated ${opts.file}`)
+		const dx = await using(opts.config, opts.database)
+		try {
+			dx.combine(opts.file)
+			console.log(`Generated ${opts.file}`)
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -135,10 +247,13 @@ prog
 	.example('dbd import --target=convex')
 	.action(async (opts) => {
 		const env = normalizeEnv(opts.environment)
-		await (
-			await using(opts.config, opts.database, env)
-		).importData(opts.name, opts['dry-run'], opts.target)
-		console.log('Import complete.')
+		const dx = await using(opts.config, opts.database, env)
+		try {
+			await dx.importData(opts.name, opts['dry-run'], opts.target)
+			console.log('Import complete.')
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -148,8 +263,13 @@ prog
 	.example('dbd export')
 	.example('dbd export -n staging.lookups')
 	.action(async (opts) => {
-		await (await using(opts.config, opts.database)).exportData(opts.name)
-		console.log('Export complete.')
+		const dx = await using(opts.config, opts.database)
+		try {
+			await dx.exportData(opts.name)
+			console.log('Export complete.')
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -159,7 +279,12 @@ prog
 	.example('dbd dbml')
 	.example('dbd dbml -f design.dbml')
 	.action(async (opts) => {
-		;(await using(opts.config, opts.database)).dbml(opts.file)
+		const dx = await using(opts.config, opts.database)
+		try {
+			dx.dbml(opts.file)
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -169,9 +294,13 @@ prog
 	.example('dbd graph')
 	.example('dbd graph -n config.users')
 	.action(async (opts) => {
-		const design = await using(opts.config, opts.database)
-		const result = design.graph(opts.name)
-		console.log(JSON.stringify(result, null, 2))
+		const dx = await using(opts.config, opts.database)
+		try {
+			const result = dx.graph(opts.name)
+			console.log(JSON.stringify(result, null, 2))
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -183,7 +312,29 @@ prog
 	.example('dbd reset --target postgres')
 	.example('dbd reset --dry-run')
 	.action(async (opts) => {
-		await (await using(opts.config, opts.database)).reset(opts.target, opts['dry-run'])
+		const dx = await using(opts.config, opts.database)
+		try {
+			await dx.reset(opts.target, opts['dry-run'])
+		} finally {
+			await dx.disconnect()
+		}
+	})
+
+prog
+	.command('policies')
+	.option('-n, --name', 'Apply policies for a specific entity only (e.g. config.lookups)')
+	.option('--dry-run', 'Print policy files that would be applied without executing', false)
+	.describe('Apply RLS policies and grants from the policies/ folder.')
+	.example('dbd policies')
+	.example('dbd policies --name config.lookups')
+	.example('dbd policies --dry-run')
+	.action(async (opts) => {
+		const dx = await using(opts.config, opts.database)
+		try {
+			await dx.policies(opts.name, opts['dry-run'])
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -194,7 +345,12 @@ prog
 	.example('dbd grants')
 	.example('dbd grants --dry-run')
 	.action(async (opts) => {
-		await (await using(opts.config, opts.database)).grants(opts.target, opts['dry-run'])
+		const dx = await using(opts.config, opts.database)
+		try {
+			await dx.grants(opts.target, opts['dry-run'])
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -207,7 +363,12 @@ prog
 	.example('dbd convex schema')
 	.example('dbd convex schema --dry-run')
 	.action(async (opts) => {
-		await (await using(opts.config, opts.database)).apply(opts.name, opts['dry-run'], 'convex')
+		const dx = await using(opts.config, opts.database)
+		try {
+			await dx.apply(opts.name, opts['dry-run'], 'convex')
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -220,10 +381,13 @@ prog
 	.example('dbd convex seed --dry-run')
 	.action(async (opts) => {
 		const env = normalizeEnv(opts.environment)
-		await (
-			await using(opts.config, opts.database, env)
-		).importData(opts.name, opts['dry-run'], 'convex')
-		console.log('Seed complete.')
+		const dx = await using(opts.config, opts.database, env)
+		try {
+			await dx.importData(opts.name, opts['dry-run'], 'convex')
+			console.log('Seed complete.')
+		} finally {
+			await dx.disconnect()
+		}
 	})
 
 prog
@@ -249,24 +413,28 @@ prog
 			return
 		}
 
-		const design = await using(opts.config, opts.database)
-		design.validate()
-		const adapter = await design.getAdapter()
+		const dx = await using(opts.config, opts.database)
+		try {
+			dx.validate()
+			const adapter = await dx.getAdapter()
 
-		const { version, migrationDir, snapshot } = await createSnapshot(
-			adapter,
-			design.entities,
-			opts.name || '',
-			{ dir: '.' }
-		)
+			const { version, migrationDir, snapshot } = await createSnapshot(
+				adapter,
+				dx.entities,
+				opts.name || '',
+				{ dir: '.' }
+			)
 
-		console.log(`Snapshot ${padVersion(version)} created (${snapshot.tables.length} tables).`)
-		if (migrationDir) {
-			console.log(`Migration folder: ${migrationDir}`)
-		} else if (version === 1) {
-			console.log('First snapshot — no migration generated.')
-		} else {
-			console.log('No schema changes detected — no migration generated.')
+			console.log(`Snapshot ${padVersion(version)} created (${snapshot.tables.length} tables).`)
+			if (migrationDir) {
+				console.log(`Migration folder: ${migrationDir}`)
+			} else if (version === 1) {
+				console.log('First snapshot — no migration generated.')
+			} else {
+				console.log('No schema changes detected — no migration generated.')
+			}
+		} finally {
+			await dx.disconnect()
 		}
 	})
 
@@ -282,96 +450,100 @@ prog
 	.example('dbd migrate --apply --to 3')
 	.example('dbd migrate --apply --dry-run')
 	.action(async (opts) => {
-		const design = await using(opts.config, opts.database)
-		const adapter = await design.getAdapter()
+		const dx = await using(opts.config, opts.database)
+		const adapter = await dx.getAdapter()
 
-		const latest = latestSnapshot('.')
-		const localVersion = latest ? latest.version : 0
+		try {
+			const latest = latestSnapshot('.')
+			const localVersion = latest ? latest.version : 0
 
-		const dbVersion = await adapter.getDbVersion()
-		const maxVersion = opts.to ? parseInt(opts.to, 10) : localVersion
-		const pending = pendingMigrations(dbVersion, '.').filter(
-			({ toVersion }) => toVersion <= maxVersion
-		)
+			const dbVersion = await adapter.getDbVersion()
+			const maxVersion = opts.to ? parseInt(opts.to, 10) : localVersion
+			const pending = pendingMigrations(dbVersion, '.').filter(
+				({ toVersion }) => toVersion <= maxVersion
+			)
 
-		if (opts.status || (!opts.apply && !opts['dry-run'])) {
-			console.log(`Local version:    ${localVersion}`)
-			console.log(`Database version: ${dbVersion}`)
+			if (opts.status || (!opts.apply && !opts['dry-run'])) {
+				console.log(`Local version:    ${localVersion}`)
+				console.log(`Database version: ${dbVersion}`)
+				if (pending.length === 0) {
+					console.log('Up to date — no pending migrations.')
+				} else {
+					console.log(`\nPending migrations (${pending.length}):`)
+					pending.forEach(({ fromVersion, toVersion, altered, dropped }) => {
+						const summary = []
+						if (altered.length > 0) summary.push(`alter: ${altered.join(', ')}`)
+						if (dropped.length > 0) summary.push(`drop: ${dropped.join(', ')}`)
+						console.log(
+							`  ${padVersion(fromVersion)} → ${padVersion(toVersion)}  ${summary.join(' | ') || '(no table changes)'}`
+						)
+					})
+				}
+				return
+			}
+
 			if (pending.length === 0) {
-				console.log('Up to date — no pending migrations.')
-			} else {
-				console.log(`\nPending migrations (${pending.length}):`)
-				pending.forEach(({ fromVersion, toVersion, altered, dropped }) => {
-					const summary = []
-					if (altered.length > 0) summary.push(`alter: ${altered.join(', ')}`)
-					if (dropped.length > 0) summary.push(`drop: ${dropped.join(', ')}`)
+				console.log('No pending migrations.')
+				return
+			}
+
+			// Collect all SQL for each migration in graph order
+			const migrationSteps = pending.map((migration) => {
+				const steps = []
+				for (const tableName of migration.altered) {
+					const parts = tableName.split('.')
+					const schema = parts.length > 1 ? parts[0] : null
+					const tbl = parts[parts.length - 1]
+					const sqlFile = schema
+						? path.join(migration.migrationDir, schema, `${tbl}.sql`)
+						: path.join(migration.migrationDir, `${tbl}.sql`)
+					if (fs.existsSync(sqlFile)) {
+						steps.push({ tableName, sql: fs.readFileSync(sqlFile, 'utf-8') })
+					}
+				}
+				for (const tableName of migration.dropped) {
+					const parts = tableName.split('.')
+					const schema = parts.length > 1 ? parts[0] : null
+					const tbl = parts[parts.length - 1]
+					const sqlFile = schema
+						? path.join(migration.migrationDir, schema, `${tbl}.drop.sql`)
+						: path.join(migration.migrationDir, `${tbl}.drop.sql`)
+					if (fs.existsSync(sqlFile)) {
+						steps.push({ tableName, sql: fs.readFileSync(sqlFile, 'utf-8'), drop: true })
+					}
+				}
+				return { migration, steps }
+			})
+
+			if (opts['dry-run']) {
+				for (const { migration, steps } of migrationSteps) {
 					console.log(
-						`  ${padVersion(fromVersion)} → ${padVersion(toVersion)}  ${summary.join(' | ') || '(no table changes)'}`
+						`\n-- Migration v${migration.fromVersion} → v${migration.toVersion} (${migration.migrationDir})`
 					)
-				})
-			}
-			return
-		}
-
-		if (pending.length === 0) {
-			console.log('No pending migrations.')
-			return
-		}
-
-		// Collect all SQL for each migration in graph order
-		const migrationSteps = pending.map((migration) => {
-			const steps = []
-			for (const tableName of migration.altered) {
-				const parts = tableName.split('.')
-				const schema = parts.length > 1 ? parts[0] : null
-				const tbl = parts[parts.length - 1]
-				const sqlFile = schema
-					? path.join(migration.migrationDir, schema, `${tbl}.sql`)
-					: path.join(migration.migrationDir, `${tbl}.sql`)
-				if (fs.existsSync(sqlFile)) {
-					steps.push({ tableName, sql: fs.readFileSync(sqlFile, 'utf-8') })
+					for (const { tableName, sql } of steps) {
+						console.log(`\n-- Table: ${tableName}`)
+						console.log(sql)
+					}
 				}
+				return
 			}
-			for (const tableName of migration.dropped) {
-				const parts = tableName.split('.')
-				const schema = parts.length > 1 ? parts[0] : null
-				const tbl = parts[parts.length - 1]
-				const sqlFile = schema
-					? path.join(migration.migrationDir, schema, `${tbl}.drop.sql`)
-					: path.join(migration.migrationDir, `${tbl}.drop.sql`)
-				if (fs.existsSync(sqlFile)) {
-					steps.push({ tableName, sql: fs.readFileSync(sqlFile, 'utf-8'), drop: true })
-				}
-			}
-			return { migration, steps }
-		})
 
-		if (opts['dry-run']) {
+			await adapter.ensureMigrationsTable()
+
 			for (const { migration, steps } of migrationSteps) {
-				console.log(
-					`\n-- Migration v${migration.fromVersion} → v${migration.toVersion} (${migration.migrationDir})`
-				)
-				for (const { tableName, sql } of steps) {
-					console.log(`\n-- Table: ${tableName}`)
-					console.log(sql)
+				console.log(`Applying migration v${migration.fromVersion} → v${migration.toVersion}`)
+				for (const { tableName, sql, drop } of steps) {
+					const action = drop ? 'Dropping' : 'Migrating'
+					console.log(`  ${action} ${tableName}`)
+					await adapter.executeScript(sql)
 				}
+				const snap = latestSnapshot('.')
+				const description = snap && snap.version === migration.toVersion ? snap.description : ''
+				await adapter.applyMigration(migration.toVersion, '', description, migration.checksum)
+				console.log(`  Version ${migration.toVersion} recorded.`)
 			}
-			return
-		}
-
-		await adapter.ensureMigrationsTable()
-
-		for (const { migration, steps } of migrationSteps) {
-			console.log(`Applying migration v${migration.fromVersion} → v${migration.toVersion}`)
-			for (const { tableName, sql, drop } of steps) {
-				const action = drop ? 'Dropping' : 'Migrating'
-				console.log(`  ${action} ${tableName}`)
-				await adapter.executeScript(sql)
-			}
-			const snap = latestSnapshot('.')
-			const description = snap && snap.version === migration.toVersion ? snap.description : ''
-			await adapter.applyMigration(migration.toVersion, '', description, migration.checksum)
-			console.log(`  Version ${migration.toVersion} recorded.`)
+		} finally {
+			await dx.disconnect()
 		}
 	})
 

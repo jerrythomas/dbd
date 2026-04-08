@@ -1,16 +1,20 @@
 import { PsqlAdapter } from './psql-adapter.js'
+import { PgAdapter } from './pg-adapter.js'
 
-export { PsqlAdapter }
+export { PsqlAdapter, PgAdapter }
 
 /**
  * Factory function called by @jerrythomas/dbd-db's createAdapter().
  *
+ * Uses the programmatic PgAdapter (postgres.js library) by default.
+ * PsqlAdapter is still available for direct use if needed.
+ *
  * @param {string} connectionString — PostgreSQL connection URL
  * @param {Object} [options] — { verbose, dryRun }
- * @returns {PsqlAdapter}
+ * @returns {PgAdapter}
  */
 export function createAdapter(connectionString, options = {}) {
-	return new PsqlAdapter(connectionString, options)
+	return new PgAdapter(connectionString, options)
 }
 
 // Re-export parser API for direct usage

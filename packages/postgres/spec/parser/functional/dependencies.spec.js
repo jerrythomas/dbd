@@ -59,6 +59,39 @@ describe('Dependency Extraction', () => {
 			expect(entity).toEqual({ name: 'genders', schema: null, type: 'view' })
 		})
 
+		it('CTE alias is not treated as a table dependency', () => {
+			const sql = `
+				CREATE VIEW summary AS
+				WITH ranked AS (
+					SELECT id, name FROM source_table
+				)
+				SELECT id, name FROM ranked;
+			`
+			const { references } = extractDependencies(sql)
+			const names = references.map((r) => r.name)
+			expect(names).not.toContain('ranked')
+			expect(names).toContain('source_table')
+		})
+
+		it('CTE body dependencies are included and CTE alias excluded', () => {
+			const sql = `
+				CREATE VIEW report AS
+				WITH active AS (
+					SELECT id FROM users WHERE active = true
+				),
+				counts AS (
+					SELECT id FROM orders
+				)
+				SELECT a.id FROM active a JOIN counts c ON a.id = c.id;
+			`
+			const { references } = extractDependencies(sql)
+			const names = references.map((r) => r.name)
+			expect(names).toContain('users')
+			expect(names).toContain('orders')
+			expect(names).not.toContain('active')
+			expect(names).not.toContain('counts')
+		})
+
 		it('identifies a CREATE PROCEDURE entity via regex fallback', () => {
 			const sql = `
 				SET search_path to staging;

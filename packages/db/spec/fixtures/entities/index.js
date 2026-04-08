@@ -329,6 +329,7 @@ export const importScripts = [
 		input: {
 			type: 'import',
 			name: 'staging.test',
+			schema: 'staging',
 			file: 'lookup.jsonl',
 			format: 'jsonl',
 			nullValue: '',
@@ -342,6 +343,24 @@ export const importScripts = [
 			'drop table if exists _temp;'
 		].join('\n'),
 		message: 'Should override truncate option when provided'
+	},
+	{
+		input: {
+			type: 'import',
+			name: 'custom_staging.test',
+			schema: 'custom_staging',
+			file: 'lookup.jsonl',
+			format: 'jsonl',
+			nullValue: '',
+			truncate: false
+		},
+		output: [
+			'create table if not exists _temp (data jsonb);',
+			"\\copy _temp from 'lookup.jsonl';",
+			"call custom_staging.import_jsonb_to_table('_temp', 'custom_staging.test');",
+			'drop table if exists _temp;'
+		].join('\n'),
+		message: 'Should use entity schema for import_jsonb_to_table call'
 	}
 ]
 

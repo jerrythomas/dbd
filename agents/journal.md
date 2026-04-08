@@ -5,6 +5,62 @@ Design details live in `docs/design/` — modular docs per module.
 
 ---
 
+## 2026-04-08
+
+### DBML grant regex bug fix + friendlier error output — COMPLETE
+
+**Root cause:** `removeNonSchemaStatements` used `\bgrant\s` (word boundary) which matched the word `grant` anywhere in the text — including inside SQL string literals. A COMMENT ON TABLE string containing `the grant applies platform-wide` triggered the pattern; the lazy `[\s\S]*?;\n?` then consumed everything up to the statement-closing semicolon, silently truncating the comment and leaving an unclosed string literal. `normalizeComments` then failed to normalize the corrupted comment, and `@dbml/core` saw `'Reference to the role being granted this permission.'` as a bare `Reference` token — producing the cryptic ANTLR error `mismatched input 'Reference' expecting <EOF>`.
+
+**Fix:** Anchored all five `removeNonSchemaStatements` patterns to `^\s*` so they only match keywords at the start of a line (top-level SQL statements, never string content).
+
+**Also fixed:** `dbd dbml` error output — instead of dumping the raw `@dbml/core` `CompilerError` object (minified class `_` with `diags` array), now prints `DBML conversion failed for <fileName>:\n  <message>`.
+
+**Changes:**
+
+- `packages/dbml/src/converter.js` — `removeNonSchemaStatements`: `\bgrant\s` → `^\s*grant\s` (and same for revoke, create policy, drop policy, alter table rls)
+- `packages/cli/src/design.js` — `dbml()` error handler: extract `.diags[].message` from CompilerError
+- `packages/cli/spec/design-dbml-errors.spec.js` — updated test assertion to match new formatted error string
+
+**Result:** 1004 tests passing, 0 lint errors.
+
+**Commit:** `17421e3`
+
+---
+
+## 2026-03-31
+
+### dbd doctor + inspect export column check — COMPLETE
+
+Added `dbd doctor` command and enhanced `dbd inspect` with export view column validation.
+
+**Key decisions:**
+
+- `dbd doctor` audits design.yaml for 4 stale entry types: schemas with no DDL files, staging schemas with no DDL, import tables with no matching import file, export entries with no DDL
+- Protected schemas (referenced by `project.staging` or `project.extensionSchema`) are never flagged as stale
+- `dbd doctor --fix` removes all stale entries and rewrites design.yaml (original YAML structure not preserved — js-yaml dump used)
+- `checkExportColumns` validates that export view column names all exist in corresponding staging table and appear in the same relative order
+- Column order check: extract shared columns, map to their staging positions, verify positions are monotonically increasing
+- Export now moved to `packages/cli/example/` as canonical location; test specs updated to use relative paths from `__dirname`
+- npm bundle restricted to `example/ddl` and `example/import` (migrations/snapshots/design.yaml excluded via `files` field)
+- `dbd init` generates `design.yaml` programmatically; no longer copies from template
+
+**Changes:**
+
+- `packages/cli/src/doctor.js` — new: `findDDLFile`, `auditDesign`, `fixDesign`, `checkExportColumns`
+- `packages/cli/src/index.js` — `dbd doctor` command; export column check in `dbd inspect`; `dbd init` uses `fs.cpSync` with filter + programmatic `design.yaml`
+- `packages/db/src/base-adapter.js` — `parseViewColumns` stub
+- `packages/postgres/src/psql-adapter.js` / `pg-adapter.js` — `parseViewColumns` implementation using `extractViewDefinitions`
+- `packages/cli/package.json` — `files` field restricted to `src`, `example/ddl`, `example/import`
+- `example/` → `packages/cli/example/` (renamed); all `modified_on` → `modified_at` in DDL files
+- `packages/cli/spec/doctor.spec.js` — 16 tests for all doctor functions
+- `packages/cli/spec/fixtures/doctor/` — test fixture with stale entries
+
+**Result:** 958 tests passing, 0 lint errors.
+
+**Commit:** `b8289dc`
+
+---
+
 ## 2026-03-30
 
 ### Snapshots & Migrations — COMPLETE
@@ -542,3 +598,34 @@ Implemented environment-aware import so different tables and post-import scripts
 - CLI `-e` default changed from `'development'` to `'prod'`; wired through `normalizeEnv()` to `using()`
 
 **Commits:** e6f723c ← d3d151e ← c2264f7 ← 1e37037 ← f9dcff9 ← 4fb18f6 ← 2b75c7a ← 2883395 (+ earlier)
+
+---
+
+## 2026-04-06
+
+### external: section + dbd init --target supabase — COMPLETE
+
+Added `external:` support in `design.yaml` for declaring Supabase-managed tables (e.g. `auth.users`), and added `--target supabase` to `dbd init`.
+
+**Features:**
+
+- `external:` section in `design.yaml` declares tables managed outside the project. Each entry: `{ name, note?, columns?: [{col: type}, ...] }`
+- External entities are included in the reference lookup during matchReferences so FK references to them don't generate "not found" warnings
+- External entities generate minimal stub DDL (`CREATE TABLE auth.users (id uuid);`) for DBML FK rendering
+- `filterEntitiesForDBML` always includes external entities (bypass include/exclude filters) so FK references resolve in all dbdocs configs
+- `buildTableReplacements` includes external entities for schema-qualified DBML output
+- External entities are skipped in `dbd apply`, `dbd combine`, and `validate()` (never applied to DB)
+- `normalizeExternal()` in `config.js` parses external entries; `read()` populates `data.externalEntities`
+- `dbd init --target supabase` generates a Supabase-flavored `design.yaml` with `supabase:` and `external: auth.users` pre-populated
+- Example `design.yaml` updated with `external:` block for `auth.users`
+
+**Files changed:**
+
+- `packages/cli/src/config.js` — `normalizeExternal()`, `read()` populates `externalEntities`
+- `packages/cli/src/design.js` — external entities in lookup (matchRefs), entity list, skipped in apply/combine/validate
+- `packages/cli/src/index.js` — `dbd init --target supabase`
+- `packages/db/src/entity-processor.js` — `ddlFromEntity` handles `external`, `filterEntitiesForDBML` always includes externals
+- `packages/dbml/src/converter.js` — `buildTableReplacements` includes external entities
+- `packages/cli/example/design.yaml` — added `external:` example block
+
+**Tests:** 1004 passing, 0 lint errors

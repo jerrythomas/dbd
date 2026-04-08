@@ -1,0 +1,7 @@
+name,parent_name
+Fruit,
+Vegetable,
+Electronics,
+Apple,Fruit
+Banana,Fruit
+Carrot,Vegetable

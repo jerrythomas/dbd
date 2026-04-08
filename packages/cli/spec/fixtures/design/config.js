@@ -158,6 +158,18 @@ export const entities = [
 		errors: []
 	},
 	{
+		errors: [],
+		file: 'ddl/table/staging/categories.ddl',
+		format: 'ddl',
+		name: 'staging.categories',
+		references: [],
+		refers: [],
+		schema: 'staging',
+		searchPaths: ['staging'],
+		warnings: [],
+		type: 'table'
+	},
+	{
 		type: 'procedure',
 		name: 'staging.import_jsonb_to_table',
 		file: 'ddl/procedure/staging/import_jsonb_to_table.ddl',
@@ -310,6 +322,17 @@ export const entities = [
 		searchPaths: ['staging'],
 		warnings: [],
 		type: 'procedure'
+	},
+	{
+		type: 'external',
+		name: 'auth.users',
+		schema: 'auth',
+		note: 'Supabase managed authentication table',
+		columns: [{ id: 'uuid' }],
+		refers: [],
+		references: [],
+		warnings: [],
+		searchPaths: []
 	}
 ]
 

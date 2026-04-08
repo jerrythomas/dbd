@@ -1,0 +1,64 @@
+project:
+  name: Example
+  database: PostgreSQL
+  extensionSchema: extensions
+  staging:
+    - staging
+  migrate:
+    - migrate
+  dbdocs:
+    base:
+      exclude:
+        schemas:
+          - staging
+          - migrate
+          - extensions
+    core:
+      include:
+        schemas:
+          - config
+supabase:
+  - config
+
+schemas:
+  - config:
+      grants:
+        anon: [usage, select]
+        authenticated: [usage, select]
+        service_role: [usage, all]
+  - extensions
+  - staging
+  - migrate
+
+extensions:
+  - uuid-ossp
+
+# External tables managed outside this project — stubs used for DBML FK references only
+# Never applied by dbd apply
+external:
+  - name: auth.users
+    note: Supabase managed authentication table
+    columns:
+      - id: uuid
+
+roles:
+  - name: advanced
+    refers:
+      - basic
+  - name: basic
+
+import:
+  options:
+    truncate: true
+    nullValue: ''
+  tables:
+    - staging.lookup_values:
+        env: [dev, prod]
+    - staging.lookups:
+        env: dev
+
+export:
+  - config.lookups
+  - config.lookup_values
+  - config.genders
+  - migrate.lookup_values

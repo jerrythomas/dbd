@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest'
 import {
 	removeCommentBlocks,
 	removeIndexCreationStatements,
+	removeNonSchemaStatements,
 	removeCommentOnStatements,
 	normalizeComment,
 	normalizeComments,
@@ -59,6 +60,47 @@ describe('DDL cleanup', () => {
 			const sql = 'CREATE UNIQUE INDEX idx_t_id ON t(id);'
 			const result = removeIndexCreationStatements(sql)
 			expect(result).not.toContain('CREATE UNIQUE INDEX')
+		})
+	})
+
+	describe('removeNonSchemaStatements()', () => {
+		it('removes GRANT statements', () => {
+			const sql =
+				'CREATE TABLE t (id int);\nGRANT SELECT ON t TO anon;\nGRANT REFERENCES ON TABLE t TO app;'
+			const result = removeNonSchemaStatements(sql)
+			expect(result).not.toContain('GRANT')
+			expect(result).toContain('CREATE TABLE')
+		})
+
+		it('removes REVOKE statements', () => {
+			const sql = 'REVOKE ALL ON t FROM anon;'
+			expect(removeNonSchemaStatements(sql)).not.toContain('REVOKE')
+		})
+
+		it('removes CREATE POLICY statements', () => {
+			const sql = 'CREATE POLICY p ON t FOR SELECT USING (true);\nCREATE TABLE t (id int);'
+			const result = removeNonSchemaStatements(sql)
+			expect(result).not.toContain('CREATE POLICY')
+			expect(result).toContain('CREATE TABLE')
+		})
+
+		it('removes DROP POLICY statements', () => {
+			expect(removeNonSchemaStatements('DROP POLICY p ON t;')).not.toContain('DROP POLICY')
+		})
+
+		it('removes ALTER TABLE ... ENABLE ROW LEVEL SECURITY', () => {
+			const sql = 'ALTER TABLE config.lookups ENABLE ROW LEVEL SECURITY;'
+			expect(removeNonSchemaStatements(sql)).not.toContain('ROW LEVEL SECURITY')
+		})
+
+		it('removes ALTER TABLE ... DISABLE ROW LEVEL SECURITY', () => {
+			const sql = 'ALTER TABLE config.lookups DISABLE ROW LEVEL SECURITY;'
+			expect(removeNonSchemaStatements(sql)).not.toContain('ROW LEVEL SECURITY')
+		})
+
+		it('preserves CREATE TABLE statements', () => {
+			const sql = 'CREATE TABLE t (id int);\nGRANT SELECT ON t TO anon;'
+			expect(removeNonSchemaStatements(sql)).toContain('CREATE TABLE')
 		})
 	})
 
@@ -304,7 +346,20 @@ describe('Table replacements', () => {
 			})
 		})
 
-		it('skips non-table entities', () => {
+		it('includes external entities', () => {
+			const entities = [
+				{ name: 'config.users', schema: 'config', type: 'table' },
+				{ name: 'auth.users', schema: 'auth', type: 'external' }
+			]
+			const replacements = buildTableReplacements(entities)
+			expect(replacements).toHaveLength(2)
+			expect(replacements[1]).toEqual({
+				original: 'Table "users"',
+				replacement: 'Table "auth"."users" as "users"'
+			})
+		})
+
+		it('skips non-table, non-external entities', () => {
 			const entities = [
 				{ name: 'config.users', schema: 'config', type: 'table' },
 				{ name: 'config.my_view', schema: 'config', type: 'view' }
@@ -525,5 +580,34 @@ describe('generateDBML()', () => {
 		expect(results[0].content).toBeNull()
 		expect(results[0].error).toBeDefined()
 		expect(results[0].fileName).toBe('Test-main-design.dbml')
+	})
+
+	it('no dbdocs config: generates single DBML with all entities', () => {
+		const project = { name: 'MyProject', database: 'PostgreSQL' }
+
+		const results = generateDBML({
+			entities: mockEntities,
+			project,
+			ddlFromEntity: mockDdlFromEntity,
+			filterEntities: mockFilterEntities
+		})
+
+		expect(results).toHaveLength(1)
+		expect(results[0].fileName).toBe('design.dbml')
+		expect(results[0].content).toContain('Project "MyProject"')
+	})
+
+	it('no dbdocs config: respects custom file param', () => {
+		const project = { name: 'MyProject', database: 'PostgreSQL' }
+
+		const results = generateDBML({
+			entities: mockEntities,
+			project,
+			ddlFromEntity: mockDdlFromEntity,
+			filterEntities: mockFilterEntities,
+			file: 'schema.dbml'
+		})
+
+		expect(results[0].fileName).toBe('schema.dbml')
 	})
 })

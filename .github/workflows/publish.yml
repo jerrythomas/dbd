@@ -38,7 +38,7 @@ jobs:
         run: |
           # Publish in dependency order: db and dbml/postgres have no workspace deps,
           # cli depends on all three so it must be last.
-          PACKAGES=(db dbml postgres cli)
+          PACKAGES=(db dbml postgres convex cli)
           for name in "${PACKAGES[@]}"; do
             pkg="./packages/${name}/package.json"
             [ -f "$pkg" ] || continue

@@ -9,8 +9,7 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const repoRoot = join(__dirname, '..', '..', '..')
-const exampleDir = join(repoRoot, 'example')
+const exampleDir = join(__dirname, '..', 'example')
 
 // Mock fs — wrap writeFileSync so we can control it per-test
 const _writeFileSyncImpl = { fn: null }
@@ -90,7 +89,7 @@ describe('Design.dbml() — error paths', () => {
 		const result = dx.dbml()
 
 		const errorCalls = console.error.mock.calls.map((c) => c[0])
-		expect(errorCalls).toContainEqual(testError)
+		expect(errorCalls).toContainEqual('DBML conversion failed for test.dbml:\n  conversion failed')
 		expect(result).toBe(dx)
 	})
 })

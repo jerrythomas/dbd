@@ -1,6 +1,6 @@
 {
   "name": "@jerrythomas/dbd-postgres-adapter",
-  "version": "2.2.0",
+  "version": "2.2.2",
   "description": "PostgreSQL adapter for DBD database operations.",
   "type": "module",
   "main": "src/index.js",
@@ -26,6 +26,7 @@
     "@jerrythomas/dbd-db": "workspace:*",
     "csvtojson": "^2.0.10",
     "pgsql-parser": "^17.9.11",
+    "postgres": "^3.4.8",
     "ramda": "^0.29.1"
   },
   "devDependencies": {},

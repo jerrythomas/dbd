@@ -260,6 +260,15 @@ export const extractTableReferencesFromBody = (body) => {
 		.replace(/\/\*[\s\S]*?\*\//g, ' ') // block comments
 		.replace(/'[^']*'/g, "''") // string literals
 
+	// Collect CTE names (WITH [RECURSIVE] name AS (...)) so they are not treated as table refs
+	const cteNames = new Set()
+	const ctePattern = /\bWITH\s+(?:RECURSIVE\s+)?(\w+)\s+AS\s*\(|,\s*(\w+)\s+AS\s*\(/gi
+	let cteMatch
+	while ((cteMatch = ctePattern.exec(cleanBody)) !== null) {
+		const name = cteMatch[1] || cteMatch[2]
+		if (name) cteNames.add(name.toLowerCase())
+	}
+
 	const reads = new Set()
 	const writes = new Set()
 
@@ -302,7 +311,10 @@ export const extractTableReferencesFromBody = (body) => {
 		}
 	}
 
-	return { reads: Array.from(reads), writes: Array.from(writes) }
+	return {
+		reads: Array.from(reads).filter((r) => !cteNames.has(r.toLowerCase().split('.').pop())),
+		writes: Array.from(writes).filter((r) => !cteNames.has(r.toLowerCase().split('.').pop()))
+	}
 }
 
 /**

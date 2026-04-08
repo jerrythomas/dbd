@@ -1,9 +1,14 @@
 {
   "name": "@jerrythomas/dbd",
-  "version": "2.2.0",
+  "version": "2.2.2",
   "description": "Command line interface for database design and deployment.",
   "type": "module",
   "main": "src/index.js",
+  "files": [
+    "src",
+    "example/ddl",
+    "example/import"
+  ],
   "bin": {
     "dbd": "src/index.js"
   },

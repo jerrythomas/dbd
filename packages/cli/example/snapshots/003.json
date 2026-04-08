@@ -1,0 +1,422 @@
+{
+  "version": 3,
+  "description": "add notes to lookup_values",
+  "timestamp": "2026-03-30T17:29:46.587Z",
+  "tables": [
+    {
+      "name": "config.categories",
+      "schema": "config",
+      "columns": [
+        {
+          "name": "id",
+          "dataType": "uuid",
+          "nullable": false,
+          "defaultValue": "uuid_generate_v4()",
+          "constraints": [
+            {
+              "type": "PRIMARY KEY"
+            }
+          ]
+        },
+        {
+          "name": "name",
+          "dataType": "varchar(100)",
+          "nullable": false,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "parent_id",
+          "dataType": "uuid",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [
+            {
+              "type": "FOREIGN KEY",
+              "table": "categories",
+              "schema": null,
+              "column": "id"
+            }
+          ]
+        }
+      ],
+      "indexes": [],
+      "tableConstraints": []
+    },
+    {
+      "name": "config.lookups",
+      "schema": "config",
+      "columns": [
+        {
+          "name": "id",
+          "dataType": "uuid",
+          "nullable": false,
+          "defaultValue": "uuid_generate_v4()",
+          "constraints": [
+            {
+              "type": "PRIMARY KEY"
+            }
+          ],
+          "comment": "Unique identifier for the lookup. Ensures each lookup can be uniquely identified."
+        },
+        {
+          "name": "name",
+          "dataType": "varchar(30)",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [],
+          "comment": "Name of the lookup. Used to identify the lookup."
+        },
+        {
+          "name": "is_editable",
+          "dataType": "boolean",
+          "nullable": true,
+          "defaultValue": "TRUE",
+          "constraints": [],
+          "comment": "Flag indicating whether this lookup is editable."
+        },
+        {
+          "name": "icon",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [],
+          "comment": "Icon to be used for the lookup."
+        },
+        {
+          "name": "description",
+          "dataType": "text",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [],
+          "comment": "Description of the lookup. Provides additional details about the lookup."
+        },
+        {
+          "name": "modified_at",
+          "dataType": "timestamptz",
+          "nullable": false,
+          "defaultValue": "now()",
+          "constraints": [],
+          "comment": "Date and time the lookup entry was last modified. Provides a history of when changes were made."
+        },
+        {
+          "name": "modified_by",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [],
+          "comment": "User that last modified the lookup entry. Tracks who made the changes for auditing purposes."
+        },
+        {
+          "name": "tags",
+          "dataType": "text[]",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "display_order",
+          "dataType": "int",
+          "nullable": true,
+          "defaultValue": "0",
+          "constraints": []
+        }
+      ],
+      "indexes": [
+        {
+          "name": "lookup_ukey",
+          "unique": true,
+          "columns": [
+            {
+              "name": "name",
+              "order": "ASC"
+            }
+          ]
+        }
+      ],
+      "tableConstraints": []
+    },
+    {
+      "name": "staging.lookup_values",
+      "schema": "staging",
+      "columns": [
+        {
+          "name": "name",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "value",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "sequence",
+          "dataType": "int",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "is_active",
+          "dataType": "boolean",
+          "nullable": true,
+          "defaultValue": "TRUE",
+          "constraints": []
+        },
+        {
+          "name": "is_hidden",
+          "dataType": "boolean",
+          "nullable": true,
+          "defaultValue": "FALSE",
+          "constraints": []
+        },
+        {
+          "name": "details",
+          "dataType": "jsonb",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "description",
+          "dataType": "text",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "modified_at",
+          "dataType": "timestamp",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "modified_by",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        }
+      ],
+      "indexes": [
+        {
+          "name": "lookup_values_ukey",
+          "unique": true,
+          "columns": [
+            {
+              "name": "name",
+              "order": "ASC"
+            },
+            {
+              "name": "value",
+              "order": "ASC"
+            }
+          ]
+        }
+      ],
+      "tableConstraints": []
+    },
+    {
+      "name": "staging.lookups",
+      "schema": "staging",
+      "columns": [
+        {
+          "name": "name",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "is_editable",
+          "dataType": "boolean",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "icon",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "description",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        },
+        {
+          "name": "modified_at",
+          "dataType": "timestamptz",
+          "nullable": true,
+          "defaultValue": "now()",
+          "constraints": []
+        },
+        {
+          "name": "modified_by",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": "[EXPRESSION]",
+          "constraints": []
+        }
+      ],
+      "indexes": [
+        {
+          "name": "lookups_ukey",
+          "unique": true,
+          "columns": [
+            {
+              "name": "name",
+              "order": "ASC"
+            }
+          ]
+        }
+      ],
+      "tableConstraints": []
+    },
+    {
+      "name": "config.lookup_values",
+      "schema": "config",
+      "columns": [
+        {
+          "name": "id",
+          "dataType": "uuid",
+          "nullable": false,
+          "defaultValue": "uuid_generate_v4()",
+          "constraints": [
+            {
+              "type": "PRIMARY KEY"
+            }
+          ],
+          "comment": "Unique identifier for the lookup value. Ensures each value can be uniquely identified."
+        },
+        {
+          "name": "lookup_id",
+          "dataType": "uuid",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [
+            {
+              "type": "FOREIGN KEY",
+              "table": "lookups",
+              "schema": null,
+              "column": "id"
+            }
+          ],
+          "comment": "Identifier for the lookup category. References the lookups table to specify the category."
+        },
+        {
+          "name": "value",
+          "dataType": "varchar(255)",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [],
+          "comment": "The actual value associated with the lookup."
+        },
+        {
+          "name": "sequence",
+          "dataType": "int",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [],
+          "comment": "Order of the value within the lookup category. Used for sorting purposes."
+        },
+        {
+          "name": "is_active",
+          "dataType": "boolean",
+          "nullable": true,
+          "defaultValue": "TRUE",
+          "constraints": [],
+          "comment": "Flag indicating if the lookup value is active. Used to determine if the value is currently in use."
+        },
+        {
+          "name": "is_hidden",
+          "dataType": "boolean",
+          "nullable": true,
+          "defaultValue": "FALSE",
+          "constraints": [],
+          "comment": "Flag indicating if the lookup value should be hidden. Used to exclude the value from display."
+        },
+        {
+          "name": "details",
+          "dataType": "jsonb",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [],
+          "comment": "Additional details associated with the lookup value. Stored as a JSONB field to accommodate various attributes."
+        },
+        {
+          "name": "description",
+          "dataType": "text",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [],
+          "comment": "Description of the lookup value. Provides additional context about the value."
+        },
+        {
+          "name": "modified_at",
+          "dataType": "timestamptz",
+          "nullable": false,
+          "defaultValue": "now()",
+          "constraints": [],
+          "comment": "The date the lookup value was last modified. Provides a history of when changes were made."
+        },
+        {
+          "name": "modified_by",
+          "dataType": "varchar",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [],
+          "comment": "The user who last modified the lookup value. Tracks who made the changes for auditing purposes."
+        },
+        {
+          "name": "category_id",
+          "dataType": "uuid",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": [
+            {
+              "type": "FOREIGN KEY",
+              "table": "categories",
+              "schema": null,
+              "column": "id"
+            }
+          ]
+        },
+        {
+          "name": "notes",
+          "dataType": "text",
+          "nullable": true,
+          "defaultValue": null,
+          "constraints": []
+        }
+      ],
+      "indexes": [
+        {
+          "name": "lookup_values_ukey",
+          "unique": true,
+          "columns": [
+            {
+              "name": "lookup_id",
+              "order": "ASC"
+            },
+            {
+              "name": "value",
+              "order": "ASC"
+            }
+          ]
+        }
+      ],
+      "tableConstraints": []
+    }
+  ]
+}
