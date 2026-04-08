@@ -89,7 +89,7 @@ describe('Design.dbml() — error paths', () => {
 		const result = dx.dbml()
 
 		const errorCalls = console.error.mock.calls.map((c) => c[0])
-		expect(errorCalls).toContainEqual(testError)
+		expect(errorCalls).toContainEqual('DBML conversion failed for test.dbml:\n  conversion failed')
 		expect(result).toBe(dx)
 	})
 })

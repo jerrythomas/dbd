@@ -328,7 +328,10 @@ class Design {
 
 		results.map(({ fileName, content, error }) => {
 			if (error) {
-				console.error(error)
+				const messages = Array.isArray(error.diags)
+					? error.diags.map((d) => d.message).join('\n  ')
+					: (error.message ?? String(error))
+				console.error(`DBML conversion failed for ${fileName}:\n  ${messages}`)
 			} else {
 				try {
 					fs.writeFileSync(fileName, content)

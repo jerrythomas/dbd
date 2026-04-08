@@ -38,11 +38,11 @@ export function removeIndexCreationStatements(ddlText) {
  */
 export function removeNonSchemaStatements(ddlText) {
 	return ddlText
-		.replace(/\bgrant\s[\s\S]*?;\n?/gim, '')
-		.replace(/\brevoke\s[\s\S]*?;\n?/gim, '')
-		.replace(/\bcreate\s+(?:or\s+replace\s+)?policy\s[\s\S]*?;\n?/gim, '')
-		.replace(/\bdrop\s+policy\s[\s\S]*?;\n?/gim, '')
-		.replace(/\balter\s+table\s+\S+\s+(?:enable|disable)\s+row\s+level\s+security\s*;\n?/gim, '')
+		.replace(/^\s*grant\s[\s\S]*?;\n?/gim, '')
+		.replace(/^\s*revoke\s[\s\S]*?;\n?/gim, '')
+		.replace(/^\s*create\s+(?:or\s+replace\s+)?policy\s[\s\S]*?;\n?/gim, '')
+		.replace(/^\s*drop\s+policy\s[\s\S]*?;\n?/gim, '')
+		.replace(/^\s*alter\s+table\s+\S+\s+(?:enable|disable)\s+row\s+level\s+security\s*;\n?/gim, '')
 }
 
 /**
