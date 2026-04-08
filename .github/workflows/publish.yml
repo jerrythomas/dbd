@@ -36,11 +36,22 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
           NODE_NO_WARNINGS: 1
         run: |
-          # Publish in dependency order: db and dbml/postgres have no workspace deps,
-          # cli depends on all three so it must be last.
-          PACKAGES=(db dbml postgres convex cli)
-          for name in "${PACKAGES[@]}"; do
-            pkg="./packages/${name}/package.json"
+          # Publish in dependency order:
+          #   db, dbml — no workspace deps
+          #   adapters (postgres, supabase, convex, sqlite) — depend on db
+          #   supabase also depends on postgres adapter
+          #   cli — depends on everything, must be last
+          PKGDIRS=(
+            packages/db
+            packages/dbml
+            adapters/postgres
+            adapters/supabase
+            adapters/convex
+            adapters/sqlite
+            packages/cli
+          )
+          for dir in "${PKGDIRS[@]}"; do
+            pkg="./${dir}/package.json"
             [ -f "$pkg" ] || continue
             grep -q '"private": true' "$pkg" 2>/dev/null && continue
             # rewrite workspace:* to "latest" before publishing
@@ -61,7 +72,7 @@ jobs:
               git checkout -- "$pkg"
               continue
             fi
-            (cd "./packages/${name}" && npm publish --provenance --access public --tag latest)
+            (cd "./${dir}" && npm publish --provenance --access public --tag latest)
             git checkout -- "$pkg"
           done
 
