@@ -23,7 +23,7 @@ Completed the full adapter restructure plan (Steps 1–12):
 
 **Result:** 1062 tests passing, 0 lint errors.
 
-**Commit:** (pending)
+**Commit:** `fa5f123`
 
 ---
 
