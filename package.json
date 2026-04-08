@@ -18,6 +18,7 @@
     "test:convex": "vitest run --config config/vitest.config.ts --project convex",
     "test:postgres": "vitest run --config config/vitest.config.ts --project postgres",
     "test:supabase": "vitest run --config config/vitest.config.ts --project supabase",
+    "test:sqlite": "vitest run --config config/vitest.config.ts --project sqlite",
     "test:unit": "vitest run --config config/vitest.config.ts",
     "test:nopg": "vitest run --config config/vitest.config.ts",
     "coverage": "vitest run --config config/vitest.config.ts --coverage",

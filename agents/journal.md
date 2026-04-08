@@ -7,6 +7,26 @@ Design details live in `docs/design/` — modular docs per module.
 
 ## 2026-04-08
 
+### Adapter restructure + SQLite support — COMPLETE
+
+Completed the full adapter restructure plan (Steps 1–12):
+
+- **Workspace**: added `adapters/*` to workspaces; all adapter vitest projects registered
+- **`adapters/postgres`**: moved from `packages/postgres`; factory with `driver: 'pg' | 'psql'` option
+- **`adapters/supabase`**: `SupabaseAdapter extends PgAdapter`; skips 8 managed schemas + 10 pre-installed extensions
+- **`adapters/convex`**: `ConvexAdapter extends BaseDatabaseAdapter`; `prefersBatchApply()` → `true`; `applyEntities()` generates `convex/schema.ts`; `importData()` shells to `npx convex import`
+- **`adapters/sqlite`**: `SqliteAdapter extends BaseDatabaseAdapter`; `better-sqlite3` (sync API); `stripSchema()` utility; skips schema/extension/role types; `executeScript`, `applyEntity`, `importData` stubs
+- **`packages/db`**: added `prefersBatchApply()` to `BaseDatabaseAdapter` (returns `false`)
+- **`packages/cli/src/design.js`**: removed `target === 'convex'` branches; added batch-apply check; registered all adapters including `sqlite`
+- **`packages/cli/src/index.js`**: removed `dbd convex schema`/`dbd convex seed`; removed `--target` from `apply`/`import`
+- **Deleted**: `packages/postgres`, `packages/convex`
+
+**Result:** 1062 tests passing, 0 lint errors.
+
+**Commit:** (pending)
+
+---
+
 ### DBML grant regex bug fix + friendlier error output — COMPLETE
 
 **Root cause:** `removeNonSchemaStatements` used `\bgrant\s` (word boundary) which matched the word `grant` anywhere in the text — including inside SQL string literals. A COMMENT ON TABLE string containing `the grant applies platform-wide` triggered the pattern; the lazy `[\s\S]*?;\n?` then consumed everything up to the statement-closing semicolon, silently truncating the comment and leaving an unclosed string literal. `normalizeComments` then failed to normalize the corrupted comment, and `@dbml/core` saw `'Reference to the role being granted this permission.'` as a bare `Reference` token — producing the cryptic ANTLR error `mismatched input 'Reference' expecting <EOF>`.

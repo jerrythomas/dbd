@@ -481,6 +481,7 @@ export async function using(file, databaseURL, env = 'prod', opts = {}) {
 		registerAdapter('postgresql', () => import('@jerrythomas/dbd-postgres-adapter'))
 		registerAdapter('supabase', () => import('@jerrythomas/dbd-supabase-adapter'))
 		registerAdapter('convex', () => import('@jerrythomas/dbd-convex'))
+		registerAdapter('sqlite', () => import('@jerrythomas/dbd-sqlite-adapter'))
 		const convex = rawConfig.convex ?? {}
 		adapter = await createAdapter(dbType.toLowerCase(), databaseURL, { project, env, convex })
 	}

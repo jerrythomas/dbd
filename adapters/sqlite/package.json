@@ -1,0 +1,38 @@
+{
+  "name": "@jerrythomas/dbd-sqlite-adapter",
+  "version": "2.3.1",
+  "description": "SQLite adapter for DBD database operations.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "database",
+    "sqlite",
+    "adapter",
+    "ddl",
+    "import"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jerrythomas/dbd"
+  },
+  "author": "Jerry Thomas <me@jerrythomas.name>",
+  "license": "MIT",
+  "dependencies": {
+    "@jerrythomas/dbd-db": "workspace:*",
+    "better-sqlite3": "^12.8.0"
+  },
+  "devDependencies": {},
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  }
+}

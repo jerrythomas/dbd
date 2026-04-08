@@ -90,10 +90,10 @@ CLI:
 - [x] Step 5: Add `prefersBatchApply()` to `BaseDatabaseAdapter` (returns `false`); override to `true` in `ConvexAdapter`
 - [x] Step 6: Update `design.js` — remove `target === 'convex'` branches from `apply()` and `importData()`; add batch-vs-individual check in `apply()` fresh path; register all adapters in `using()`
 - [x] Step 7: Update CLI (`index.js`) — remove `dbd convex schema` / `dbd convex seed` commands; remove `--target` option from `dbd apply` and `dbd import`
-- [ ] Step 8: Create `adapters/sqlite` — `SqliteAdapter extends BaseDatabaseAdapter`, `better-sqlite3` dependency, `executeScript`, `applyEntity` (strip unsupported DDL, strip schema prefix), `importData` (CSV/TSV/JSON via prepared statements)
+- [x] Step 8: Create `adapters/sqlite` — `SqliteAdapter extends BaseDatabaseAdapter`, `better-sqlite3` dependency, `executeScript`, `applyEntity` (strip unsupported DDL, strip schema prefix), `importData` (CSV/TSV/JSON via prepared statements)
 - [x] Step 9: Delete `packages/postgres` (done alongside Step 2 to resolve workspace name collision)
 - [x] Step 10: Update all internal references (vitest project names, coverage config, `using()` registers supabase)
-- [ ] Step 11: Run `bun run test && bun run lint` — all tests pass, 0 errors
+- [x] Step 11: Run `bun run test && bun run lint` — all tests pass, 0 errors
 - [ ] Step 12: Commit
 
 ## Verification

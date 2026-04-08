@@ -44,6 +44,13 @@ export default defineConfig({
 					name: 'convex',
 					root: resolve(__dirname, '../adapters/convex')
 				}
+			},
+			{
+				extends: true,
+				test: {
+					name: 'sqlite',
+					root: resolve(__dirname, '../adapters/sqlite')
+				}
 			}
 		]
 	}
