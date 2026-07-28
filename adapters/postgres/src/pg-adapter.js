@@ -117,7 +117,9 @@ export class PgAdapter extends BaseDatabaseAdapter {
 
 		console.info(`Applying ${entity.type}: ${entity.name}`)
 
-		if (entity.file) {
+		if (entity.type === 'enum' && entity.file) {
+			await this.#applyEnum(entity, options)
+		} else if (entity.file) {
 			await this.executeFile(entity.file, options)
 		} else {
 			const ddl = ddlFromEntity(entity)
@@ -202,6 +204,39 @@ export class PgAdapter extends BaseDatabaseAdapter {
 		return null
 	}
 
+	async #applyEnum(entity, options = {}) {
+		const content = readFileSync(entity.file, 'utf-8')
+		const typeName = entity.name.split('.')[1]
+		const schemaName = entity.schema
+
+		// Extract SET search_path (runs outside the DO block)
+		const searchPathMatch = content.match(/^(set\s+search_path\s+[^;]+;)/im)
+		const searchPath = searchPathMatch ? searchPathMatch[1] + '\n' : ''
+
+		// Extract the CREATE TYPE ... AS ENUM (...); statement
+		const createMatch = content.match(
+			/create\s+type\s+(?:if\s+not\s+exists\s+)?\S+\s+as\s+enum\s*\([^)]+\)\s*;/is
+		)
+		if (!createMatch) {
+			await this.executeFile(entity.file, options)
+			return
+		}
+
+		const script = [
+			searchPath,
+			`DO $$ BEGIN`,
+			`IF NOT EXISTS (`,
+			`  SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace`,
+			`  WHERE t.typname = '${typeName}' AND n.nspname = '${schemaName}'`,
+			`) THEN`,
+			createMatch[0],
+			`END IF;`,
+			`END $$;`
+		].join('\n')
+
+		await this.executeScript(script, options)
+	}
+
 	async #queryEntity(schema, name) {
 		// Check relations (tables, views, materialized views)
 		const relRows = await this.#db`
@@ -214,6 +249,18 @@ export class PgAdapter extends BaseDatabaseAdapter {
 			const { relname, nspname, relkind } = relRows[0]
 			const typeMap = { r: 'table', v: 'view', m: 'view' }
 			return { name: `${nspname}.${relname}`, schema: nspname, type: typeMap[relkind] || 'table' }
+		}
+
+		// Check enum types
+		const enumRows = await this.#db`
+      SELECT t.typname, n.nspname
+      FROM pg_catalog.pg_type t
+      JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = ${schema} AND t.typname = ${name} AND t.typtype = 'e'
+      LIMIT 1`
+		if (enumRows.length > 0) {
+			const { typname, nspname } = enumRows[0]
+			return { name: `${nspname}.${typname}`, schema: nspname, type: 'enum' }
 		}
 
 		// Check routines (functions, procedures)

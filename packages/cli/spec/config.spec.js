@@ -55,6 +55,7 @@ describe('config', () => {
 		it('fills missing entity types with empty arrays', () => {
 			process.chdir(exampleDir)
 			const data = read('design.yaml')
+			expect(Array.isArray(data.enums)).toBe(true)
 			expect(Array.isArray(data.tables)).toBe(true)
 			expect(Array.isArray(data.views)).toBe(true)
 			expect(Array.isArray(data.functions)).toBe(true)
@@ -62,11 +63,15 @@ describe('config', () => {
 			expect(Array.isArray(data.roles)).toBe(true)
 		})
 
-		it('entities array is union of tables+views+functions+procedures', () => {
+		it('entities array is union of enums+tables+views+functions+procedures', () => {
 			process.chdir(exampleDir)
 			const data = read('design.yaml')
 			expect(data.entities.length).toBe(
-				data.tables.length + data.views.length + data.functions.length + data.procedures.length
+				data.enums.length +
+					data.tables.length +
+					data.views.length +
+					data.functions.length +
+					data.procedures.length
 			)
 		})
 

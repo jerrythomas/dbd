@@ -182,6 +182,30 @@ dbd apply               # Rebuild from DDL; records one entry at latest snapshot
 
 After reset + apply the database is rebuilt from scratch. No ALTER scripts run — the DDL files already represent the final state. Exactly one `_dbd_migrations` row is recorded at the current snapshot version.
 
+## Deploying from a GitHub repository
+
+For automated deployments from a binary app or CI pipeline:
+
+```sh
+# One-shot deploy: fetch from GitHub → apply → import → cleanup
+dbd deploy --source sensei-hq/daemon/database -d $DATABASE_URL
+
+# Deploy a specific release tag
+dbd deploy --source sensei-hq/daemon/database@v2.1 -d $DATABASE_URL
+
+# Preview before deploying
+dbd deploy --source sensei-hq/daemon/database -d $DATABASE_URL --dry-run
+```
+
+You can also use `--source` with individual commands:
+
+```sh
+dbd inspect --source sensei-hq/daemon/database
+dbd apply --source sensei-hq/daemon/database -d $DATABASE_URL
+```
+
+See [04-commands.md](./04-commands.md) for full `--source` and `deploy` documentation.
+
 ## Typical development loop
 
 ```sh

@@ -114,7 +114,9 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 
 		console.info(`Applying ${entity.type}: ${entity.name}`)
 
-		if (entity.file) {
+		if (entity.type === 'enum' && entity.file) {
+			await this.#applyEnum(entity, options)
+		} else if (entity.file) {
 			await this.executeFile(entity.file, options)
 		} else {
 			const ddl = ddlFromEntity(entity)
@@ -177,6 +179,21 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 			// Query failed — connection issue or permission problem
 		}
 
+		// Check enum types
+		const enumQuery = `SELECT t.typname, n.nspname FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = '${schema}' AND t.typname = '${name}' AND t.typtype = 'e' LIMIT 1`
+		try {
+			const output = execSync(`psql ${this.connectionString} -t -A -c "${enumQuery}"`, {
+				stdio: 'pipe',
+				encoding: 'utf8'
+			}).trim()
+			if (output) {
+				const [typname, nspname] = output.split('|')
+				return { name: `${nspname}.${typname}`, schema: nspname, type: 'enum' }
+			}
+		} catch {
+			// Query failed
+		}
+
 		// Check routines (functions, procedures)
 		const procQuery = `SELECT p.proname, n.nspname, p.prokind FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = '${schema}' AND p.proname = '${name}' LIMIT 1`
 		try {
@@ -198,6 +215,39 @@ export class PsqlAdapter extends BaseDatabaseAdapter {
 		}
 
 		return null
+	}
+
+	async #applyEnum(entity, options = {}) {
+		const content = readFileSync(entity.file, 'utf-8')
+		const typeName = entity.name.split('.')[1]
+		const schemaName = entity.schema
+
+		// Extract SET search_path (runs outside the DO block)
+		const searchPathMatch = content.match(/^(set\s+search_path\s+[^;]+;)/im)
+		const searchPath = searchPathMatch ? searchPathMatch[1] + '\n' : ''
+
+		// Extract the CREATE TYPE ... AS ENUM (...); statement
+		const createMatch = content.match(
+			/create\s+type\s+(?:if\s+not\s+exists\s+)?\S+\s+as\s+enum\s*\([^)]+\)\s*;/is
+		)
+		if (!createMatch) {
+			await this.executeFile(entity.file, options)
+			return
+		}
+
+		const script = [
+			searchPath,
+			`DO $$ BEGIN`,
+			`IF NOT EXISTS (`,
+			`  SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace`,
+			`  WHERE t.typname = '${typeName}' AND n.nspname = '${schemaName}'`,
+			`) THEN`,
+			createMatch[0],
+			`END IF;`,
+			`END $$;`
+		].join('\n')
+
+		await this.executeScript(script, options)
 	}
 
 	async exportData(entity, options = {}) {

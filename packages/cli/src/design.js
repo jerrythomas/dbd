@@ -51,7 +51,9 @@ class Design {
 		this.#config = omit(['importTables'], config)
 		this.#config.extensions = this.#config.extensions ?? []
 		this.#config.roles = sortByDependencies(config.roles)
-		this.#config.entities = sortByDependencies(config.entities)
+		const enums = config.entities.filter((e) => e.type === 'enum')
+		const nonEnums = config.entities.filter((e) => e.type !== 'enum')
+		this.#config.entities = [...sortByDependencies(enums), ...sortByDependencies(nonEnums)]
 
 		this.#entities = [
 			...this.#config.schemas.map((schema) => entityFromSchemaName(schema)),

@@ -3,7 +3,7 @@ import { extname, sep } from 'path'
 
 // --- Constants (copied from src/constants.js) ---
 
-export const typesWithSchema = ['table', 'view', 'function', 'procedure', 'import']
+export const typesWithSchema = ['enum', 'table', 'view', 'function', 'procedure', 'import']
 export const typesWithoutSchema = ['role', 'schema', 'extension']
 export const allowedTypes = [...typesWithSchema, ...typesWithoutSchema]
 export const defaultExportOptions = { format: 'csv' }

@@ -134,6 +134,18 @@ export const entities = [
 	roleBasic,
 	roleAdvanced,
 	{
+		type: 'enum',
+		name: 'config.status',
+		file: 'ddl/enum/config/status.ddl',
+		format: 'ddl',
+		schema: 'config',
+		refers: [],
+		references: [],
+		searchPaths: ['config', 'extensions'],
+		warnings: [],
+		errors: []
+	},
+	{
 		...tblConfigCategories,
 		references: [
 			{

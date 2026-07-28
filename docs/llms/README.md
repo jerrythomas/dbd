@@ -15,15 +15,15 @@ It is optimised for LLM consumption: dense, concrete, no filler.
 
 ## Documents
 
-| File                                                       | When to read                                                          |
-| ---------------------------------------------------------- | --------------------------------------------------------------------- |
-| [01-quickstart.md](./01-quickstart.md)                     | Starting a new project from scratch                                   |
-| [02-design-yaml.md](./02-design-yaml.md)                   | Full `design.yaml` configuration reference                            |
-| [03-ddl-patterns.md](./03-ddl-patterns.md)                 | How to write DDL files (tables, views, functions, procedures)         |
-| [04-commands.md](./04-commands.md)                         | All CLI commands and options                                          |
-| [05-import-export.md](./05-import-export.md)               | Loading and exporting data                                            |
-| [06-dependency-graph.md](./06-dependency-graph.md)         | Dependency graph: how it's built, API, impact analysis, LLM use cases |
-| [07-snapshots-migrations.md](./07-snapshots-migrations.md) | Schema evolution: snapshots, migrations, `_dbd_migrations` tracking   |
+| File                                                       | When to read                                                                |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [01-quickstart.md](./01-quickstart.md)                     | Starting a new project from scratch                                         |
+| [02-design-yaml.md](./02-design-yaml.md)                   | Full `design.yaml` configuration reference                                  |
+| [03-ddl-patterns.md](./03-ddl-patterns.md)                 | How to write DDL files (tables, views, functions, procedures)               |
+| [04-commands.md](./04-commands.md)                         | All CLI commands and options (incl. `--source`, `deploy`)                   |
+| [05-import-export.md](./05-import-export.md)               | Loading and exporting data                                                  |
+| [06-dependency-graph.md](./06-dependency-graph.md)         | Dependency graph: how it's built, API, impact analysis, LLM use cases       |
+| [07-snapshots-migrations.md](./07-snapshots-migrations.md) | Schema evolution: snapshots, migrations, deploy scenarios, apply vs migrate |
 
 ## Key facts at a glance
 

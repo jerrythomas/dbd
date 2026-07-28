@@ -322,21 +322,39 @@ describe('PsqlAdapter', () => {
 			expect(result).toEqual({ name: 'public.seq', schema: 'public', type: 'table' })
 		})
 
+		it('resolves an enum type via pg_type', async () => {
+			// pg_class empty, pg_type returns enum
+			execSync.mockReturnValueOnce('').mockReturnValueOnce('status|config|')
+			const result = await adapter.resolveEntity('config.status')
+			expect(result).toEqual({ name: 'config.status', schema: 'config', type: 'enum' })
+		})
+
 		it('falls back to function type for unknown prokind', async () => {
-			execSync.mockReturnValueOnce('').mockReturnValueOnce('my_agg|public|x')
+			// pg_class empty, pg_type empty, pg_proc returns aggregate
+			execSync
+				.mockReturnValueOnce('')
+				.mockReturnValueOnce('')
+				.mockReturnValueOnce('my_agg|public|x')
 			const result = await adapter.resolveEntity('public.my_agg')
 			expect(result).toEqual({ name: 'public.my_agg', schema: 'public', type: 'function' })
 		})
 
-		it('falls back to pg_proc when pg_class finds nothing', async () => {
-			// First call (pg_class) returns empty, second call (pg_proc) returns function
-			execSync.mockReturnValueOnce('').mockReturnValueOnce('do_stuff|public|f')
+		it('falls back to pg_proc when pg_class and pg_type find nothing', async () => {
+			// pg_class empty, pg_type empty, pg_proc returns function
+			execSync
+				.mockReturnValueOnce('')
+				.mockReturnValueOnce('')
+				.mockReturnValueOnce('do_stuff|public|f')
 			const result = await adapter.resolveEntity('public.do_stuff')
 			expect(result).toEqual({ name: 'public.do_stuff', schema: 'public', type: 'function' })
 		})
 
 		it('resolves procedure via pg_proc', async () => {
-			execSync.mockReturnValueOnce('').mockReturnValueOnce('run_job|batch|p')
+			// pg_class empty, pg_type empty, pg_proc returns procedure
+			execSync
+				.mockReturnValueOnce('')
+				.mockReturnValueOnce('')
+				.mockReturnValueOnce('run_job|batch|p')
 			const result = await adapter.resolveEntity('batch.run_job')
 			expect(result).toEqual({ name: 'batch.run_job', schema: 'batch', type: 'procedure' })
 		})
@@ -354,8 +372,9 @@ describe('PsqlAdapter', () => {
 		})
 
 		it('tries multiple searchPaths until found', async () => {
-			// First schema (staging) — pg_class empty, pg_proc empty
+			// First schema (staging) — pg_class empty, pg_type empty, pg_proc empty
 			execSync
+				.mockReturnValueOnce('')
 				.mockReturnValueOnce('')
 				.mockReturnValueOnce('')
 				// Second schema (public) — pg_class returns table
@@ -365,10 +384,12 @@ describe('PsqlAdapter', () => {
 		})
 
 		it('handles pg_class query failure gracefully', async () => {
+			// pg_class fails, pg_type empty, pg_proc returns function
 			execSync
 				.mockImplementationOnce(() => {
 					throw new Error('connection refused')
 				})
+				.mockReturnValueOnce('')
 				.mockReturnValueOnce('do_stuff|public|f')
 			const result = await adapter.resolveEntity('public.do_stuff')
 			expect(result).toEqual({ name: 'public.do_stuff', schema: 'public', type: 'function' })

@@ -249,6 +249,111 @@ After reset + apply the database is at the current DDL state. No ALTER scripts a
 
 ---
 
+## `apply` vs `migrate` — when to use which
+
+Both commands run pending migrations. They differ in what else they do:
+
+| Aspect                        | `dbd apply`                                    | `dbd migrate --apply`                   |
+| ----------------------------- | ---------------------------------------------- | --------------------------------------- |
+| **Runs pending migrations**   | Yes (interleaved with DDL)                     | Yes (migrations only)                   |
+| **Re-applies all DDL**        | Yes (`CREATE OR REPLACE` for every entity)     | No                                      |
+| **Creates schemas/roles/ext** | Yes                                            | No                                      |
+| **Handles fresh DB**          | Yes (creates everything from scratch)          | No (requires tables to already exist)   |
+| **Handles reset + rebuild**   | Yes                                            | No                                      |
+| **Safe for production**       | Yes (DDL is idempotent) but touches everything | Yes, minimal change set                 |
+| **Use case**                  | Full sync, dev workflow, deploy                | Surgical prod update, CI migration step |
+
+**Rule of thumb:**
+
+- **Development / deploy / fresh DB** → `dbd apply`
+- **Production with existing data, minimal changes** → `dbd migrate --apply`
+- **Need to preview changes first** → `dbd migrate --status` then `dbd migrate --apply --dry-run`
+
+---
+
+## Remote deployment with `dbd deploy`
+
+For deploying database changes from a Git repository (e.g., from a release tag in CI):
+
+```sh
+# Full deploy from GitHub: fetch → apply → import → cleanup
+dbd deploy --source sensei-hq/daemon/database@v2.1 -d $DATABASE_URL
+
+# Dry-run to preview
+dbd deploy --source sensei-hq/daemon/database@v2.1 -d $DATABASE_URL --dry-run
+```
+
+`deploy` uses `apply` internally, so it handles all scenarios: fresh DB, incremental migrations, and full rebuild after reset.
+
+For more targeted remote operations, use `--source` on individual commands:
+
+```sh
+# Only run pending migrations from a remote source (no data import)
+dbd apply --source sensei-hq/daemon/database@v2.1 -d $DATABASE_URL
+
+# Check migration status against a remote source
+dbd migrate --status --source sensei-hq/daemon/database -d $DATABASE_URL
+```
+
+---
+
+## Deployment scenarios
+
+### Fresh database (no tables, no history)
+
+```sh
+dbd apply     # or dbd deploy --source ...
+```
+
+- All entities created from DDL in dependency order
+- If snapshots exist, records latest version in `_dbd_migrations`
+- No ALTER scripts run — DDL files are the source of truth
+
+### Incremental update (DB at v2, snapshots at v4)
+
+```sh
+dbd apply     # or dbd deploy --source ...
+```
+
+- Pending migrations v3 and v4 run (ALTER scripts interleaved with DDL)
+- All views/functions/procedures re-applied (idempotent)
+- Both migration versions recorded in `_dbd_migrations`
+
+### Production — migrations only
+
+```sh
+dbd migrate --status              # Check what's pending
+dbd migrate --apply --dry-run     # Preview the SQL
+dbd migrate --apply               # Run only ALTER scripts
+```
+
+- Only ALTER/DROP SQL from migration folders runs
+- No DDL re-apply, no schema/role creation
+- Minimal footprint for production databases
+
+### Reset and rebuild
+
+```sh
+dbd reset               # Drop all schemas, clear migration history
+dbd apply               # Rebuild from DDL
+```
+
+- Database returns to bare state
+- Full rebuild from DDL, records one `_dbd_migrations` entry at latest version
+- No ALTER scripts run
+
+### Pre-snapshot database (tables exist, no `_dbd_migrations`)
+
+```sh
+dbd apply
+```
+
+- `apply` detects tables exist but `dbVersion === 0`
+- Falls through to run any pending migrations
+- Safe: existing tables get `CREATE OR REPLACE` (idempotent)
+
+---
+
 ## Edge cases
 
 **Catch-up (multiple pending versions):** `dbd apply` and `dbd migrate --apply` both handle multiple pending versions in order. A DB at v1 with snapshots up to v3 will apply v2 then v3 migrations.

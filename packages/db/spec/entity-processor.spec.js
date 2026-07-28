@@ -47,7 +47,7 @@ describe('entity-processor', () => {
 
 	describe('constants', () => {
 		it('typesWithSchema matches expected', () => {
-			expect(typesWithSchema).toEqual(['table', 'view', 'function', 'procedure', 'import'])
+			expect(typesWithSchema).toEqual(['enum', 'table', 'view', 'function', 'procedure', 'import'])
 		})
 
 		it('typesWithoutSchema matches expected', () => {

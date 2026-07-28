@@ -4,14 +4,15 @@
 
 All commands accept these options:
 
-| Option          | Short | Default         | Description             |
-| --------------- | ----- | --------------- | ----------------------- |
-| `--config`      | `-c`  | `design.yaml`   | Path to config file     |
-| `--database`    | `-d`  | `$DATABASE_URL` | Database connection URL |
-| `--environment` | `-e`  | `prod`          | Environment name        |
-| `--preview`     | `-p`  | `false`         | Preview mode            |
-| `--version`     | `-v`  |                 | Print version           |
-| `--help`        | `-h`  |                 | Print help              |
+| Option          | Short | Default         | Description                                         |
+| --------------- | ----- | --------------- | --------------------------------------------------- |
+| `--config`      | `-c`  | `design.yaml`   | Path to config file                                 |
+| `--database`    | `-d`  | `$DATABASE_URL` | Database connection URL                             |
+| `--environment` | `-e`  | `prod`          | Environment name                                    |
+| `--preview`     | `-p`  | `false`         | Preview mode                                        |
+| `--source`      | `-s`  | `.`             | Source directory or GitHub repo (`owner/repo/path`) |
+| `--version`     | `-v`  |                 | Print version                                       |
+| `--help`        | `-h`  |                 | Print help                                          |
 
 **Database URL format:**
 
@@ -20,6 +21,38 @@ postgres://user:pass@host:port/dbname
 ```
 
 The `DATABASE_URL` environment variable is read automatically. Pass `-d` to override.
+
+### `--source`
+
+Point dbd at a database project directory other than the current folder. Accepts local paths or GitHub repositories.
+
+```sh
+# Local path
+dbd inspect --source ./projects/mydb
+
+# GitHub shorthand (owner/repo/subfolder)
+dbd inspect --source sensei-hq/daemon/database
+
+# GitHub with branch/tag
+dbd apply --source sensei-hq/daemon/database@v2.1 -d $DATABASE_URL
+
+# Full GitHub URL
+dbd inspect --source https://github.com/sensei-hq/daemon/tree/main/database
+```
+
+**GitHub source formats:**
+
+| Format                                           | Example                          |
+| ------------------------------------------------ | -------------------------------- |
+| `owner/repo`                                     | `sensei-hq/daemon`               |
+| `owner/repo/subfolder`                           | `sensei-hq/daemon/database`      |
+| `owner/repo@ref`                                 | `sensei-hq/daemon@v2.1`          |
+| `owner/repo/subfolder@ref`                       | `sensei-hq/daemon/database@main` |
+| `https://github.com/owner/repo/tree/branch/path` | Full URL with branch and path    |
+
+**Caching:** Individual commands cache GitHub downloads in `~/.cache/dbd/` for 1 hour. Running `dbd apply --source X` then `dbd import --source X` reuses the cached download.
+
+**Private repos:** Set `GITHUB_TOKEN` environment variable for authentication.
 
 ---
 
@@ -32,7 +65,7 @@ dbd init                  # Creates a folder named "database"
 dbd init -p myproject     # Creates a folder named "myproject"
 ```
 
-Uses `degit jerrythomas/dbd/example` under the hood. Requires internet access.
+Copies the bundled example project template. Works offline.
 
 **Output:** A new folder containing `design.yaml`, `ddl/`, `import/` with example files.
 
@@ -240,6 +273,63 @@ See [07-snapshots-migrations.md](./07-snapshots-migrations.md) for full details 
 
 ---
 
+## `dbd deploy`
+
+Deploy a database from a remote or local source in one step. Combines apply (with migrations) and import into a single command.
+
+```sh
+# Deploy from a GitHub repo
+dbd deploy --source sensei-hq/daemon/database -d $DATABASE_URL
+
+# Deploy a specific version
+dbd deploy --source sensei-hq/daemon/database@v2.1 -d $DATABASE_URL
+
+# Deploy from a local path
+dbd deploy --source ./releases/database -d $DATABASE_URL
+
+# Preview what would happen
+dbd deploy --source sensei-hq/daemon/database -d $DATABASE_URL --dry-run
+```
+
+**Requires** both `--source` and `--database`.
+
+**Execution sequence:**
+
+1. **Fetch** — downloads from GitHub to a temp directory (or resolves local path)
+2. **Apply** — runs `dbd apply` (schemas, extensions, roles, entities, plus any pending migrations)
+3. **Import** — runs `dbd import` (loads staging data)
+4. **Cleanup** — removes the temp directory (GitHub sources only)
+
+**Output:**
+
+```
+Downloading from GitHub: sensei-hq/daemon/database
+
+--- apply ---
+Migrating config.lookups (v2 → v3)
+...
+
+--- import ---
+Importing staging.lookups
+Import complete.
+
+Deploy complete.
+```
+
+**When to use `deploy` vs individual commands:**
+
+| Scenario                                     | Command                         |
+| -------------------------------------------- | ------------------------------- |
+| Automate full deployment from a binary/CI    | `dbd deploy --source ...`       |
+| Apply schema changes only (no data reload)   | `dbd apply --source ...`        |
+| Run only pending ALTER scripts in production | `dbd migrate --apply`           |
+| Check what's pending before deploying        | `dbd migrate --status`          |
+| Preview migration SQL                        | `dbd migrate --apply --dry-run` |
+
+**Cleanup:** Unlike individual commands (which cache downloads), `deploy` always cleans up temp files after completion. It's designed for one-shot automated deployments.
+
+---
+
 ## `dbd dbml`
 
 Generate DBML documentation files for dbdocs.io.
@@ -268,6 +358,7 @@ Include/exclude filters from `design.yaml` apply per document.
 
 ## Environment variables
 
-| Variable       | Used by                                    |
-| -------------- | ------------------------------------------ |
-| `DATABASE_URL` | All commands needing a database connection |
+| Variable       | Used by                                     |
+| -------------- | ------------------------------------------- |
+| `DATABASE_URL` | All commands needing a database connection  |
+| `GITHUB_TOKEN` | `--source` with private GitHub repositories |

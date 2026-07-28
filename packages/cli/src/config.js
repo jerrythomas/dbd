@@ -171,7 +171,13 @@ export function read(file) {
 	data.policyFiles = scanPolicies()
 	data.externalEntities = (data.external ?? []).map(normalizeExternal)
 
-	data.entities = [...data.tables, ...data.views, ...data.functions, ...data.procedures]
+	data.entities = [
+		...data.enums,
+		...data.tables,
+		...data.views,
+		...data.functions,
+		...data.procedures
+	]
 	data.project = { staging: [], migrate: [], ...data.project }
 
 	return data
@@ -184,7 +190,7 @@ export function read(file) {
  * @returns {Object}
  */
 export function fillMissingInfoForEntities(data) {
-	const types = ['role', 'table', 'view', 'function', 'procedure']
+	const types = ['role', 'enum', 'table', 'view', 'function', 'procedure']
 
 	types.map((type) => {
 		const key = `${type}s`

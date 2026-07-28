@@ -106,11 +106,17 @@ const extractFunctionEntity = (stmt) => {
 	return info?.name?.[0] ? { name: info.name[0].value, schema: info.schema || null } : null
 }
 
+const extractEnumEntity = (stmt) => {
+	const info = stmt.name
+	return info ? { name: info.name, schema: info.schema || null } : null
+}
+
 const ENTITY_EXTRACTORS = {
 	table: extractTableEntity,
 	view: extractViewEntity,
 	procedure: extractProcedureEntity,
-	function: extractFunctionEntity
+	function: extractFunctionEntity,
+	enum: extractEnumEntity
 }
 
 /**
@@ -134,12 +140,19 @@ export const identifyEntity = (ast, sql) => {
 	}
 
 	if (sql) {
-		const match = sql.match(
+		const funcMatch = sql.match(
 			/CREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(?:(\w+)\.)?(\w+)/i
 		)
-		if (match) {
-			const keyword = /FUNCTION/i.test(match[0]) ? 'function' : 'procedure'
-			return { name: match[2], schema: match[1] || null, type: keyword }
+		if (funcMatch) {
+			const keyword = /FUNCTION/i.test(funcMatch[0]) ? 'function' : 'procedure'
+			return { name: funcMatch[2], schema: funcMatch[1] || null, type: keyword }
+		}
+
+		const enumMatch = sql.match(
+			/CREATE\s+TYPE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:(\w+)\.)?(\w+)\s+AS\s+ENUM/i
+		)
+		if (enumMatch) {
+			return { name: enumMatch[2], schema: enumMatch[1] || null, type: 'enum' }
 		}
 	}
 

@@ -8,6 +8,7 @@ import { translateViewStmt } from './create-view.js'
 import { translateCreateFunctionStmt } from './create-function.js'
 import { translateIndexStmt } from './create-index.js'
 import { translateCreateTrigStmt } from './create-trigger.js'
+import { translateCreateEnumStmt } from './create-enum.js'
 import { translateVariableSetStmt } from './variable-set.js'
 import { translateCommentStmt } from './comment.js'
 
@@ -31,6 +32,8 @@ export const translatePgStmt = (pgStmt, originalSql) => {
 			return translateIndexStmt(stmtBody, originalSql)
 		case 'CreateTrigStmt':
 			return translateCreateTrigStmt(stmtBody, originalSql)
+		case 'CreateEnumStmt':
+			return translateCreateEnumStmt(stmtBody, originalSql)
 		case 'VariableSetStmt':
 			return translateVariableSetStmt(stmtBody)
 		case 'CommentStmt':
